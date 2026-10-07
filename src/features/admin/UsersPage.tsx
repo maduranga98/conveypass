@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { KeyRound, Pencil, Plus, Search, UserCheck, UserX, Users } from 'lucide-react'
+import { KeyRound, Pencil, Plus, UserCheck, UserX, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/Badge'
@@ -135,14 +135,12 @@ export default function UsersPage() {
         </Button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-[1fr_10rem_10rem]">
-        <div className="relative">
-          <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1fr_10rem_10rem]">
+        <div className="col-span-2 sm:col-span-1">
           <Input
             label={t.searchLabel}
             type="search"
             placeholder={t.searchPlaceholder}
-            className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
