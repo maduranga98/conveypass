@@ -4,11 +4,13 @@ import { DEFAULT_CHECKLIST } from './defaultChecklist.js'
 import { evidenceFolder, expectedAttempt, planSubmit, validateChecklist } from './passRules.js'
 import { passIdFor, resolveVehicle, submitPass, updateTenantSettings } from './passes.js'
 import { admin, caller, drv1, drv1b, makeWorld, NOW, rejects, sup1, userDoc, type World } from './test-utils.js'
-import type { PassData, StoredFile } from './types.js'
+import type { PassData, StoredFile, VehicleData } from './types.js'
 
 const VID = 'veh_aaaaaaaaaa'
 const DAY = dateKey('Asia/Colombo', new Date(NOW * 1000))
 const PASS_ID = `${VID}_${DAY}`
+
+const veh = () => w.vehicles.get(VID) as VehicleData
 
 let w: World
 beforeEach(() => {
@@ -87,13 +89,13 @@ describe('resolveVehicle', () => {
     expect(await resolve(drv1(), 'veh_bbbbbbbbbb')).toEqual({ state: 'not_assigned' })
   })
   it('not_found for unknown ids, malformed ids and other tenants’ vehicles', async () => {
-    w.vehicles.set('veh_cccccccccc', { ...(w.vehicles.get(VID) as never), tenantId: 'T2', contractorId: 'CX' })
+    w.vehicles.set('veh_cccccccccc', { ...veh(), tenantId: 'T2', contractorId: 'CX' })
     for (const id of ['veh_zzzzzzzzzz', 'nope', '', 'veh_cccccccccc']) expect(await resolve(drv1(), id)).toEqual({ state: 'not_found' })
   })
   it('vehicle_suspended and contractor_suspended', async () => {
-    w.vehicles.set(VID, { ...(w.vehicles.get(VID) as never), status: 'suspended' })
+    w.vehicles.set(VID, { ...veh(), status: 'suspended' })
     expect(await resolve()).toEqual({ state: 'vehicle_suspended' })
-    w.vehicles.set(VID, { ...(w.vehicles.get(VID) as never), status: 'active' })
+    w.vehicles.set(VID, { ...veh(), status: 'active' })
     w.contractors.set('C1', { tenantId: 'T1', status: 'suspended' })
     expect(await resolve()).toEqual({ state: 'contractor_suspended' })
   })
@@ -109,10 +111,10 @@ describe('resolveVehicle', () => {
   it('shows an existing pass to anyone assigned, with who submitted it', async () => {
     seedPass()
     expect(await resolve(drv1b())).toEqual({
-      state: 'pending', pass: { status: 'submitted', submittedAt: NOW * 1000 - 5000, driverName: 'Name' },
+      state: 'pending', pass: { passId: PASS_ID, plateNo: 'WP LJ-4821', status: 'submitted', submittedAt: NOW * 1000 - 5000, driverName: 'Name', mine: false },
     })
     seedPass({ status: 'supervisor_approved' })
-    expect((await resolve()).state).toBe('pending')
+    expect(await resolve()).toMatchObject({ state: 'pending', pass: { mine: true } })
     seedPass({ status: 'officer_approved' })
     expect((await resolve()).state).toBe('approved')
     seedPass({ status: 'checked_in' })
@@ -168,14 +170,14 @@ describe('submitPass', () => {
   })
   it('rejects suspended vehicle and suspended contractor', async () => {
     putFiles()
-    w.vehicles.set(VID, { ...(w.vehicles.get(VID) as never), status: 'suspended' })
+    w.vehicles.set(VID, { ...veh(), status: 'suspended' })
     await rejects(submit(), 'failed-precondition', 'vehicle-suspended')
-    w.vehicles.set(VID, { ...(w.vehicles.get(VID) as never), status: 'active' })
+    w.vehicles.set(VID, { ...veh(), status: 'active' })
     w.contractors.set('C1', { tenantId: 'T1', status: 'suspended' })
     await rejects(submit(), 'failed-precondition', 'contractor-suspended')
   })
   it('rejects a vehicle of another tenant as not found', async () => {
-    w.vehicles.set('veh_cccccccccc', { ...(w.vehicles.get(VID) as never), tenantId: 'T2' })
+    w.vehicles.set('veh_cccccccccc', { ...veh(), tenantId: 'T2' })
     await rejects(submit(drv1(), { vehicleId: 'veh_cccccccccc' }), 'not-found', 'vehicle-not-found')
   })
 

@@ -1,5 +1,6 @@
 import type { Timestamp } from 'firebase/firestore'
 import type { Role } from '@/lib/roles'
+import type { ChecklistItemDef, PassSettings } from '@/lib/defaultChecklist'
 import type { VehicleType } from '@/lib/vehicleTypes'
 
 export type UserStatus = 'active' | 'disabled'
@@ -9,6 +10,11 @@ export interface Tenant {
   name: string
   status: 'active' | 'suspended'
   createdAt: Timestamp
+  /** IANA name. Defaults to Asia/Colombo when absent. Function-written. */
+  timezone?: string
+  passSettings?: Partial<PassSettings>
+  /** Falls back to DEFAULT_CHECKLIST when absent or empty. */
+  checklist?: ChecklistItemDef[]
 }
 
 export interface UserDoc {

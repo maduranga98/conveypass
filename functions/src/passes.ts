@@ -37,9 +37,13 @@ export interface VehicleSummary {
   type: string
 }
 export interface PassSummary {
+  passId: string
+  plateNo: string
   status: PassData['status']
   submittedAt: number | null
   driverName: string
+  /** True when the caller submitted it, so the client may read the document itself (rules allow only that). */
+  mine: boolean
 }
 interface FormContext {
   vehicle: VehicleSummary
@@ -136,7 +140,14 @@ function standing(ctx: Context, uid: string): Standing {
   return { kind: 'resubmit', existing }
 }
 
-const summary = (p: PassData): PassSummary => ({ status: p.status, submittedAt: p.submittedAt, driverName: p.driverName })
+const summary = (p: PassData, uid: string): PassSummary => ({
+  passId: passIdFor(p.vehicleId, p.dateKey),
+  plateNo: p.plateNo,
+  status: p.status,
+  submittedAt: p.submittedAt,
+  driverName: p.driverName,
+  mine: p.driverId === uid,
+})
 
 const formContext = (ctx: Context, attempt: number): FormContext => ({
   vehicle: { id: ctx.vehicleId, plateNo: ctx.vehicle.plateNo, type: ctx.vehicle.type },
@@ -168,11 +179,11 @@ export async function resolveVehicle(deps: Deps, caller: Caller, raw: unknown): 
       }
     }
     case 'locked':
-      return { state: 'rejected_locked', reason: s.reason, pass: summary(s.existing) }
+      return { state: 'rejected_locked', reason: s.reason, pass: summary(s.existing, caller.uid) }
     case 'taken': {
       const st = s.existing.status
       const state = st === 'checked_in' ? 'checked_in' : st === 'officer_approved' ? 'approved' : 'pending'
-      return { state, pass: summary(s.existing) }
+      return { state, pass: summary(s.existing, caller.uid) }
     }
   }
 }
