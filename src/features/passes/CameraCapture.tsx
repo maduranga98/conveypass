@@ -2,6 +2,7 @@ import { Camera, ImageUp, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
+import { useUpdateLock } from '@/pwa/updateLock'
 import { strings } from '@/lib/strings'
 import { encodeAndCompress, processFile, renderStamped } from './capture'
 
@@ -39,6 +40,8 @@ export function CameraCapture({ label, plateNo, onCapture, onClose }: Props) {
   const [reason, setReason] = useState<'unsupported' | 'denied'>(() => (hasCamera() ? 'denied' : 'unsupported'))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // An app update must not reload the page while the camera is open.
+  useUpdateLock()
 
   // The page behind must not scroll while the overlay is open.
   useEffect(() => {

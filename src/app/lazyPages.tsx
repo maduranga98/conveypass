@@ -3,6 +3,8 @@ import { lazy } from 'react'
 export const LoginPage = lazy(() => import('@/features/auth/LoginPage'))
 export const ChangePasswordPage = lazy(() => import('@/features/auth/ChangePasswordPage'))
 export const DriverHome = lazy(() => import('@/features/passes/DriverHome'))
+export const NotificationsPage = lazy(() => import('@/features/notifications/NotificationsPage'))
+export const UserSettingsPage = lazy(() => import('@/features/notifications/UserSettingsPage'))
 export const SettingsPage = lazy(() => import('@/features/admin/SettingsPage'))
 export const AdminLayout = lazy(() => import('@/features/admin/AdminLayout'))
 export const UsersPage = lazy(() => import('@/features/admin/UsersPage'))

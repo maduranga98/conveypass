@@ -1,5 +1,6 @@
 import { MapPin, TriangleAlert } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useUpdateLock } from '@/pwa/updateLock'
 import { Button } from '@/components/ui/Button'
 import { submitPass } from '@/lib/api'
 import { apiErrorMessage, apiErrorReason } from '@/lib/errors'
@@ -42,6 +43,8 @@ const formatDay = (dateKey: string): string => {
 
 export function PreTripForm({ ctx, rejection, previous, onSubmitted, onReload }: Props) {
   const { claims, profile } = useSession()
+  // A new app version waits (and asks) while this form is open; the draft is saved, but a reload mid-photo loses the capture.
+  useUpdateLock()
   const { vehicle, checklist, passSettings, attempt, dateKey } = ctx
   const maxExtra = Math.min(2, Math.max(0, passSettings.maxExtraPhotos))
 

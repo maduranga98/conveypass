@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
 import { useAuth, useSession } from '@/features/auth/useAuth'
+import { Bell } from '@/features/notifications/Bell'
+import { PushOptInCard } from '@/features/notifications/PushOptInCard'
 
 const nav = [
   { to: '/admin/dashboard', label: strings.admin.nav.dashboard, icon: LayoutDashboard },
@@ -61,7 +63,10 @@ export default function AdminLayout() {
     <div className="min-h-dvh md:flex">
       <aside className="hidden w-60 shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4 md:flex print:hidden">
         <div className="space-y-6">
-          <p className="px-3 pt-1 text-base font-semibold tracking-tight">{strings.app.name}</p>
+          <div className="flex items-center justify-between pl-3">
+            <p className="text-base font-semibold tracking-tight">{strings.app.name}</p>
+            <Bell align="left" />
+          </div>
           <NavItems />
         </div>
         <Account />
@@ -70,6 +75,8 @@ export default function AdminLayout() {
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white md:hidden print:hidden">
         <div className="flex h-14 items-center justify-between px-4">
           <p className="font-semibold tracking-tight">{strings.app.name}</p>
+          <div className="flex items-center gap-1">
+          <Bell />
           <Button
             variant="ghost"
             size="icon"
@@ -80,6 +87,7 @@ export default function AdminLayout() {
           >
             {open ? <X aria-hidden className="size-5" /> : <Menu aria-hidden className="size-5" />}
           </Button>
+          </div>
         </div>
         {open && (
           <div id="admin-mobile-menu" className="space-y-4 border-t border-slate-100 p-4">
@@ -91,6 +99,7 @@ export default function AdminLayout() {
 
       <main className="min-w-0 flex-1 px-4 py-6 md:px-10 md:py-10 print:p-0">
         <div className="mx-auto max-w-5xl print:max-w-none">
+          <div className="pb-6 empty:hidden"><PushOptInCard /></div>
           <Outlet />
         </div>
       </main>

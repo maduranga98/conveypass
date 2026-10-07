@@ -12,7 +12,7 @@ import { connectStorageEmulator, getStorage } from 'firebase/storage'
 /** Must match FUNCTIONS_REGION in functions/.env */
 export const FUNCTIONS_REGION: string = import.meta.env.VITE_FUNCTIONS_REGION || 'asia-south1'
 
-const app = initializeApp({
+export const app = initializeApp({
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,

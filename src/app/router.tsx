@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { ForbiddenPage, NotFoundPage } from '@/features/auth/ErrorPages'
 import { RequireAuth, RequireRole, RoleHomeRedirect } from '@/features/auth/guards'
+import { NotificationsRoot } from '@/features/notifications/NotificationsProvider'
 import {
   AdminLayout,
   ApprovalsPage,
@@ -14,6 +15,7 @@ import {
   DriversPage,
   GateHome,
   LoginPage,
+  NotificationsPage,
   OfficerLayout,
   OfficerQueue,
   PassesPage,
@@ -23,6 +25,7 @@ import {
   ReviewPage,
   SecurityLayout,
   SettingsPage,
+  UserSettingsPage,
   SupervisorHome,
   SupervisorLayout,
   UsersPage,
@@ -38,7 +41,13 @@ export const router = createBrowserRouter([
   {
     element: <RequireAuth />,
     children: [
+      {
+        // Everything below shares one live notification feed (the bell, /notifications and the tab title).
+        element: <NotificationsRoot />,
+        children: [
       { path: '/', element: <RoleHomeRedirect /> },
+      { path: '/notifications', element: lazyEl(<NotificationsPage />) },
+      { path: '/settings', element: lazyEl(<UserSettingsPage />) },
       { path: '/change-password', element: lazyEl(<ChangePasswordPage />) },
       { path: '/v/:vehicleId', element: lazyEl(<VehicleRoute />) },
       {
@@ -111,6 +120,8 @@ export const router = createBrowserRouter([
               { path: 'queue', element: lazyEl(<QueuePage />) },
             ],
           },
+        ],
+      },
         ],
       },
     ],

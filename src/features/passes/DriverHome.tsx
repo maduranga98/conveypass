@@ -6,6 +6,8 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { strings } from '@/lib/strings'
 import { useAuth, useSession } from '@/features/auth/useAuth'
+import { Bell } from '@/features/notifications/Bell'
+import { PushOptInCard } from '@/features/notifications/PushOptInCard'
 import type { PassStatus } from '@/types/passes'
 import { PassTimeline } from './PassTimeline'
 import { RECENT_PASSES, todayKey, useMyPasses, useMyVehicles, useTenant } from './queries'
@@ -41,10 +43,15 @@ export default function DriverHome() {
     <div className="mx-auto min-h-dvh max-w-md space-y-6 px-4 py-6">
       <header className="flex items-start justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight">{strings.home.welcome(profile.name)}</h1>
-        <Button variant="ghost" size="icon" className="size-12" aria-label={strings.common.signOut} title={strings.common.signOut} onClick={() => void signOut()}>
-          <LogOut aria-hidden className="size-5" />
-        </Button>
+        <div className="flex shrink-0 items-center">
+          <Bell />
+          <Button variant="ghost" size="icon" className="size-12" aria-label={strings.common.signOut} title={strings.common.signOut} onClick={() => void signOut()}>
+            <LogOut aria-hidden className="size-5" />
+          </Button>
+        </div>
       </header>
+
+      <PushOptInCard />
 
       <section aria-labelledby="how-h" className="flex items-start gap-3 rounded-2xl border border-slate-300 bg-white p-4">
         <ScanLine aria-hidden className="mt-0.5 size-6 shrink-0 text-accent" />

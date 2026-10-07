@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useAuth, useSession } from '@/features/auth/useAuth'
+import { Bell } from '@/features/notifications/Bell'
 import { useOnline } from '@/features/passes/useOnline'
 import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
@@ -64,6 +65,8 @@ export function GateTopBar() {
             </span>
           )}
         </Link>
+
+        <Bell />
 
         <button type="button" className={iconBtn} aria-pressed={soundOn} aria-label={soundOn ? t.soundOn : t.soundOff} title={soundOn ? t.soundOn : t.soundOff} onClick={() => setSoundOn(!soundOn)}>
           {soundOn ? <Volume2 aria-hidden className="size-5" /> : <VolumeX aria-hidden className="size-5" />}
