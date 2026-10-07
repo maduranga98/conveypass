@@ -12,3 +12,6 @@ export const ROLE_HOME: Record<Role, string> = {
 }
 
 export const STAFF_ROLES: readonly Role[] = ['admin', 'officer', 'supervisor', 'security']
+
+/** Platform operators (Module 9) are not a tenant role: they have no tenant and live under /platform only. */
+export const OPERATOR_HOME = '/platform'

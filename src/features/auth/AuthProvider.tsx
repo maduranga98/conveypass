@@ -6,17 +6,20 @@ import { releaseDeviceOnSignOut } from '@/features/notifications/push/registrati
 import { queryClient } from '@/lib/queryClient'
 import { strings } from '@/lib/strings'
 import type { Contractor, UserDoc } from '@/types'
-import { parseClaims } from './claims'
-import { AuthContext, type AuthContextValue, type Session } from './useAuth'
+import { getOperatorProfile } from '@/lib/api'
+import { apiErrorReason } from '@/lib/errors'
+import { isOperatorToken, parseClaims } from './claims'
+import { AuthContext, type AuthContextValue, type OperatorSession, type Session } from './useAuth'
 
 interface State {
   status: AuthContextValue['status']
   session: Session | null
+  operator: OperatorSession | null
   notice: string | null
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<State>({ status: 'loading', session: null, notice: null })
+  const [state, setState] = useState<State>({ status: 'loading', session: null, operator: null, notice: null })
   const generation = useRef(0)
 
   const endSession = useCallback(async (notice: string) => {
@@ -37,14 +40,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!user) {
         queryClient.clear() // never leak one account's cached data into the next session
-        setState((s) => ({ status: 'signedOut', session: null, notice: s.notice }))
+        setState((s) => ({ status: 'signedOut', session: null, operator: null, notice: s.notice }))
         return
       }
 
       setState((s) => ({ ...s, status: 'loading' }))
       void (async () => {
-        let claims = parseClaims((await user.getIdTokenResult()).claims)
+        const tokenResult = await user.getIdTokenResult()
         if (gen !== generation.current) return
+
+        // Platform operator (Module 9): no tenant, no `users` doc. The profile is a callable (clients cannot read
+        // `operators`); a missing, disabled or unverified operator is refused by the server and signs out here.
+        if (isOperatorToken(tokenResult.claims)) {
+          try {
+            const profile = await getOperatorProfile({})
+            if (gen !== generation.current) return
+            setState({ status: 'signedIn', notice: null, session: null, operator: { uid: user.uid, ...profile } })
+          } catch (e) {
+            if (gen !== generation.current) return
+            const denied = apiErrorReason(e) === 'forbidden' || (e as { code?: string }).code === 'functions/permission-denied'
+            await endSession(denied ? strings.authErrors.accountDisabled : strings.authErrors.sessionEnded)
+          }
+          return
+        }
+
+        let claims = parseClaims(tokenResult.claims)
         if (!claims) {
           await endSession(strings.authErrors.accountMissing)
           return
@@ -98,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setState({
               status: 'signedIn',
               notice: null,
+              operator: null,
               session: { uid: user.uid, claims, profile: { ...data, id: snap.id } },
             })
           },

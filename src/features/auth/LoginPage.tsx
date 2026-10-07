@@ -12,7 +12,7 @@ import { cn } from '@/lib/cn'
 import { driverEmail, isValidPin, normalisePhone } from '@/lib/credentials'
 import { authErrorMessage } from '@/lib/errors'
 import { auth } from '@/lib/firebase'
-import { ROLE_HOME } from '@/lib/roles'
+import { OPERATOR_HOME, ROLE_HOME } from '@/lib/roles'
 import { strings } from '@/lib/strings'
 import { safeNext } from './redirect'
 import { useAuth } from './useAuth'
@@ -31,12 +31,17 @@ type StaffValues = z.infer<typeof staffSchema>
 type DriverValues = z.infer<typeof driverSchema>
 
 export default function LoginPage() {
-  const { status, session, notice, clearNotice } = useAuth()
+  const { status, session, operator, notice, clearNotice } = useAuth()
   const [params] = useSearchParams()
   const [mode, setMode] = useState<Mode>('staff')
   const [error, setError] = useState<string | null>(null)
 
   if (status === 'loading') return <PageSpinner />
+  // Operators sign in on the same Staff tab and land on /platform (never on a workspace route).
+  if (operator) {
+    const next = safeNext(params.get('next'))
+    return <Navigate to={next && (next === OPERATOR_HOME || next.startsWith(`${OPERATOR_HOME}/`)) ? next : OPERATOR_HOME} replace />
+  }
   if (session) return <Navigate to={safeNext(params.get('next')) ?? ROLE_HOME[session.claims.role]} replace />
 
   const message = error ?? notice

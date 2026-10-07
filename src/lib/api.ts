@@ -7,6 +7,7 @@ import type { RejectionReasonDef } from './defaultRejectionReasons'
 import type { GateDef } from './gates'
 import type { ReportRequest, ReportResult, TrendResult } from '@/types/reports'
 import type { SlaSettings } from './defaultSla'
+import type { CreatedInvite, InviteRow, InviteStatus, OperatorOverview, TenantRow } from '@/types/platform'
 import type {
   BulkItemResult,
   CheckInPayload,
@@ -131,3 +132,12 @@ export const completeSetup = call<
   { code: string; companyName: string; adminName: string; email: string; password: string; timezone: string },
   { tenantId: string }
 >('completeSetup', 60_000)
+
+// Module 9: platform operator console. Operators only (claims { role: 'platform', platformAdmin: true }, no tenant).
+// `createSetupInvite` returns the invite code ONCE: the page holds it in component state only (never a query cache).
+export const getOperatorProfile = call<Record<string, never>, { name: string; email: string }>('getOperatorProfile', 20_000)
+export const getOperatorOverview = call<Record<string, never>, OperatorOverview>('getOperatorOverview', 20_000)
+export const createSetupInvite = call<{ companyHint?: string; lockEmail?: string; expiresInDays: number }, CreatedInvite>('createSetupInvite', 30_000)
+export const listSetupInvites = call<{ status?: InviteStatus; cursor?: string }, { invites: InviteRow[]; nextCursor: string | null }>('listSetupInvites', 30_000)
+export const revokeSetupInvite = call<{ hashPrefix: string }, { ok: true }>('revokeSetupInvite', 30_000)
+export const listTenants = call<{ cursor?: string }, { tenants: TenantRow[]; nextCursor: string | null }>('listTenants', 30_000)

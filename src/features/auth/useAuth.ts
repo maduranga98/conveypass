@@ -7,10 +7,19 @@ export interface Session {
   profile: WithId<UserDoc>
 }
 
+/** A platform operator (Module 9). Their profile comes from `operators/{uid}` through `getOperatorProfile`; there is no `users` doc. */
+export interface OperatorSession {
+  uid: string
+  name: string
+  email: string
+}
+
 export interface AuthContextValue {
   status: 'loading' | 'signedOut' | 'signedIn'
-  /** Non-null exactly when `status === 'signedIn'`. */
+  /** The tenant account. Non-null when signed in as a workspace user; always null for an operator. */
   session: Session | null
+  /** Non-null when signed in as a platform operator (then `session` is null). Never both. */
+  operator: OperatorSession | null
   /** Why the user was signed out (disabled, missing profile, …). */
   notice: string | null
   clearNotice: () => void
