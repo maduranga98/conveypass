@@ -2,7 +2,7 @@ import { onCall, HttpsError, type CallableOptions, type CallableRequest } from '
 import { fail } from './errors.js'
 import { newVehicleId } from './ids.js'
 import { logError, logInfo, logWarn } from './logger.js'
-import { firestoreRateLimitPort, enforceRateLimit } from './rateLimit.js'
+import { firestoreRateLimitPort, enforceRateLimit, enforceIpRateLimit, type IP_RATE_LIMITS } from './rateLimit.js'
 import { authPort, dataPort, storagePort } from './ports.js'
 import { MIN_INSTANCES } from './config.js'
 import type { Deps } from './core.js'
@@ -83,6 +83,34 @@ export function callable<T>(
       return result
     } catch (e) {
       const ctx = { fn: name, uid: caller?.uid, tenantId: caller?.tenantId, requestId }
+      if (e instanceof HttpsError) {
+        const reason = (e.details as { reason?: unknown } | undefined)?.reason
+        const outcome = e.code === 'resource-exhausted' ? 'rate-limited' : e.code === 'internal' ? 'error' : 'denied'
+        const extra = { code: e.code, reason: typeof reason === 'string' ? reason : undefined }
+        if (outcome === 'error') logError(ctx, e, extra)
+        else logWarn(ctx, outcome, extra)
+        throw e
+      }
+      logError(ctx, e)
+      throw new HttpsError('internal', 'Internal error', { reason: 'internal' })
+    }
+  })
+}
+
+/**
+ * Unauthenticated callables (workspace setup): no caller, a per-IP rate limit instead, the same one-line log
+ * (`fn`, `outcome`, `reason`; never the payload). App Check still applies through the global `enforceAppCheck`.
+ * The IP comes from Express (`rawRequest.ip`, behind Google's proxy); only its hash is stored.
+ */
+export function publicCallable<T>(name: keyof typeof IP_RATE_LIMITS, run: (data: unknown) => Promise<T>) {
+  return onCall(async (request) => {
+    const ctx = { fn: name }
+    try {
+      await enforceIpRateLimit(firestoreRateLimitPort(), request.rawRequest?.ip, name)
+      const result = await run(request.data)
+      logInfo(ctx, 'ok')
+      return result
+    } catch (e) {
       if (e instanceof HttpsError) {
         const reason = (e.details as { reason?: unknown } | undefined)?.reason
         const outcome = e.code === 'resource-exhausted' ? 'rate-limited' : e.code === 'internal' ? 'error' : 'denied'

@@ -15,6 +15,7 @@ import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import { readFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
+import { newTenantId, provisionTenant } from '../functions/src/tenants/tenantDefaults.ts'
 import { loopback, resolveTarget, type Firebaserc, type Target } from './envTarget.ts'
 
 const { values } = parseArgs({
@@ -82,16 +83,13 @@ initializeApp({ projectId: target.projectId ?? (readJson<Firebaserc>('.firebaser
 const auth = getAuth()
 const db = getFirestore()
 
-const slug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40)
-
 async function main(): Promise<void> {
   const tenantName = values['tenant-name']?.trim()
   if (!tenantName) die('--tenant-name is required')
-  const tenantId = values['tenant-id'] ?? slug(tenantName ?? '')
-  if (!tenantId) die('could not derive a tenant id: pass --tenant-id')
+  // Default: `ten_` + 10 random chars, like tenants made by the setup link. --tenant-id still pins a readable id.
+  const tenantId = values['tenant-id'] ?? newTenantId()
 
-  const tenantRef = db.doc(`tenants/${tenantId}`)
-  if ((await tenantRef.get()).exists) die(`tenant "${tenantId}" already exists (use --tenant-id for another)`)
+  if ((await db.doc(`tenants/${tenantId}`).get()).exists) die(`tenant "${tenantId}" already exists (use --tenant-id for another)`)
   if (await auth.getUserByEmail(email).catch(() => null)) die(`an Auth user with ${email} already exists`)
 
   const adminName = values.name ?? 'Admin'
@@ -99,14 +97,11 @@ async function main(): Promise<void> {
   try {
     await auth.setCustomUserClaims(user.uid, { role: 'admin', tenantId })
     const batch = db.batch()
-    batch.create(tenantRef, { name: tenantName, status: 'active', timezone, createdAt: FieldValue.serverTimestamp() })
-    batch.create(db.doc(`users/${user.uid}`), {
-      tenantId, role: 'admin', contractorId: null, name: adminName, email, phone: null, status: 'active',
-      mustChangePassword: !values['keep-password'], createdAt: FieldValue.serverTimestamp(), createdBy: 'create-tenant', updatedAt: FieldValue.serverTimestamp(),
-    })
-    batch.create(db.collection('auditLog').doc(), {
-      tenantId, action: 'tenant.create', actorUid: 'create-tenant', actorRole: 'system', targetType: 'tenant', targetId: tenantId,
-      meta: { env: target.env }, createdAt: FieldValue.serverTimestamp(),
+    // Defaults, the admin doc and the audit entries come from provisionTenant: the same code the setup link runs.
+    provisionTenant(db, batch, {
+      tenantId, tenantName: tenantName as string, timezone,
+      admin: { uid: user.uid, name: adminName, email, mustChangePassword: !values['keep-password'], createdBy: 'create-tenant' },
+      actor: { uid: 'create-tenant', role: 'system' }, meta: { env: target.env }, createdAt: FieldValue.serverTimestamp(),
     })
     await batch.commit()
   } catch (e) {

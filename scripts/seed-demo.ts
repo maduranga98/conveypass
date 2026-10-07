@@ -26,8 +26,9 @@ import { readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { randomInt, randomUUID } from 'node:crypto'
 import { dateKey } from '../src/lib/dates.ts'
-import { DEFAULT_CHECKLIST, DEFAULT_PASS_SETTINGS } from '../src/lib/defaultChecklist.ts'
+import { DEFAULT_CHECKLIST } from '../src/lib/defaultChecklist.ts'
 import { DEFAULT_REJECTION_REASONS } from '../src/lib/defaultRejectionReasons.ts'
+import { tenantDefaults } from '../functions/src/tenants/tenantDefaults.ts'
 import { normalisePlate } from '../src/lib/plate.ts'
 import { generateHistory, rng, type FleetVehicle, type HistoryPass } from './demoHistory.ts'
 
@@ -187,8 +188,8 @@ async function main(): Promise<void> {
   const TIMEZONE = 'Asia/Colombo'
   batch.create(tenantRef, {
     name: 'ConvoyPass Demo', status: 'active', createdAt: ts,
-    timezone: TIMEZONE, passSettings: DEFAULT_PASS_SETTINGS, checklist: DEFAULT_CHECKLIST, rejectionReasons: DEFAULT_REJECTION_REASONS,
-    gates: GATES,
+    // Same defaults as every other tenant (provisionTenant); the demo only overrides its two gates.
+    ...tenantDefaults(TIMEZONE), gates: GATES,
   })
 
   const audit = (action: string, targetType: string, targetId: string) =>

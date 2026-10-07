@@ -821,3 +821,26 @@ describe('auditLog (Module 7 viewer queries)', () => {
     await assertFails(deleteDoc(doc(adminA(), 'auditLog', 'a2')))
   })
 })
+
+describe('setupInvites (Module 8)', () => {
+  const HASH = 'a'.repeat(64)
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'setupInvites', HASH), {
+        createdAt: new Date(), expiresAt: new Date(Date.now() + 86_400_000), claimedAt: null, claimId: null, usedAt: null, tenantId: null,
+      })
+    })
+  })
+
+  it('is unreadable, unlistable and unwritable by every role, including admin and signed-out visitors', async () => {
+    const clients = [adminA(), officerA(), supA1(), drvA1(), securityA(), env.unauthenticatedContext().firestore()]
+    for (const db of clients) {
+      await assertFails(getDoc(doc(db, 'setupInvites', HASH)))
+      await assertFails(getDocs(collection(db, 'setupInvites')))
+      await assertFails(getDocs(query(collection(db, 'setupInvites'), where('usedAt', '==', null))))
+      await assertFails(setDoc(doc(db, 'setupInvites', 'b'.repeat(64)), { expiresAt: new Date(), usedAt: null }))
+      await assertFails(updateDoc(doc(db, 'setupInvites', HASH), { usedAt: new Date(), tenantId: A }))
+      await assertFails(deleteDoc(doc(db, 'setupInvites', HASH)))
+    }
+  })
+})
