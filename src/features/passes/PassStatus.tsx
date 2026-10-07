@@ -28,7 +28,7 @@ const when = (ms: number | null): string => (ms ? new Date(ms).toLocaleString(un
  * driver read only their own passes; otherwise it shows the summary the function returned.
  */
 export function PassStatus({ summary, plateNo, onDone, doneLabel = t.done, onRejected }: Props) {
-  const [live, setLive] = useState<Pick<PassDoc, 'status' | 'submittedAt' | 'supervisor' | 'officer'> | null>(null)
+  const [live, setLive] = useState<Pick<PassDoc, 'status' | 'submittedAt' | 'supervisor' | 'officer' | 'checkIn'> | null>(null)
 
   useEffect(() => {
     if (!summary.mine) return
@@ -42,6 +42,7 @@ export function PassStatus({ summary, plateNo, onDone, doneLabel = t.done, onRej
             submittedAt: data.submittedAt,
             ...(data.supervisor ? { supervisor: data.supervisor } : {}),
             ...(data.officer ? { officer: data.officer } : {}),
+            ...(data.checkIn ? { checkIn: data.checkIn } : {}),
           })
         }
       },
