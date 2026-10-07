@@ -30,7 +30,15 @@ export default defineConfig({
     // Headless Chromium denies notifications unless granted: tests that need the blocked state override this.
     permissions: ['camera', 'geolocation', 'notifications'],
   },
-  webServer: {
+  webServer: [
+    {
+      // The production build served with the real hosting headers (CSP report-only included): see e2e/csp.spec.ts.
+      command: 'npm run build:e2e && node e2e/support/cspServer.mjs',
+      url: 'http://127.0.0.1:5174/login',
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
+    },
+    {
     command: `npm run dev -- --host 127.0.0.1 --port ${PORT} --strictPort`,
     url: `http://127.0.0.1:${PORT}`,
     reuseExistingServer: !process.env.CI,
@@ -46,5 +54,6 @@ export default defineConfig({
       VITE_FUNCTIONS_REGION: 'asia-south1',
       VITE_APP_BASE_URL: `http://127.0.0.1:${PORT}`,
     },
-  },
+    },
+  ],
 })

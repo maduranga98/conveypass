@@ -25,7 +25,8 @@
     "verify-restore": "tsx scripts/verify-restore.ts",
     "drill:restore": "tsx scripts/restore-drill.ts",
     "sla:check": "tsx functions/src/cli/runSlaCheck.ts",
-    "bundle:report": "tsx scripts/bundle-report.ts"
+    "bundle:report": "tsx scripts/bundle-report.ts",
+    "build:e2e": "tsx scripts/build-e2e.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
