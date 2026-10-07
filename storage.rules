@@ -1,0 +1,10 @@
+rules_version = '2';
+
+// Deny all for now; Module 4 opens the paths it needs.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
