@@ -6,6 +6,7 @@ import {
   normalisePhone,
   PASSWORD_MIN_LENGTH,
 } from './credentials.js'
+import type { SlaSettings } from './defaultSla.js'
 import { fail } from './errors.js'
 import {
   changeOwnPasswordSchema,
@@ -173,6 +174,7 @@ export interface DataPort {
       checklist?: ChecklistItemDef[]
       rejectionReasons?: RejectionReasonDef[]
       gates?: GateDef[]
+      sla?: SlaSettings
     },
     audit: AuditEntry,
   ): Promise<void>

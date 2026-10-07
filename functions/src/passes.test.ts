@@ -376,4 +376,17 @@ describe('updateTenantSettings', () => {
     for (const b of bad) await rejects(updateTenantSettings(w.deps, admin(), b), 'invalid-argument')
     await updateTenantSettings(w.deps, admin(), { checklist: Array.from({ length: 12 }, (_, i) => item(`item_${i}`)) })
   })
+  it('sla: admin saves 5 to 240 whole minutes, anything else is refused', async () => {
+    await updateTenantSettings(w.deps, admin(), { sla: { supervisorMinutes: 45, officerMinutes: 5 } })
+    expect(w.tenants.get('T1')?.sla).toEqual({ supervisorMinutes: 45, officerMinutes: 5 })
+    for (const sla of [
+      { supervisorMinutes: 4, officerMinutes: 30 },
+      { supervisorMinutes: 30, officerMinutes: 241 },
+      { supervisorMinutes: 30.5, officerMinutes: 30 },
+      { supervisorMinutes: 30 },
+    ]) {
+      await rejects(updateTenantSettings(w.deps, admin(), { sla }), 'invalid-argument')
+    }
+    await rejects(updateTenantSettings(w.deps, caller('officer', 'officer'), { sla: { supervisorMinutes: 30, officerMinutes: 30 } }), 'permission-denied')
+  })
 })

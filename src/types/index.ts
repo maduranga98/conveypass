@@ -3,6 +3,7 @@ import type { Role } from '@/lib/roles'
 import type { ChecklistItemDef, PassSettings } from '@/lib/defaultChecklist'
 import type { RejectionReasonDef } from '@/lib/defaultRejectionReasons'
 import type { GateDef } from '@/lib/gates'
+import type { SlaSettings } from '@/lib/defaultSla'
 import type { VehicleType } from '@/lib/vehicleTypes'
 
 export type UserStatus = 'active' | 'disabled'
@@ -21,6 +22,8 @@ export interface Tenant {
   rejectionReasons?: RejectionReasonDef[]
   /** Falls back to DEFAULT_GATES when absent or empty. */
   gates?: GateDef[]
+  /** Falls back to DEFAULT_SLA. */
+  sla?: Partial<SlaSettings>
 }
 
 export interface UserDoc {

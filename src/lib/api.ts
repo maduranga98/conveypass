@@ -5,6 +5,7 @@ import type { ChecklistItemDef, PassSettings } from './defaultChecklist'
 import type { VehicleType } from './vehicleTypes'
 import type { RejectionReasonDef } from './defaultRejectionReasons'
 import type { GateDef } from './gates'
+import type { SlaSettings } from './defaultSla'
 import type {
   BulkItemResult,
   CheckInPayload,
@@ -84,7 +85,7 @@ export const submitPass = call<SubmitPassPayload, { passId: string; status: 'sub
   60_000,
 )
 export const updateTenantSettings = call<
-  { passSettings?: PassSettings; checklist?: ChecklistItemDef[]; rejectionReasons?: RejectionReasonDef[]; gates?: GateDef[] },
+  { passSettings?: PassSettings; checklist?: ChecklistItemDef[]; rejectionReasons?: RejectionReasonDef[]; gates?: GateDef[]; sla?: SlaSettings },
   { ok: true }
 >('updateTenantSettings')
 

@@ -4,6 +4,8 @@ import { DEFAULT_REJECTION_REASONS as fnReasons } from '../../functions/src/defa
 import { DEFAULT_REJECTION_REASONS } from './defaultRejectionReasons'
 import * as fnDeny from '../../functions/src/denyReasons'
 import * as fnGates from '../../functions/src/gates'
+import * as fnSla from '../../functions/src/defaultSla'
+import * as webSla from './defaultSla'
 import * as webDeny from './denyReasons'
 import * as webGates from './gates'
 import * as web from './passTransitions'
@@ -56,5 +58,10 @@ describe('passTransitions mirror', () => {
     ])
     expect(webGates.gatesOf({ gates: [] })).toEqual(webGates.DEFAULT_GATES)
     expect(webGates.gatesOf({ gates: [{ id: 'north', name: 'North' }] })).toEqual([{ id: 'north', name: 'North' }])
+  })
+  it('keeps the SLA defaults and limits in sync with the functions copy', () => {
+    expect(webSla.DEFAULT_SLA).toEqual(fnSla.DEFAULT_SLA)
+    expect([webSla.SLA_MIN, webSla.SLA_MAX]).toEqual([fnSla.SLA_MIN, fnSla.SLA_MAX])
+    expect(webSla.slaOf({ sla: { officerMinutes: 60 } })).toEqual({ supervisorMinutes: 30, officerMinutes: 60 })
   })
 })

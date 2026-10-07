@@ -805,7 +805,7 @@ export const strings = {
   },
 
   admin: {
-    nav: { users: 'Users', contractors: 'Contractors', vehicles: 'Vehicles', drivers: 'Drivers', passes: 'Passes', gateLog: 'Gate log', qr: 'QR labels', settings: 'Settings' },
+    nav: { dashboard: 'Dashboard', reports: 'Reports', users: 'Users', contractors: 'Contractors', vehicles: 'Vehicles', drivers: 'Drivers', passes: 'Passes', gateLog: 'Gate log', qr: 'QR labels', settings: 'Settings' },
     gates: {
       title: 'Gates',
       hint: 'Security picks one of these on their phone. 1 to 10 gates.',
@@ -816,6 +816,14 @@ export const strings = {
       min: 'Keep at least one gate.',
       max: 'You can have at most 10 gates.',
       usingDefaults: 'Showing the default gate. Save to make it your own.',
+    },
+    sla: {
+      title: 'Review time targets (SLA)',
+      hint: 'A pass waiting longer than this appears in the dashboard attention panel. 5 to 240 minutes.',
+      supervisor: 'Supervisor, minutes',
+      officer: 'Officer, minutes',
+      error: 'Use a whole number from 5 to 240',
+      usingDefaults: 'Showing the default (30 minutes each). Save to make it your own.',
     },
     gateLog: {
       title: 'Gate log',

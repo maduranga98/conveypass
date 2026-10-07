@@ -15,6 +15,7 @@ import {
   type PassSettings,
 } from '@/lib/defaultChecklist'
 import { DEFAULT_REJECTION_REASONS, type RejectionReasonDef } from '@/lib/defaultRejectionReasons'
+import { slaOf, type SlaSettings } from '@/lib/defaultSla'
 import { DEFAULT_GATES, MIN_GATES, type GateDef } from '@/lib/gates'
 import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
@@ -24,6 +25,7 @@ import type { Tenant } from '@/types'
 import { gateNameOk, MAX_REASONS, MIN_REASONS, reasonLabelOk } from './reasons'
 import { RejectionReasonsEditor } from './RejectionReasonsEditor'
 import { GatesEditor } from './GatesEditor'
+import { SlaEditor, slaOk } from './SlaEditor'
 
 const t = strings.admin.settings
 const MAX_ITEMS = 12
@@ -37,6 +39,7 @@ interface Baseline {
   settings: PassSettings
   reasons: RejectionReasonDef[]
   gates: GateDef[]
+  sla: SlaSettings
 }
 
 const baselineOf = (tenant: Tenant | null): Baseline => ({
@@ -44,6 +47,7 @@ const baselineOf = (tenant: Tenant | null): Baseline => ({
   settings: { ...DEFAULT_PASS_SETTINGS, ...tenant?.passSettings },
   reasons: tenant?.rejectionReasons && tenant.rejectionReasons.length > 0 ? tenant.rejectionReasons : [...DEFAULT_REJECTION_REASONS],
   gates: tenant?.gates && tenant.gates.length > 0 ? tenant.gates : [...DEFAULT_GATES],
+  sla: slaOf(tenant),
 })
 
 function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: string }) {
@@ -56,13 +60,16 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
   const usingDefaultReasons = !tenant?.rejectionReasons || tenant.rejectionReasons.length === 0
   const [gates, setGates] = useState<GateDef[]>(baseline.gates)
   const usingDefaultGates = !tenant?.gates || tenant.gates.length === 0
+  const [sla, setSla] = useState<SlaSettings>(baseline.sla)
+  const usingDefaultSla = !tenant?.sla
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [touched, setTouched] = useState(false)
 
   const dirty =
-    JSON.stringify({ items, settings, reasons, gates }) !==
-    JSON.stringify({ items: baseline.checklist, settings: baseline.settings, reasons: baseline.reasons, gates: baseline.gates })
+    JSON.stringify({ items, settings, reasons, gates, sla }) !==
+    JSON.stringify({ items: baseline.checklist, settings: baseline.settings, reasons: baseline.reasons, gates: baseline.gates, sla: baseline.sla })
+  const slaChanged = JSON.stringify(sla) !== JSON.stringify(baseline.sla)
   const reasonsChanged = JSON.stringify(reasons) !== JSON.stringify(baseline.reasons)
   const gatesChanged = JSON.stringify(gates) !== JSON.stringify(baseline.gates)
   const invalidLabels =
@@ -84,7 +91,7 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
 
   const save = async () => {
     setTouched(true)
-    if (invalidLabels || problem || reasonCountBad) return
+    if (invalidLabels || problem || reasonCountBad || !slaOk(sla)) return
     setSaving(true)
     setError(null)
     const checklist = items.map((i) => ({ ...i, label: i.label.trim() }))
@@ -99,11 +106,12 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
         checklist,
         ...(saveReasons ? { rejectionReasons: cleanReasons } : {}),
         ...(saveGates ? { gates: cleanGates } : {}),
+        ...(slaChanged || !usingDefaultSla ? { sla } : {}),
       })
       setItems(checklist)
       setReasons(cleanReasons)
       setGates(cleanGates)
-      setBaseline({ checklist, settings, reasons: cleanReasons, gates: cleanGates })
+      setBaseline({ checklist, settings, reasons: cleanReasons, gates: cleanGates, sla })
       await queryClient.invalidateQueries({ queryKey: ['tenant', tenantId] })
       toast.success(t.saved)
     } catch (e) {
@@ -173,6 +181,8 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
       <RejectionReasonsEditor items={reasons} onChange={setReasons} showErrors={touched} usingDefaults={usingDefaultReasons} />
 
       <GatesEditor items={gates} onChange={setGates} showErrors={touched} usingDefaults={usingDefaultGates} />
+
+      <SlaEditor value={sla} onChange={setSla} showErrors={touched} usingDefaults={usingDefaultSla} />
 
       <section aria-label={strings.admin.nav.settings} className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
         <label className="flex min-h-10 items-start gap-3 text-sm">
