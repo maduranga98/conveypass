@@ -2,7 +2,7 @@ import { onCall, HttpsError, type CallableOptions, type CallableRequest } from '
 import { fail } from './errors.js'
 import { newVehicleId } from './ids.js'
 import { logError, logInfo, logWarn } from './logger.js'
-import { firestoreRateLimitPort, enforceRateLimit } from './rateLimit.js'
+import { firestoreRateLimitPort, enforceRateLimit, enforceIpRateLimit, type IP_RATE_LIMITS } from './rateLimit.js'
 import { authPort, dataPort, storagePort } from './ports.js'
 import { MIN_INSTANCES } from './config.js'
 import type { Deps } from './core.js'
@@ -83,6 +83,51 @@ export function callable<T>(
       return result
     } catch (e) {
       const ctx = { fn: name, uid: caller?.uid, tenantId: caller?.tenantId, requestId }
+      if (e instanceof HttpsError) {
+        const reason = (e.details as { reason?: unknown } | undefined)?.reason
+        const outcome = e.code === 'resource-exhausted' ? 'rate-limited' : e.code === 'internal' ? 'error' : 'denied'
+        const extra = { code: e.code, reason: typeof reason === 'string' ? reason : undefined }
+        if (outcome === 'error') logError(ctx, e, extra)
+        else logWarn(ctx, outcome, extra)
+        throw e
+      }
+      logError(ctx, e)
+      throw new HttpsError('internal', 'Internal error', { reason: 'internal' })
+    }
+  })
+}
+
+/**
+ * The address a per-IP limit counts. A client can put anything at the START of `X-Forwarded-For`, but the proxy in front
+ * of the function appends the address it actually saw at the END, so the last entry is the one that cannot be forged.
+ * (Behind an extra load balancer that entry would be the balancer: every caller then shares one bucket, which only makes
+ * the limit stricter.) Falls back to Express's `ip`, then the socket.
+ */
+export function clientIpOf(req: { headers?: Record<string, string | string[] | undefined>; ip?: string | undefined; socket?: { remoteAddress?: string | undefined } | undefined } | undefined): string | undefined {
+  const xff = req?.headers?.['x-forwarded-for']
+  const raw = Array.isArray(xff) ? xff.join(',') : xff
+  const last = raw
+    ?.split(',')
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .at(-1)
+  return last || req?.ip || req?.socket?.remoteAddress || undefined
+}
+
+/**
+ * Unauthenticated callables (workspace setup): no caller, a per-IP rate limit instead, the same one-line log
+ * (`fn`, `outcome`, `reason`; never the payload). App Check still applies through the global `enforceAppCheck`.
+ * The IP is `clientIpOf` (the proxy-appended end of X-Forwarded-For); only its hash is stored.
+ */
+export function publicCallable<T>(name: keyof typeof IP_RATE_LIMITS, run: (data: unknown) => Promise<T>) {
+  return onCall(async (request) => {
+    const ctx = { fn: name }
+    try {
+      await enforceIpRateLimit(firestoreRateLimitPort(), clientIpOf(request.rawRequest), name)
+      const result = await run(request.data)
+      logInfo(ctx, 'ok')
+      return result
+    } catch (e) {
       if (e instanceof HttpsError) {
         const reason = (e.details as { reason?: unknown } | undefined)?.reason
         const outcome = e.code === 'resource-exhausted' ? 'rate-limited' : e.code === 'internal' ? 'error' : 'denied'

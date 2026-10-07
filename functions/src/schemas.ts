@@ -226,3 +226,17 @@ export const denyEntrySchema = z.object({
   gateId,
   requestId,
 })
+
+// ---- Module 8: workspace setup (unauthenticated) ---------------------------------------------
+
+export const validateSetupInviteSchema = z.object({ code: z.string().max(200) })
+
+export const completeSetupSchema = z.object({
+  code: z.string().max(200),
+  companyName: z.string().trim().min(2).max(80),
+  adminName: z.string().trim().min(2).max(60),
+  email: z.string().trim().toLowerCase().email().max(254),
+  password: z.string().max(128),
+  timezone: z.string().trim().max(64).optional(),
+})
+export type CompleteSetupInput = z.infer<typeof completeSetupSchema>

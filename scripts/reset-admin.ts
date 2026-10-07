@@ -1,75 +1,48 @@
 /**
- * Sets a new password for an existing admin (lost password, locked-out tenant) and forces a change at next login.
+ * Recovers a locked-out admin (lost password, mailbox gone). Email reset from the login page comes first; this is the
+ * operator fallback.
  *
- *   npm run reset-admin -- --env staging --email admin@acme.test --password '<temporary password>'
- *   npm run reset-admin -- --env prod --confirm-production --email ... --password ...
+ *   npm run admin:reset -- --env staging --email admin@acme.test --link
+ *   npm run admin:reset -- --env staging --email admin@acme.test --temp-password
+ *   npm run admin:reset -- --env prod --confirm-prod --email admin@acme.test --link
  *
- * Password from --password or RESET_ADMIN_PASSWORD. Existing sessions are revoked. Writes an audit entry. Only works
- * on users that are admins in Firestore (it will not touch any other role).
+ * `--link` prints a password reset link; `--temp-password` sets a random password (printed once, change forced,
+ * sessions revoked). Only admins; writes an `admin.recovery` audit entry. Reset links use APP_BASE_URL for the continue URL.
  */
-import { initializeApp } from 'firebase-admin/app'
-import { getAuth } from 'firebase-admin/auth'
-import { FieldValue, getFirestore } from 'firebase-admin/firestore'
-import { readFileSync } from 'node:fs'
-import { parseArgs } from 'node:util'
-import { loopback, resolveTarget, type Firebaserc, type Target } from './envTarget.ts'
+import { FieldValue } from 'firebase-admin/firestore'
+import { confirmedProd, connect, loadDotEnv, readJson, targetFrom } from './adminSdk.ts'
+import { randomTempPassword, runAdminReset, type AdminResetIo } from './adminResetCli.ts'
+import type { Firebaserc } from './envTarget.ts'
 
-const { values } = parseArgs({
-  options: { env: { type: 'string' }, 'confirm-production': { type: 'boolean', default: false }, email: { type: 'string' }, password: { type: 'string' } },
-})
-const die = (msg: string): never => {
-  console.error(`reset-admin: ${msg}`)
-  process.exit(1)
+loadDotEnv()
+const argv = process.argv.slice(2)
+const envFlag = argv.find((_a, i) => argv[i - 1] === '--env')
+
+let sdk: ReturnType<typeof connect> | undefined
+// Connect lazily: a refused production call never initialises the SDK.
+const get = () => (sdk ??= connect(targetFrom(envFlag, confirmedProd({ 'confirm-prod': argv.includes('--confirm-prod'), 'confirm-production': argv.includes('--confirm-production') }))))
+
+const io: AdminResetIo = {
+  auth: {
+    getUserByEmail: (email) => get().auth.getUserByEmail(email).catch(() => null),
+    generatePasswordResetLink: (email, url) => get().auth.generatePasswordResetLink(email, url ? { url } : undefined),
+    updatePassword: async (uid, password) => void (await get().auth.updateUser(uid, { password })),
+    revokeRefreshTokens: (uid) => get().auth.revokeRefreshTokens(uid),
+  },
+  db: {
+    getUser: async (uid) => (await get().db.doc(`users/${uid}`).get()).data() ?? null,
+    requireChangeAtNextLogin: async (uid) => void (await get().db.doc(`users/${uid}`).update({ mustChangePassword: true, updatedAt: FieldValue.serverTimestamp() })),
+    writeAudit: async (entry) => void (await get().db.collection('auditLog').doc().create({ ...entry, createdAt: FieldValue.serverTimestamp() })),
+  },
+  out: (l) => console.log(l),
+  firebaserc: readJson<Firebaserc>('.firebaserc'),
+  appBaseUrl: process.env.APP_BASE_URL,
+  randomPassword: () => randomTempPassword(),
 }
-const rc = ((): Firebaserc => {
-  try {
-    return JSON.parse(readFileSync('.firebaserc', 'utf8')) as Firebaserc
-  } catch {
-    return {}
-  }
-})()
 
-const target = ((): Target => {
-  try {
-    return resolveTarget({ env: values.env, confirmProduction: values['confirm-production'], firebaserc: rc, projectOverride: process.env.FIREBASE_PROJECT_ID })
-  } catch (e) {
-    return die(e instanceof Error ? e.message : String(e))
-  }
-})()
-const email = (values.email ?? '').trim().toLowerCase()
-const password = values.password ?? process.env.RESET_ADMIN_PASSWORD ?? ''
-if (!email) die('--email is required')
-if (password.length < 8) die('password (min 8 chars) required (--password or RESET_ADMIN_PASSWORD)')
-
-if (target.env === 'emulator') {
-  process.env.FIREBASE_AUTH_EMULATOR_HOST ??= '127.0.0.1:9099'
-  process.env.FIRESTORE_EMULATOR_HOST ??= '127.0.0.1:8080'
-  if (!loopback(process.env.FIREBASE_AUTH_EMULATOR_HOST) || !loopback(process.env.FIRESTORE_EMULATOR_HOST)) die('emulator hosts must be loopback addresses')
-} else {
-  delete process.env.FIREBASE_AUTH_EMULATOR_HOST
-  delete process.env.FIRESTORE_EMULATOR_HOST
-}
-initializeApp({ projectId: target.projectId ?? rc.projects?.default ?? 'demo-conveypass' })
-
-async function main(): Promise<void> {
-  const auth = getAuth()
-  const db = getFirestore()
-  const user = await auth.getUserByEmail(email).catch(() => null)
-  if (!user) die(`no Auth user with ${email}`)
-  const uid = (user as NonNullable<typeof user>).uid
-  const doc = await db.doc(`users/${uid}`).get()
-  const data = doc.data() as { role?: string; tenantId?: string } | undefined
-  if (!data || data.role !== 'admin') die('that user is not an admin: use the app (Users > Reset credential) for other roles')
-  await auth.updateUser(uid, { password, disabled: false })
-  await auth.revokeRefreshTokens(uid)
-  await db.doc(`users/${uid}`).update({ mustChangePassword: true, status: 'active', updatedAt: FieldValue.serverTimestamp() })
-  await db.collection('auditLog').doc().create({
-    tenantId: data?.tenantId ?? '', action: 'user.resetCredential', actorUid: 'reset-admin', actorRole: 'system', targetType: 'user', targetId: uid,
-    meta: { env: target.env }, createdAt: FieldValue.serverTimestamp(),
+runAdminReset(argv, io)
+  .then((code) => process.exit(code))
+  .catch((e: unknown) => {
+    console.error('admin:reset failed:', e instanceof Error ? e.message : e)
+    process.exit(1)
   })
-  console.log(`reset-admin: ${target.env}: password reset for ${email}; they must change it at next login`)
-}
-main().catch((e: unknown) => {
-  console.error('reset-admin failed:', e instanceof Error ? e.message : e)
-  process.exit(1)
-})

@@ -14,6 +14,7 @@ import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import { readFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
+import { DEFAULT_TIMEZONE, provisionTenant } from '../functions/src/tenants/tenantDefaults.ts'
 
 const { values } = parseArgs({
   options: {
@@ -86,29 +87,11 @@ async function main(): Promise<void> {
   try {
     await auth.setCustomUserClaims(user.uid, { role: 'admin', tenantId })
     const batch = db.batch()
-    batch.create(tenantRef, { name: tenantName, status: 'active', createdAt: FieldValue.serverTimestamp() })
-    batch.create(db.doc(`users/${user.uid}`), {
-      tenantId,
-      role: 'admin',
-      contractorId: null,
-      name: values.name ?? 'Admin',
-      email,
-      phone: null,
-      status: 'active',
-      mustChangePassword: !values['keep-password'],
-      createdAt: FieldValue.serverTimestamp(),
-      createdBy: 'seed',
-      updatedAt: FieldValue.serverTimestamp(),
-    })
-    batch.create(db.collection('auditLog').doc(), {
-      tenantId,
-      action: 'seed.createAdmin',
-      actorUid: 'seed',
-      actorRole: 'admin',
-      targetType: 'user',
-      targetId: user.uid,
-      meta: { target },
-      createdAt: FieldValue.serverTimestamp(),
+    // Defaults, the admin doc and the audit entries come from provisionTenant: the same code the setup link runs.
+    provisionTenant(db, batch, {
+      tenantId, tenantName, timezone: DEFAULT_TIMEZONE,
+      admin: { uid: user.uid, name: values.name ?? 'Admin', email, mustChangePassword: !values['keep-password'], createdBy: 'seed' },
+      actor: { uid: 'seed', role: 'system' }, meta: { target: target as string }, createdAt: FieldValue.serverTimestamp(),
     })
     await batch.commit()
   } catch (e) {

@@ -148,6 +148,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Setup invites (Module 8): `setupInvites/{sha256hex(code)}`. Cloud Functions and operator scripts only; no client
+    // can read, list, create, update or delete one (not even an admin), so a hash can never be probed from a browser.
+    match /setupInvites/{id} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

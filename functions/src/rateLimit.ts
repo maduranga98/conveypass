@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { getFirestore, Timestamp } from 'firebase-admin/firestore'
 import { RATE_LIMIT_CALLS, RATE_LIMIT_WINDOW_SECONDS } from './config.js'
 import { fail } from './errors.js'
@@ -83,3 +84,21 @@ export const firestoreRateLimitPort = (): RateLimitPort => {
       }),
   }
 }
+
+/** Limits for the unauthenticated setup callables (per client IP, fixed window). */
+export const IP_RATE_LIMITS = {
+  validateSetupInvite: { limit: 20, windowMs: 60_000 },
+  completeSetup: { limit: 10, windowMs: 60 * 60_000 },
+} as const satisfies Record<string, RateLimitOptions>
+
+/** The window key never holds a raw address: a truncated SHA-256 of it. */
+export const ipKey = (ip: string | undefined): string =>
+  `ip-${createHash('sha256').update(ip?.trim() || 'unknown', 'utf8').digest('hex').slice(0, 24)}`
+
+/** Per-IP limit for a callable with no signed-in user. Same `rateLimits/{key}_{fn}` documents and TTL as the per-user limit. */
+export const enforceIpRateLimit = (
+  port: RateLimitPort,
+  ip: string | undefined,
+  fnName: keyof typeof IP_RATE_LIMITS,
+  nowMs: number = Date.now(),
+): Promise<void> => enforceRateLimit(port, ipKey(ip), fnName, nowMs, IP_RATE_LIMITS[fnName])

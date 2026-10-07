@@ -4,16 +4,18 @@ import { VehicleRouteBoundary } from '@/components/RouteErrorBoundary'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { ForbiddenPage, NotFoundPage } from '@/features/auth/ErrorPages'
 import { RequireAuth, RequireRole, RoleHomeRedirect } from '@/features/auth/guards'
-import { NotificationsRoot } from '@/features/notifications/NotificationsProvider'
+import { AuthedShell } from '@/features/auth/AuthedShell'
 import {
   AdminLayout,
   ApprovalsPage,
   AuditPage,
+  AuthActionPage,
   ChangePasswordPage,
   ContractorDetailPage,
   ContractorsPage,
   DashboardPage,
   DriverHome,
+  ForgotPasswordPage,
   DriversPage,
   GateHome,
   LoginPage,
@@ -27,6 +29,7 @@ import {
   ReportsPage,
   ReviewPage,
   SecurityLayout,
+  SetupPage,
   SettingsPage,
   UserSettingsPage,
   SupervisorHome,
@@ -42,12 +45,16 @@ const lazyEl = (node: ReactNode) => <Suspense fallback={<PageSpinner />}>{node}<
 export const router = createBrowserRouter([
   { path: '/login', element: lazyEl(<LoginPage />) },
   { path: '/privacy', element: lazyEl(<PrivacyPage />) },
+  // Public, outside the auth guard: workspace setup (invite link), staff password reset and Firebase's email action page.
+  { path: '/setup', element: lazyEl(<SetupPage />) },
+  { path: '/forgot-password', element: lazyEl(<ForgotPasswordPage />) },
+  { path: '/auth/action', element: lazyEl(<AuthActionPage />) },
   {
     element: <RequireAuth />,
     children: [
       {
         // Everything below shares one live notification feed (the bell, /notifications and the tab title).
-        element: <NotificationsRoot />,
+        element: <AuthedShell />,
         children: [
       { path: '/', element: <RoleHomeRedirect /> },
       { path: '/notifications', element: lazyEl(<NotificationsPage />) },

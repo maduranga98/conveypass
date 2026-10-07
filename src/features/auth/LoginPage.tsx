@@ -140,6 +140,11 @@ function StaffForm({ onSubmit }: { onSubmit: (email: string, password: string) =
       <Button type="submit" className="w-full" loading={isSubmitting}>
         {isSubmitting ? strings.auth.signingIn : strings.auth.signIn}
       </Button>
+      <p className="text-center">
+        <Link to="/forgot-password" className="inline-flex min-h-11 items-center px-3 text-sm text-slate-700 underline underline-offset-2 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-accent">
+          {strings.auth.forgotPassword}
+        </Link>
+      </p>
     </form>
   )
 }
@@ -183,6 +188,7 @@ function DriverForm({ onSubmit }: { onSubmit: (email: string, password: string) 
       <Button type="submit" className="w-full" loading={isSubmitting}>
         {isSubmitting ? strings.auth.signingIn : strings.auth.signIn}
       </Button>
+      <p className="text-center text-sm text-slate-600">{strings.auth.driverForgotHelp}</p>
     </form>
   )
 }

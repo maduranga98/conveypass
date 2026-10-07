@@ -33,7 +33,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
   const [contractorId, setContractorId] = useState(isAdmin ? (params.get('contractor') ?? '') : '')
   const [formFor, setFormFor] = useState<WithId<Vehicle> | 'new' | null>(params.get('new') ? 'new' : null)
   const [openId, setOpenId] = useState<string | null>(null)
-  const [importing, setImporting] = useState(false)
+  const [importing, setImporting] = useState(params.get('import') === '1')
 
   const driverNames = useMemo(() => new Map((drivers.data?.items ?? []).map((d) => [d.id, d.name])), [drivers.data])
   const contractorNames = useMemo(() => new Map((contractors.data ?? []).map((c) => [c.id, c.name])), [contractors.data])

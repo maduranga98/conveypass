@@ -87,18 +87,112 @@ Roll **back hosting and functions together** when a release changed a callable's
 
 ## Tenants and admins
 
-**Create a tenant and its first admin** (emulator, staging or production; production needs `--confirm-production`):
+Two ways to create a workspace. **Use the invite link for real clients**; `create-tenant` is for operators who must set
+a client up themselves (and for the emulator). Both go through `provisionTenant` (`functions/src/tenants/tenantDefaults.ts`),
+so a tenant made either way has the same defaults (checklist, rejection reasons, one gate, SLA 30/30, pass settings,
+timezone, evidence retention off).
+
+### Onboarding a new client
+
+Prerequisites: `APP_BASE_URL` set to the public origin (for example `https://app.convoypass.com`, in your shell or `.env`; it
+must be `https`), and Application Default Credentials for the project (`gcloud auth application-default login`, or
+`GOOGLE_APPLICATION_CREDENTIALS`).
+
+1. **Create the invite** (one invite = one link = one workspace and its first admin):
+
+   ```sh
+   npm run invite:create -- --env staging --company "Acme Quarry" --lock-email ops@acme.example --expires-days 7
+   npm run invite:create -- --env prod --confirm-prod --company "Acme Quarry" --lock-email ops@acme.example
+   ```
+
+   `--company` (optional) pre-fills the company name. `--lock-email` (recommended) lets only that address complete setup.
+   `--expires-days` is 1-30, default 7. The script prints the link **once**: `https://app.convoypass.com/setup#code=<43 characters>`.
+   Only the SHA-256 hash is stored, so a lost link cannot be recovered: revoke and create another.
+2. **Send the link over a secure channel** (an end-to-end encrypted messenger or a password manager share; not a ticket, a
+   group chat or an email thread others can read). Whoever opens it first can create the workspace.
+3. **What the client sees.** The page checks the link, then shows one form: company name, their name, work email
+   (read only when you locked it), a password (live rules: 10+ characters, not their email, not a common password) and the
+   timezone (Asia/Colombo by default). On submit the workspace and their admin account are created, they are signed in
+   and land on the dashboard with a "Get ConvoyPass ready" checklist, and a verification email is sent. A link that is
+   wrong, expired, already used or locked to another email all show the same message ("This setup link is invalid or has
+   expired."), so nobody can probe for valid links.
+4. **Expiry and revoking.** Check status any time (`unused`, `claimed` = someone is mid-setup for up to 10 minutes, `used`,
+   `expired`) and revoke an unused invite by the 8-character hash prefix from the list:
+
+   ```sh
+   npm run invite:list -- --env prod --confirm-prod
+   npm run invite:revoke -- --env prod --confirm-prod 1a2b3c4d
+   ```
+
+   A used invite is a record of the tenant it created and cannot be deleted. If setup fails halfway (for example the
+   email already has an account), nothing is left behind and the same link works again.
+5. **After setup** the client adds their contractors, supervisors, officers, security users, vehicles and drivers in the
+   app. Nothing else is needed from you.
+
+Operator fallback (no link; you choose the email and a temporary password, and the admin must change it at first login):
 
 ```sh
-export GOOGLE_APPLICATION_CREDENTIALS=~/keys/convoypass-staging-admin.json   # or: gcloud auth application-default login
 npm run create-tenant -- --env staging --tenant-name "Acme Quarry" --email admin@acme.example --password '<temporary password>' [--timezone Asia/Colombo] [--tenant-id acme]
 npm run create-tenant -- --env prod --confirm-production --tenant-name "Acme Quarry" --email admin@acme.example   # password from CREATE_TENANT_ADMIN_PASSWORD
 ```
 
-The admin must change the password at first login. The script refuses an existing tenant id or email and placeholder projects.
+Without `--tenant-id` the tenant id is `ten_` + 10 random characters.
 
-**Reset an admin** (lost password, locked out): `npm run reset-admin -- --env prod --confirm-production --email admin@acme.example`
-(password from `--password` or `RESET_ADMIN_PASSWORD`). It sets a temporary password, forces a change at next login, revokes sessions and writes an audit entry. It only touches users that are admins. For any other role, an admin uses *Users > Reset credential*.
+### Admin locked out
+
+1. **Email reset first.** The admin opens *Sign in > Forgot password?* and follows the emailed link. This only works if the
+   mailbox is theirs and the email is correct (a verified email is best: staff see a banner until they verify).
+2. **Operator recovery** when that fails (mailbox gone, email typo):
+
+   ```sh
+   # a reset link they open themselves (shown once; send it securely)
+   npm run admin:reset -- --env prod --confirm-prod --email admin@acme.example --link
+   # or a random temporary password (shown once; all sessions are signed out; they must choose a new one at login)
+   npm run admin:reset -- --env prod --confirm-prod --email admin@acme.example --temp-password
+   ```
+
+   It checks the user exists and is an admin in Firestore (it will not touch any other role: for those an admin uses
+   *Users > Reset credential*), and writes an `admin.recovery` audit entry (method and environment, never the secret).
+   Verify the person asking really is the client's admin before running it.
+3. **Drivers** have no email: a supervisor or admin resets their PIN (*Drivers/Users > Reset credential*).
+
+### Firebase console settings for sign-in emails
+
+Do these once per project (staging and prod). The app only calls `sendPasswordResetEmail` and `sendEmailVerification`;
+Firebase sends the mail.
+
+- **Email enumeration protection**: *Authentication > Settings > User actions > Enable email enumeration protection*. With
+  it on, Firebase Auth also stops answering "no such user" to the browser. (The app already shows the same confirmation
+  for every address; this closes the same hole at the API.)
+- **Authorized domains**: *Authentication > Settings > Authorized domains > Add domain* `app.convoypass.com` (and the
+  staging domain). Without it the "continue" link in the emails is refused; the app then retries without it, but clients
+  lose the link back to the login page.
+- **Email action URL**: *Authentication > Templates > (Password reset, Email address verification) > pencil icon >
+  Customize action URL* = `https://app.convoypass.com/auth/action`. The app's `/auth/action` page handles
+  `resetPassword` and `verifyEmail`; every other mode is ignored. Set it for both templates.
+- **Templates**: same screen. Set the sender name (for example `ConvoyPass`), the reply-to, the subject lines
+  (for example "Reset your ConvoyPass password" and "Verify your email for ConvoyPass") and the language
+  (English; the app has no translations yet).
+- **Deliverability**: the default sender (`noreply@<project>.firebaseapp.com`) often lands in spam. Before launch, configure
+  a **custom SMTP server or sender domain** (*Templates > SMTP settings*, or a custom sender domain) with **SPF and DKIM**
+  (and DMARC) records for that domain, then send a reset email to Gmail, Outlook and a company mailbox and check the
+  inbox. Until then tell clients to check their spam folder (the forgot-password page says so).
+
+### Reading reset and verification links on the emulator
+
+The Auth emulator sends no mail. It prints each link in the terminal running `npm run emulators`
+(`To reset the password for x@y.z, follow this link: ...`) and lists all of them as JSON:
+
+```sh
+curl -s http://127.0.0.1:9099/emulator/v1/projects/<project-id>/oobCodes   # [{ email, requestType, oobCode, oobLink }, ...]
+```
+
+Open the app's own page with the code from there: `http://localhost:5173/auth/action?mode=resetPassword&oobCode=<code>` or
+`...?mode=verifyEmail&oobCode=<code>`. (The printed `oobLink` goes to the emulator's built-in action page instead; both finish
+the same reset.) `npm run admin:reset -- --env emulator --email ... --link` prints a link the same way.
+
+`npm run verify:invite-access` (emulators running) proves with a raw Admin SDK call and every client role that nobody can read or
+write `setupInvites`.
 
 ## Backups and restore
 

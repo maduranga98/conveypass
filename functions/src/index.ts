@@ -11,7 +11,11 @@ import * as gate from './gate.js'
 import * as passes from './passes.js'
 import * as reportsApi from './reportsApi.js'
 import { devicePort } from './notifyPorts.js'
-import { callable } from './runtime.js'
+import { callable, publicCallable } from './runtime.js'
+import { newTenantId } from './tenants/tenantDefaults.js'
+import * as setup from './setup.js'
+import { newClaimId, setupPort } from './setupPort.js'
+import { authPort } from './ports.js'
 import * as vehicles from './vehicles.js'
 
 initializeApp()
@@ -57,6 +61,18 @@ export const registerDevice = callable(
   { rateLimit: true },
 )
 export const unregisterDevice = callable('unregisterDevice', (d, caller, data) => devices.unregisterDevice(d, devicePort(), caller, data))
+
+// Module 8: invite-only workspace setup. No sign-in: per-IP rate limits, uniform errors, codes never logged.
+const setupDeps = (): setup.SetupDeps => ({
+  auth: authPort(),
+  port: setupPort(),
+  now: () => Date.now(),
+  newTenantId,
+  newClaimId,
+  timezones: setup.supportedTimezones,
+})
+export const validateSetupInvite = publicCallable('validateSetupInvite', (data) => setup.validateSetupInvite(setupDeps(), data))
+export const completeSetup = publicCallable('completeSetup', (data) => setup.completeSetup(setupDeps(), data))
 
 // Browsers report crashes here: signed-in users only, rate limited per user, scrubbed and truncated, logs only.
 export const reportClientError = callable('reportClientError', clientErrors.reportClientError, { rateLimit: true })

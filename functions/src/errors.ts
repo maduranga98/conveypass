@@ -54,6 +54,11 @@ export type Reason =
   | 'id-required'
   | 'filter-invalid'
   | 'rate-limited'
+  | 'setup-invalid'
+  | 'weak-password'
+  | 'common-password'
+  | 'password-is-email'
+  | 'timezone-invalid'
   | 'device-invalid'
   | 'internal'
 

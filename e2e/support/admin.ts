@@ -3,6 +3,7 @@
 import { initializeApp, getApps } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
+import { tenantDefaults } from '../../functions/src/tenants/tenantDefaults.ts'
 import { CONTRACTOR, DRIVER_AUTH_EMAIL, PASSWORD, PIN, PLATE, PROJECT, STAFF, TENANT, VEHICLE } from './constants.ts'
 
 process.env.FIREBASE_AUTH_EMULATOR_HOST ??= '127.0.0.1:9099'
@@ -21,7 +22,8 @@ const clearEmulators = async (): Promise<void> => {
 const uids: Record<string, string> = {}
 
 async function user(key: string, email: string, password: string, name: string, claims: Record<string, string>, doc: Record<string, unknown>): Promise<void> {
-  const u = await auth.createUser({ email, password, displayName: name })
+  // Verified: the unverified-email banner has its own tests (e2e/setup.spec.ts), and must not sit on every other screen.
+  const u = await auth.createUser({ email, password, displayName: name, emailVerified: true })
   await auth.setCustomUserClaims(u.uid, claims)
   await db.doc(`users/${u.uid}`).set({
     tenantId: TENANT, contractorId: null, name, email: null, phone: null, status: 'active', mustChangePassword: false,
@@ -33,7 +35,8 @@ async function user(key: string, email: string, password: string, name: string, 
 /** A clean tenant with one of every role, one contractor, one vehicle assigned to the driver. */
 async function seed(): Promise<Record<string, string>> {
   await clearEmulators()
-  await db.doc(`tenants/${TENANT}`).set({ name: 'E2E Quarry', status: 'active', timezone: 'Asia/Colombo', createdAt: FieldValue.serverTimestamp() })
+  // The tenant has exactly what provisionTenant gives every new workspace, so the whole e2e suite runs on a real default tenant.
+  await db.doc(`tenants/${TENANT}`).set({ name: 'E2E Quarry', status: 'active', ...tenantDefaults('Asia/Colombo'), createdAt: FieldValue.serverTimestamp() })
   await db.doc(`contractors/${CONTRACTOR}`).set({ tenantId: TENANT, name: 'Acme Haulage', status: 'active', createdAt: Timestamp.now(), createdBy: 'e2e', updatedAt: Timestamp.now() })
   for (const [role, who] of Object.entries(STAFF)) {
     const contractorId = role === 'supervisor' ? CONTRACTOR : null
@@ -78,6 +81,23 @@ async function writePass(status = 'submitted', vehicleId = VEHICLE, plateNo = PL
 const notificationsFor = async (uid: string): Promise<{ id: string; read: boolean }[]> =>
   (await db.collection('notifications').where('recipientUid', '==', uid).get()).docs.map((d: { id: string; data: () => unknown }) => ({ id: d.id, read: (d.data() as { readAt: unknown }).readAt !== null }))
 
+/** Makes an invite (found by hash prefix) expired, the way waiting past its expiry date would. */
+async function expireInvite(hashPrefix: string): Promise<string> {
+  const docs = (await db.collection('setupInvites').get()).docs.filter((d) => d.id.startsWith(hashPrefix))
+  if (docs.length !== 1) throw new Error(`expected one invite for ${hashPrefix}, found ${docs.length}`)
+  await docs[0]!.ref.update({ expiresAt: Timestamp.fromMillis(Date.now() - 60_000) })
+  return docs[0]!.id
+}
+
+/** The stored tenant with this name (timestamps dropped, `id` added) for assertions about defaults. */
+async function tenantByName(name: string): Promise<Record<string, unknown>> {
+  const docs = (await db.collection('tenants').where('name', '==', name).get()).docs
+  if (docs.length !== 1) throw new Error(`expected one tenant named ${name}, found ${docs.length}`)
+  const data = docs[0]!.data()
+  delete data.createdAt
+  return { id: docs[0]!.id, ...data }
+}
+
 const [command, raw] = process.argv.slice(2)
 const args = JSON.parse(raw ?? '{}') as Record<string, string>
 const run = async (): Promise<unknown> => {
@@ -86,6 +106,10 @@ const run = async (): Promise<unknown> => {
       return seed()
     case 'writePass':
       return writePass(args.status, args.vehicleId, args.plateNo, args.driverId)
+    case 'expireInvite':
+      return expireInvite(args.hashPrefix ?? '')
+    case 'tenantByName':
+      return tenantByName(args.name ?? '')
     case 'notificationsFor':
       return notificationsFor(args.uid ?? '')
     default:
