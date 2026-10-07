@@ -1,7 +1,12 @@
 import { expect, test, type Page } from '@playwright/test'
-import { VEHICLE, writePass } from './support/emulator.ts'
+import { seed, VEHICLE, writePass } from './support/emulator.ts'
 import { expectNoAxeViolations, smallTouchTargets } from './support/a11y.ts'
 import { loginDriver, loginStaff } from './support/ui.ts'
+
+// Every test starts from the same clean tenant: earlier tests leave passes and notifications behind otherwise.
+test.beforeEach(() => {
+  seed()
+})
 
 // A phone: coarse pointer, 390 x 844. These are the three mobile-first roles.
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })

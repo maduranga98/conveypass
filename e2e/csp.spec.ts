@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
-import { VEHICLE, writePass } from './support/emulator.ts'
+import { seed, VEHICLE, writePass } from './support/emulator.ts'
 import { loginDriver, loginStaff } from './support/ui.ts'
+
+// Every test starts from the same clean tenant: earlier tests leave passes and notifications behind otherwise.
+test.beforeEach(() => {
+  seed()
+})
 
 /**
  * Acceptance: the Content-Security-Policy-Report-Only header produces no violations during a run through every role,

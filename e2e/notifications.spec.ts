@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test'
-import { notificationsFor, uids, writeSubmittedPass } from './support/emulator.ts'
+import { notificationsFor, seed, uids, writeSubmittedPass } from './support/emulator.ts'
 import { bellBadge, loginStaff } from './support/ui.ts'
+
+// Every test starts from the same clean tenant: earlier tests leave passes and notifications behind otherwise.
+test.beforeEach(() => {
+  seed()
+})
 
 test.describe('notifications (real Firestore trigger, rules and client)', () => {
   test('a submitted pass notifies the supervisor live: badge, tab title, panel, mark read, navigate', async ({ page }) => {
@@ -37,7 +42,7 @@ test.describe('notifications (real Firestore trigger, rules and client)', () => 
     await page.getByRole('link', { name: 'See all' }).click()
     await expect(page).toHaveURL(/\/notifications$/)
     await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible()
-    await expect(page.getByRole('list').getByRole('listitem').filter({ hasText: 'Approval needed' })).toHaveCount(3)
+    await expect(page.getByRole('list').getByRole('listitem').filter({ hasText: 'Approval needed' })).toHaveCount(2)
   })
 
   test('a user only ever sees their own notifications', async ({ page }) => {

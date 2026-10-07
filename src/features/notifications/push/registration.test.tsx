@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const registerDevice = vi.hoisted(() => vi.fn(async (_p: unknown) => ({ ok: true as const })))
-const unregisterDevice = vi.hoisted(() => vi.fn(async (_p: unknown) => ({ ok: true as const })))
-const getToken = vi.hoisted(() => vi.fn(async (_m: unknown, _o: unknown) => 'fcm-token-abcdefghijklmnopqrstuvwxyz'))
+const registerDevice = vi.hoisted(() => vi.fn<(payload: unknown) => Promise<{ ok: true }>>(async () => ({ ok: true })))
+const unregisterDevice = vi.hoisted(() => vi.fn<(payload: unknown) => Promise<{ ok: true }>>(async () => ({ ok: true })))
+const getToken = vi.hoisted(() => vi.fn<(messaging: unknown, options: unknown) => Promise<string>>(async () => 'fcm-token-abcdefghijklmnopqrstuvwxyz'))
 const deleteToken = vi.hoisted(() => vi.fn(async () => true))
 vi.mock('@/lib/api', () => ({ registerDevice, unregisterDevice }))
 vi.mock('@/lib/firebase', () => ({ app: {} }))
