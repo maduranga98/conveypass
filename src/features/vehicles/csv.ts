@@ -30,9 +30,11 @@ const canonicalType = (raw: string): string => {
   return VEHICLE_TYPES.find((v) => v.toLowerCase() === t) ?? raw.trim()
 }
 
+const stripBom = (t: string): string => (t.charCodeAt(0) === 0xfeff ? t.slice(1) : t)
+
 /** Parses and validates a vehicle CSV (`plateNo,type,makeModel`) with the same schema the form uses. */
 export function parseVehicleCsv(text: string): CsvParseResult {
-  const parsed = Papa.parse<Record<string, string | undefined>>(text.replace(/^﻿/, ''), {
+  const parsed = Papa.parse<Record<string, string | undefined>>(stripBom(text), {
     header: true,
     skipEmptyLines: 'greedy',
     transformHeader: (h) => h.trim().toLowerCase().replace(/[\s_-]/g, ''),
