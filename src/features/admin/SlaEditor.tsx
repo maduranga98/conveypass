@@ -1,12 +1,9 @@
 import { Input } from '@/components/ui/Input'
 import { SLA_MAX, SLA_MIN, type SlaSettings } from '@/lib/defaultSla'
 import { strings } from '@/lib/strings'
+import { minutesOk } from './reasons'
 
 const t = strings.admin.sla
-
-const minutesOk = (m: number): boolean => Number.isInteger(m) && m >= SLA_MIN && m <= SLA_MAX
-
-export const slaOk = (sla: SlaSettings): boolean => minutesOk(sla.supervisorMinutes) && minutesOk(sla.officerMinutes)
 
 /** How long a pass may wait at each review step before the dashboard flags it. */
 export function SlaEditor({ value, onChange, showErrors, usingDefaults }: {

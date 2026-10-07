@@ -22,10 +22,10 @@ import { strings } from '@/lib/strings'
 import { useSession } from '@/features/auth/useAuth'
 import { useTenant } from '@/features/passes/queries'
 import type { Tenant } from '@/types'
-import { gateNameOk, MAX_REASONS, MIN_REASONS, reasonLabelOk } from './reasons'
+import { gateNameOk, MAX_REASONS, MIN_REASONS, reasonLabelOk, slaOk } from './reasons'
 import { RejectionReasonsEditor } from './RejectionReasonsEditor'
 import { GatesEditor } from './GatesEditor'
-import { SlaEditor, slaOk } from './SlaEditor'
+import { SlaEditor } from './SlaEditor'
 
 const t = strings.admin.settings
 const MAX_ITEMS = 12
