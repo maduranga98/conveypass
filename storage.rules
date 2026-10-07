@@ -1,8 +1,38 @@
 rules_version = '2';
 
-// Deny all for now; Module 4 opens the paths it needs.
+// Driver photos only: tenants/{tenantId}/contractors/{contractorId}/drivers/{uid}.jpg
+// Role, tenant and contractor come from custom claims (set by Cloud Functions). Everything else is denied.
 service firebase.storage {
   match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function role() {
+      return request.auth.token.get('role', null);
+    }
+    function inTenant(tid) {
+      return signedIn() && request.auth.token.get('tenantId', null) == tid;
+    }
+    function supervises(cid) {
+      return role() == 'supervisor' && request.auth.token.get('contractorId', null) == cid;
+    }
+
+    match /tenants/{tid}/contractors/{cid}/drivers/{file} {
+      allow read: if inTenant(tid) && (
+        role() in ['admin', 'officer', 'security']
+        || supervises(cid)
+        || (role() == 'driver' && file == request.auth.uid + '.jpg')
+      );
+
+      // Create/replace only; photos are never deleted from the client.
+      allow create, update: if inTenant(tid)
+        && (role() == 'admin' || supervises(cid))
+        && file.matches('[A-Za-z0-9]+[.]jpg')
+        && request.resource.contentType == 'image/jpeg'
+        && request.resource.size < 1024 * 1024;
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

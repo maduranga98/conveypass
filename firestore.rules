@@ -1,7 +1,8 @@
 rules_version = '2';
 
 // Deny by default. Roles/tenant come ONLY from custom claims (set by Cloud Functions).
-// `users`, `tenants` and `auditLog` are never client-writable; Cloud Functions use the Admin SDK.
+// `users`, `tenants`, `auditLog`, `vehicles`, `drivers` and `vehiclePlates` are never client-writable;
+// Cloud Functions use the Admin SDK. `contractors` accept admin writes to descriptive fields only.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -45,9 +46,10 @@ service cloud.firestore {
         || (role() in ['supervisor', 'driver'] && contractorId() != null && id == contractorId())
       );
 
+      // `status` is function-only (setContractorStatus). A new contractor starts active; nothing else may set it.
       allow create: if signedIn() && role() == 'admin'
         && request.resource.data.keys().hasOnly(
-          ['tenantId', 'name', 'contactName', 'phone', 'status', 'createdAt', 'createdBy', 'updatedAt'])
+          ['tenantId', 'name', 'contactName', 'phone', 'address', 'notes', 'status', 'createdAt', 'createdBy', 'updatedAt'])
         && request.resource.data.keys().hasAll(
           ['tenantId', 'name', 'status', 'createdAt', 'createdBy', 'updatedAt'])
         && request.resource.data.tenantId == tenantId()
@@ -57,15 +59,12 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time
         && validContractorFields(request.resource.data);
 
+      // Admins may change descriptive fields only. Any other changed key (status, tenantId, createdBy, ...) is denied.
       allow update: if signedIn() && role() == 'admin'
         && sameTenant(resource.data)
-        && request.resource.data.keys().hasOnly(
-          ['tenantId', 'name', 'contactName', 'phone', 'status', 'createdAt', 'createdBy', 'updatedAt'])
-        && request.resource.data.tenantId == resource.data.tenantId
-        && request.resource.data.createdBy == resource.data.createdBy
-        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['name', 'contactName', 'phone', 'address', 'notes', 'updatedAt'])
         && request.resource.data.updatedAt == request.time
-        && request.resource.data.status in ['active', 'suspended']
         && validContractorFields(request.resource.data);
 
       allow delete: if false;
@@ -74,7 +73,34 @@ service cloud.firestore {
     function validContractorFields(d) {
       return d.name is string && d.name.size() > 0 && d.name.size() <= 100
         && (!('contactName' in d) || d.contactName == null || (d.contactName is string && d.contactName.size() <= 100))
-        && (!('phone' in d) || d.phone == null || (d.phone is string && d.phone.size() <= 30));
+        && (!('phone' in d) || d.phone == null || (d.phone is string && d.phone.size() <= 30))
+        && (!('address' in d) || d.address == null || (d.address is string && d.address.size() <= 200))
+        && (!('notes' in d) || d.notes == null || (d.notes is string && d.notes.size() <= 1000));
+    }
+
+    // Vehicles and drivers are written only by Cloud Functions (Admin SDK).
+    // Drivers read only the vehicles they are assigned to (query with array-contains on their uid).
+    match /vehicles/{id} {
+      allow read: if signedIn() && sameTenant(resource.data) && (
+        role() in ['admin', 'officer', 'security']
+        || (role() == 'supervisor' && contractorId() != null && resource.data.contractorId == contractorId())
+        || (role() == 'driver' && request.auth.uid in resource.data.assignedDriverIds)
+      );
+      allow write: if false;
+    }
+
+    match /drivers/{uid} {
+      allow read: if signedIn() && sameTenant(resource.data) && (
+        role() in ['admin', 'officer', 'security']
+        || (role() == 'supervisor' && contractorId() != null && resource.data.contractorId == contractorId())
+        || (role() == 'driver' && request.auth.uid == uid)
+      );
+      allow write: if false;
+    }
+
+    // Plate uniqueness guards: server only.
+    match /vehiclePlates/{id} {
+      allow read, write: if false;
     }
 
     match /auditLog/{id} {

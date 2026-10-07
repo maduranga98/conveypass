@@ -18,7 +18,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 const A = 'tenantA'
 const B = 'tenantB'
@@ -43,6 +43,29 @@ const contractorDoc = (tenantId: string, name: string) => ({
   status: 'active',
   createdAt: new Date(),
   createdBy: 'seed',
+  updatedAt: new Date(),
+})
+
+const vehicleDoc = (tenantId: string, contractorId: string, assignedDriverIds: string[]) => ({
+  tenantId,
+  contractorId,
+  plateNo: 'CAB-1234',
+  plateKey: 'CAB1234',
+  type: 'Tipper',
+  assignedDriverIds,
+  status: 'active',
+  createdAt: new Date(),
+  createdBy: 'seed',
+  updatedAt: new Date(),
+})
+
+const driverProfile = (tenantId: string, contractorId: string) => ({
+  tenantId,
+  contractorId,
+  name: 'D',
+  phone: '94771234567',
+  status: 'active',
+  createdAt: new Date(),
   updatedAt: new Date(),
 })
 
@@ -72,6 +95,16 @@ beforeEach(async () => {
     await setDoc(doc(db, 'contractors', 'c1'), contractorDoc(A, 'C1'))
     await setDoc(doc(db, 'contractors', 'c2'), contractorDoc(A, 'C2'))
     await setDoc(doc(db, 'contractors', 'cB'), contractorDoc(B, 'CB'))
+    await setDoc(doc(db, 'vehicles', 'veh_a1'), vehicleDoc(A, 'c1', ['drvA1']))
+    await setDoc(doc(db, 'vehicles', 'veh_a2'), vehicleDoc(A, 'c1', ['drvA1', 'drvA1b']))
+    await setDoc(doc(db, 'vehicles', 'veh_a3'), vehicleDoc(A, 'c1', []))
+    await setDoc(doc(db, 'vehicles', 'veh_a4'), vehicleDoc(A, 'c2', ['drvA2']))
+    await setDoc(doc(db, 'vehicles', 'veh_b1'), vehicleDoc(B, 'cB', ['drvB1']))
+    await setDoc(doc(db, 'drivers', 'drvA1'), driverProfile(A, 'c1'))
+    await setDoc(doc(db, 'drivers', 'drvA1b'), driverProfile(A, 'c1'))
+    await setDoc(doc(db, 'drivers', 'drvA2'), driverProfile(A, 'c2'))
+    await setDoc(doc(db, 'drivers', 'drvB1'), driverProfile(B, 'cB'))
+    await setDoc(doc(db, 'vehiclePlates', `${A}_WPLJ4821`), { vehicleId: 'veh_a1' })
     await setDoc(doc(db, 'auditLog', 'a1'), { tenantId: A, action: 'user.create' })
     await setDoc(doc(db, 'auditLog', 'b1'), { tenantId: B, action: 'user.create' })
   })
@@ -273,24 +306,156 @@ describe('contractors', () => {
     await assertFails(setDoc(doc(db, 'contractors', 'n5'), newContractor({ createdAt: new Date() })))
   })
 
-  it('admin can suspend but not change tenant, and cannot delete', async () => {
+  it('admin edits descriptive fields, including address and notes', async () => {
     const db = adminA()
     await assertSucceeds(
-      updateDoc(doc(db, 'contractors', 'c1'), { status: 'suspended', updatedAt: serverTimestamp() }),
+      updateDoc(doc(db, 'contractors', 'c1'), {
+        name: 'Renamed',
+        contactName: 'Kamal',
+        phone: '0771234567',
+        address: '1 Main St',
+        notes: 'Cement hauler',
+        updatedAt: serverTimestamp(),
+      }),
     )
-    await assertFails(
-      updateDoc(doc(db, 'contractors', 'c1'), { tenantId: B, updatedAt: serverTimestamp() }),
-    )
-    await assertFails(
-      updateDoc(doc(db, 'contractors', 'c1'), { status: 'deleted', updatedAt: serverTimestamp() }),
-    )
+    await assertFails(updateDoc(doc(db, 'contractors', 'c1'), { address: 'x'.repeat(201), updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(doc(db, 'contractors', 'c1'), { notes: 'x'.repeat(1001), updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(doc(db, 'contractors', 'c1'), { name: '', updatedAt: serverTimestamp() }))
+  })
+
+  it('admin cannot change status (function-only): suspend, activate or anything else', async () => {
+    const db = adminA()
+    await assertFails(updateDoc(doc(db, 'contractors', 'c1'), { status: 'suspended', updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(doc(db, 'contractors', 'c1'), { status: 'suspended', name: 'Also renamed', updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(doc(db, 'contractors', 'c1'), { status: 'deleted', updatedAt: serverTimestamp() }))
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'contractors', 'c2'), { status: 'suspended' })
+    })
+    await assertFails(updateDoc(doc(db, 'contractors', 'c2'), { status: 'active', updatedAt: serverTimestamp() }))
+  })
+
+  it('admin cannot change tenant or audit fields, and cannot delete', async () => {
+    const db = adminA()
+    await assertFails(updateDoc(doc(db, 'contractors', 'c1'), { tenantId: B, updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(doc(db, 'contractors', 'c1'), { createdBy: 'adminA', updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(doc(db, 'contractors', 'c1'), { name: 'x' })) // updatedAt must be the server time
     await assertFails(deleteDoc(doc(db, 'contractors', 'c1')))
+  })
+})
+
+describe('vehicles', () => {
+  const ids = async (db: ReturnType<typeof adminA>, ...constraints: ReturnType<typeof where>[]) =>
+    (await assertSucceeds(getDocs(query(collection(db, 'vehicles'), ...constraints)))).docs.map((d) => d.id).sort()
+
+  it('admin, officer and security read every vehicle of their tenant', async () => {
+    for (const db of [adminA(), officerA(), securityA()]) {
+      expect(await ids(db, where('tenantId', '==', A))).toEqual(['veh_a1', 'veh_a2', 'veh_a3', 'veh_a4'])
+      await assertSucceeds(getDoc(doc(db, 'vehicles', 'veh_a4')))
+    }
+  })
+
+  it('supervisor reads only their own contractor’s vehicles', async () => {
+    const db = supA1()
+    expect(await ids(db, where('tenantId', '==', A), where('contractorId', '==', 'c1'))).toEqual(['veh_a1', 'veh_a2', 'veh_a3'])
+    await assertSucceeds(getDoc(doc(db, 'vehicles', 'veh_a1')))
+    await assertFails(getDoc(doc(db, 'vehicles', 'veh_a4')))
+    await assertFails(getDocs(query(collection(db, 'vehicles'), where('tenantId', '==', A), where('contractorId', '==', 'c2'))))
+    await assertFails(getDocs(query(collection(db, 'vehicles'), where('tenantId', '==', A)))) // would include c2
+  })
+
+  it('driver reads only the vehicles they are assigned to', async () => {
+    const db = drvA1()
+    await assertSucceeds(getDoc(doc(db, 'vehicles', 'veh_a1')))
+    await assertSucceeds(getDoc(doc(db, 'vehicles', 'veh_a2')))
+    await assertFails(getDoc(doc(db, 'vehicles', 'veh_a3'))) // same contractor, not assigned
+    await assertFails(getDoc(doc(db, 'vehicles', 'veh_a4')))
+    expect(await ids(db, where('tenantId', '==', A), where('assignedDriverIds', 'array-contains', 'drvA1'))).toEqual(['veh_a1', 'veh_a2'])
+    await assertFails(getDocs(query(collection(db, 'vehicles'), where('tenantId', '==', A), where('contractorId', '==', 'c1'))))
+    await assertFails(getDocs(query(collection(db, 'vehicles'), where('tenantId', '==', A), where('assignedDriverIds', 'array-contains', 'drvA1b'))))
+  })
+
+  it('denies cross-tenant reads and queries', async () => {
+    for (const db of [adminA(), officerA(), securityA(), supA1(), drvA1()]) {
+      await assertFails(getDoc(doc(db, 'vehicles', 'veh_b1')))
+    }
+    await assertFails(getDocs(query(collection(adminA(), 'vehicles'), where('tenantId', '==', B))))
+    await assertFails(getDoc(doc(as('adminB', { role: 'admin', tenantId: B }), 'vehicles', 'veh_a1')))
+  })
+
+  it('denies reads without claims and when signed out', async () => {
+    await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'vehicles', 'veh_a1')))
+    await assertFails(getDoc(doc(env.authenticatedContext('x', {}).firestore(), 'vehicles', 'veh_a1')))
+  })
+
+  it('denies every client write to vehicles, by every role', async () => {
+    for (const db of [adminA(), officerA(), securityA(), supA1(), drvA1()]) {
+      await assertFails(setDoc(doc(db, 'vehicles', 'veh_new'), vehicleDoc(A, 'c1', [])))
+      await assertFails(addDoc(collection(db, 'vehicles'), vehicleDoc(A, 'c1', [])))
+      await assertFails(updateDoc(doc(db, 'vehicles', 'veh_a1'), { status: 'suspended' }))
+      await assertFails(updateDoc(doc(db, 'vehicles', 'veh_a1'), { assignedDriverIds: ['drvA1', 'drvA1b'] }))
+      await assertFails(deleteDoc(doc(db, 'vehicles', 'veh_a1')))
+    }
+  })
+})
+
+describe('drivers', () => {
+  it('admin, officer and security read every driver profile of their tenant', async () => {
+    for (const db of [adminA(), officerA(), securityA()]) {
+      const snap = await assertSucceeds(getDocs(query(collection(db, 'drivers'), where('tenantId', '==', A))))
+      expect(snap.docs.map((d) => d.id).sort()).toEqual(['drvA1', 'drvA1b', 'drvA2'])
+    }
+  })
+
+  it('supervisor reads only their own contractor’s drivers', async () => {
+    const db = supA1()
+    const snap = await assertSucceeds(
+      getDocs(query(collection(db, 'drivers'), where('tenantId', '==', A), where('contractorId', '==', 'c1'))),
+    )
+    expect(snap.docs.map((d) => d.id).sort()).toEqual(['drvA1', 'drvA1b'])
+    await assertFails(getDoc(doc(db, 'drivers', 'drvA2')))
+    await assertFails(getDocs(query(collection(db, 'drivers'), where('tenantId', '==', A))))
+  })
+
+  it('a driver reads only their own profile', async () => {
+    const db = drvA1()
+    await assertSucceeds(getDoc(doc(db, 'drivers', 'drvA1')))
+    await assertFails(getDoc(doc(db, 'drivers', 'drvA1b'))) // same contractor
+    await assertFails(getDoc(doc(db, 'drivers', 'drvA2')))
+    await assertFails(getDocs(query(collection(db, 'drivers'), where('tenantId', '==', A))))
+  })
+
+  it('denies cross-tenant reads', async () => {
+    for (const db of [adminA(), officerA(), securityA(), supA1(), drvA1()]) {
+      await assertFails(getDoc(doc(db, 'drivers', 'drvB1')))
+    }
+    await assertFails(getDocs(query(collection(adminA(), 'drivers'), where('tenantId', '==', B))))
+  })
+
+  it('denies every client write to drivers, including a driver editing themselves', async () => {
+    for (const db of [adminA(), officerA(), securityA(), supA1(), drvA1()]) {
+      await assertFails(setDoc(doc(db, 'drivers', 'drvNew'), driverProfile(A, 'c1')))
+      await assertFails(updateDoc(doc(db, 'drivers', 'drvA1'), { name: 'Hacked' }))
+      await assertFails(updateDoc(doc(db, 'drivers', 'drvA1'), { photoPath: 'tenants/x/y.jpg' }))
+      await assertFails(deleteDoc(doc(db, 'drivers', 'drvA1')))
+    }
+  })
+})
+
+describe('vehiclePlates', () => {
+  it('has no client access at all', async () => {
+    for (const db of [adminA(), officerA(), securityA(), supA1(), drvA1(), env.unauthenticatedContext().firestore()]) {
+      await assertFails(getDoc(doc(db, 'vehiclePlates', `${A}_WPLJ4821`)))
+      await assertFails(getDocs(collection(db, 'vehiclePlates')))
+      await assertFails(setDoc(doc(db, 'vehiclePlates', `${A}_NEW`), { vehicleId: 'veh_a1' }))
+      await assertFails(updateDoc(doc(db, 'vehiclePlates', `${A}_WPLJ4821`), { vehicleId: 'veh_a2' }))
+      await assertFails(deleteDoc(doc(db, 'vehiclePlates', `${A}_WPLJ4821`)))
+    }
   })
 })
 
 describe('default deny', () => {
   it('denies unknown collections', async () => {
     await assertFails(getDoc(doc(adminA(), 'secrets', 'x')))
-    await assertFails(setDoc(doc(adminA(), 'vehicles', 'x'), { tenantId: A }))
+    await assertFails(setDoc(doc(adminA(), 'invoices', 'x'), { tenantId: A }))
   })
 })

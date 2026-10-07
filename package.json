@@ -12,7 +12,7 @@
     "test": "npm run test:unit && npm run test:functions && npm run test:rules",
     "test:unit": "vitest run --project unit",
     "test:functions": "firebase emulators:exec --only firestore --project demo-conveypass-functions \"npm --prefix functions test\"",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-conveypass-rules \"vitest run --project rules\"",
+    "test:rules": "firebase emulators:exec --only firestore,storage --project demo-conveypass-rules \"vitest run --project rules\"",
     "emulators": "firebase emulators:start --only auth,firestore,functions,storage",
     "seed:emulator": "tsx scripts/seed.ts --target=emulator",
     "seed:prod": "tsx scripts/seed.ts --target=prod",
