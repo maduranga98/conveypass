@@ -91,7 +91,7 @@ async function main(): Promise<void> {
     provisionTenant(db, batch, {
       tenantId, tenantName, timezone: DEFAULT_TIMEZONE,
       admin: { uid: user.uid, name: values.name ?? 'Admin', email, mustChangePassword: !values['keep-password'], createdBy: 'seed' },
-      actor: { uid: 'seed', role: 'system' }, meta: { target }, createdAt: FieldValue.serverTimestamp(),
+      actor: { uid: 'seed', role: 'system' }, meta: { target: target as string }, createdAt: FieldValue.serverTimestamp(),
     })
     await batch.commit()
   } catch (e) {
