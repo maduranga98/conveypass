@@ -6,8 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "typecheck": "tsc -b && npm --prefix functions run typecheck",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "npm run test:unit && npm run test:functions && npm run test:rules",
+    "test:unit": "vitest run --project unit",
+    "test:functions": "npm --prefix functions test",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-conveypass-rules \"vitest run --project rules\"",
+    "emulators": "firebase emulators:start --only auth,firestore,functions,storage",
+    "seed:emulator": "tsx scripts/seed.ts --target=emulator",
+    "seed:prod": "tsx scripts/seed.ts --target=prod",
+    "postinstall": "npm --prefix functions install"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -31,6 +40,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@types/node": "^24.19.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
@@ -38,10 +48,14 @@
     "eslint": "^10.10.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.6",
+    "firebase-admin": "^14.5.0",
+    "firebase-tools": "^15.32.1",
     "globals": "^17.12.0",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.69.0",
     "vite": "^8.3.0",
-    "vite-plugin-pwa": "^2.0.0"
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.0.3"
   }
 }

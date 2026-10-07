@@ -1,18 +1,89 @@
-rules_version='2'
+rules_version = '2';
 
+// Deny by default. Roles/tenant come ONLY from custom claims (set by Cloud Functions).
+// `users`, `tenants` and `auditLog` are never client-writable; Cloud Functions use the Admin SDK.
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function role() {
+      return request.auth.token.get('role', null);
+    }
+    function tenantId() {
+      return request.auth.token.get('tenantId', null);
+    }
+    function contractorId() {
+      return request.auth.token.get('contractorId', null);
+    }
+    function sameTenant(data) {
+      return signedIn() && tenantId() != null && data.tenantId == tenantId();
+    }
+
+    match /tenants/{id} {
+      allow read: if signedIn() && tenantId() == id;
+      allow write: if false;
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (
+        request.auth.uid == uid
+        || (role() == 'admin' && sameTenant(resource.data))
+        || (role() == 'supervisor'
+            && sameTenant(resource.data)
+            && resource.data.role == 'driver'
+            && contractorId() != null
+            && resource.data.contractorId == contractorId())
+      );
+      allow write: if false;
+    }
+
+    match /contractors/{id} {
+      allow read: if signedIn() && sameTenant(resource.data) && (
+        role() in ['admin', 'officer', 'security']
+        || (role() in ['supervisor', 'driver'] && contractorId() != null && id == contractorId())
+      );
+
+      allow create: if signedIn() && role() == 'admin'
+        && request.resource.data.keys().hasOnly(
+          ['tenantId', 'name', 'contactName', 'phone', 'status', 'createdAt', 'createdBy', 'updatedAt'])
+        && request.resource.data.keys().hasAll(
+          ['tenantId', 'name', 'status', 'createdAt', 'createdBy', 'updatedAt'])
+        && request.resource.data.tenantId == tenantId()
+        && request.resource.data.status == 'active'
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && validContractorFields(request.resource.data);
+
+      allow update: if signedIn() && role() == 'admin'
+        && sameTenant(resource.data)
+        && request.resource.data.keys().hasOnly(
+          ['tenantId', 'name', 'contactName', 'phone', 'status', 'createdAt', 'createdBy', 'updatedAt'])
+        && request.resource.data.tenantId == resource.data.tenantId
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.status in ['active', 'suspended']
+        && validContractorFields(request.resource.data);
+
+      allow delete: if false;
+    }
+
+    function validContractorFields(d) {
+      return d.name is string && d.name.size() > 0 && d.name.size() <= 100
+        && (!('contactName' in d) || d.contactName == null || (d.contactName is string && d.contactName.size() <= 100))
+        && (!('phone' in d) || d.phone == null || (d.phone is string && d.phone.size() <= 30));
+    }
+
+    match /auditLog/{id} {
+      allow read: if signedIn() && role() == 'admin' && sameTenant(resource.data);
+      allow write: if false;
+    }
+
     match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2026, 11, 6);
+      allow read, write: if false;
     }
   }
 }
