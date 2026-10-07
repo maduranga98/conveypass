@@ -197,6 +197,7 @@ export interface DataPort {
       rejectionReasons?: RejectionReasonDef[]
       gates?: GateDef[]
       sla?: SlaSettings
+      retentionDays?: number
     },
     audit: AuditEntry,
   ): Promise<void>

@@ -15,3 +15,10 @@ export const gateNameOk = (name: string): boolean => name.trim().length >= GATE_
 export const minutesOk = (m: number): boolean => Number.isInteger(m) && m >= SLA_MIN && m <= SLA_MAX
 
 export const slaOk = (sla: SlaSettings): boolean => minutesOk(sla.supervisorMinutes) && minutesOk(sla.officerMinutes)
+
+export const RETENTION_MIN = 30
+export const RETENTION_MAX = 3650
+export const DEFAULT_RETENTION_DAYS = 365
+
+/** 0 (keep forever) or a whole number of days from 30 to 3650. */
+export const retentionOk = (days: number): boolean => days === 0 || (Number.isInteger(days) && days >= RETENTION_MIN && days <= RETENTION_MAX)

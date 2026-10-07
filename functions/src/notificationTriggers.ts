@@ -4,6 +4,8 @@ import { APP_BASE_URL, REGION } from './config.js'
 import { logInfo } from './logger.js'
 import { actorOf, deliver, planDenial, planPassChange, type NotifyDeps } from './notifications.js'
 import { messagingPort, notifyPort, slaPort } from './notifyPorts.js'
+import { purgeOldEvidence } from './retention.js'
+import { retentionPort } from './retentionPort.js'
 import { runSlaCheck } from './sla.js'
 import type { GateEventData, PassData } from './types.js'
 
@@ -43,4 +45,9 @@ export const onGateEventCreated = onDocumentCreated({ document: 'gateEvents/{eve
 export const slaReminders = onSchedule({ schedule: 'every 10 minutes', timeZone: 'UTC' }, async () => {
   const summary = await runSlaCheck(slaPort(), notifyDeps())
   logInfo({ fn: 'slaReminders' }, 'ok', { ...summary })
+})
+
+/** Daily, off-peak (02:30 Colombo). Does nothing unless a tenant set `retentionDays` (default: keep forever). */
+export const purgeOldEvidenceDaily = onSchedule({ schedule: '30 2 * * *', timeZone: 'Asia/Colombo', memory: '512MiB', timeoutSeconds: 540 }, async () => {
+  await purgeOldEvidence(retentionPort(), Date.now())
 })

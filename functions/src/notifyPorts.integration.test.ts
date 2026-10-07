@@ -72,7 +72,6 @@ describe.skipIf(!emulator)('notification ports (emulator)', () => {
     expect((await db.collection('users/u2/devices').get()).size).toBe(0)
     expect((await db.doc('users/u1/devices/devB').get()).exists).toBe(true)
     // Through the callable logic: the user agent is trimmed and the doc has the documented fields.
-    w.users.set('u1', { ...(w.users.get('drv1') as never) })
     await db.doc('users/drv1').set({ tenantId: 'T1', role: 'driver', contractorId: 'C1', status: 'active' })
     await registerDevice(w.deps, port, caller('drv1', 'driver', 'C1'), { deviceId: 'abcdefghijklmnop', token: 't'.repeat(30), platform: 'android' }, { userAgent: 'U'.repeat(500) })
     const d = (await db.doc('users/drv1/devices/abcdefghijklmnop').get()).data() as Record<string, unknown>

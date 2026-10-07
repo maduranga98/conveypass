@@ -159,6 +159,9 @@ export const strings = {
     range: 'Choose between 30 and 3650 days.',
     saved: 'Retention saved.',
     removed: 'Evidence removed per retention policy',
+    confirmTitle: 'Delete old photos permanently?',
+    confirmBody: (days: number) => `Photos on passes older than ${days} days will be deleted for good, including photos that are already past that age. Pass records and their history stay.`,
+    confirm: 'Delete photos',
   },
 
   errorBoundary: {

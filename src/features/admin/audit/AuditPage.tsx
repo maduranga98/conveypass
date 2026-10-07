@@ -131,7 +131,7 @@ export default function AuditPage() {
   const [exporting, setExporting] = useState(false)
 
   const names = useMemo(() => new Map((users.data ?? []).map((u) => [u.id, u.name])), [users.data])
-  const actorName = (uid: string): string => names.get(uid) ?? (uid ? t.unknownUser : t.system)
+  const actorName = (uid: string): string => (uid === 'system' ? t.system : (names.get(uid) ?? t.unknownUser))
 
   const key = ['audit', claims.tenantId, tz, applied] as const
   const pages = useInfiniteQuery({

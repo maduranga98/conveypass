@@ -45,6 +45,8 @@ export interface PassDoc {
   checklist: PassChecklistItem[]
   evidence: PassEvidence
   captureMeta: CaptureMeta
+  /** Set by the retention job: the photos are gone (the pass and its history stay). */
+  evidenceDeletedAt?: Timestamp
   /** Set when a supervisor approves; cleared when the driver resubmits. */
   supervisor?: ApprovalStamp
   /** Set when an officer approves; cleared when the driver resubmits. */

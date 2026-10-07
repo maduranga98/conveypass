@@ -47,7 +47,7 @@ export const getDashboardTrend = callable('getDashboardTrend', reportsApi.getDas
 export const runReport = callable('runReport', (d, c, data) => reportsApi.runReport(d, c, data), { timeoutSeconds: 300, memory: '1GiB' })
 
 // Module 7: notifications. Triggers (passes, gateEvents) and the SLA schedule live in notificationTriggers.ts.
-export { onGateEventCreated, onPassWritten, slaReminders } from './notificationTriggers.js'
+export { onGateEventCreated, onPassWritten, purgeOldEvidenceDaily as purgeOldEvidence, slaReminders } from './notificationTriggers.js'
 export const registerDevice = callable(
   'registerDevice',
   (d, caller, data, meta) => devices.registerDevice(d, devicePort(), caller, data, meta),

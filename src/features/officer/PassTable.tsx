@@ -132,7 +132,7 @@ export function PassTable({ rows, now, today, contractorName, openId, onOpen, se
                   <div className="flex gap-1.5">
                     {([[strings.approvals.evidence.gps, p.evidence.gps.path], [strings.approvals.evidence.dashcam, p.evidence.dashcam.path]] as const).map(([label, path]) => (
                       <div key={label} className="size-10 overflow-hidden rounded-md bg-slate-200">
-                        <EvidenceThumb path={path} alt={c.card.photoOf(label, p.plateNo)} />
+                        <EvidenceThumb path={path} alt={c.card.photoOf(label, p.plateNo)} removed={Boolean(p.evidenceDeletedAt)} />
                       </div>
                     ))}
                   </div>

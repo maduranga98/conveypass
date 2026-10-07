@@ -67,7 +67,8 @@ export interface AuditEntry {
   tenantId: string
   action: string
   actorUid: string
-  actorRole: Role
+  /** `system` for scheduled jobs (retention). */
+  actorRole: Role | 'system'
   targetType: 'user' | 'vehicle' | 'contractor' | 'tenant' | 'pass' | 'gateEvent' | 'notification'
   targetId: string
   meta: Record<string, string | number | boolean | null>

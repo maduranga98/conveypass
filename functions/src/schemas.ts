@@ -195,9 +195,12 @@ export const updateTenantSettingsSchema = z
         officerMinutes: z.number().int().min(SLA_MIN).max(SLA_MAX),
       })
       .optional(),
+    /** 0 = keep evidence forever (default); otherwise 30-3650 days. Deletion is permanent. */
+    retentionDays: z.union([z.literal(0), z.number().int().min(30).max(3650)]).optional(),
   })
   .refine(
-    (v) => v.passSettings !== undefined || v.checklist !== undefined || v.rejectionReasons !== undefined || v.gates !== undefined || v.sla !== undefined,
+    (v) =>
+      v.passSettings !== undefined || v.checklist !== undefined || v.rejectionReasons !== undefined || v.gates !== undefined || v.sla !== undefined || v.retentionDays !== undefined,
     { message: 'Nothing to update' },
   )
 
