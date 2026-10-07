@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { connectAuthEmulator, getAuth } from 'firebase/auth'
+import { browserLocalPersistence, connectAuthEmulator, indexedDBLocalPersistence, initializeAuth } from 'firebase/auth'
 import {
   connectFirestoreEmulator,
   initializeFirestore,
@@ -24,7 +24,9 @@ export const app = initializeApp({
 // Before any other service is used, so every request carries a token once App Check is configured.
 initAppCheck(app)
 
-export const auth = getAuth(app)
+// Email/password only: no popupRedirectResolver, so the SDK never loads apis.google.com/js/api.js (gapi) or the auth
+// iframe, which the CSP does not (and should not) allow.
+export const auth = initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence] })
 // In-memory cache with LRU eviction: documents read earlier in the session (the gate's vehicles, drivers and today's
 // passes) stay available while the connection drops, but nothing is written to disk, so one account's data never
 // outlives the page for the next person on a shared phone.
