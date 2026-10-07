@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase-admin/app'
 import { setGlobalOptions } from 'firebase-functions/v2'
 import { ENFORCE_APP_CHECK, REGION } from './config.js'
 import * as approvals from './approvals.js'
+import * as clientErrors from './clientErrors.js'
 import * as core from './core.js'
 import * as devices from './devices.js'
 import * as gate from './gate.js'
@@ -54,3 +55,6 @@ export const registerDevice = callable(
   { rateLimit: true },
 )
 export const unregisterDevice = callable('unregisterDevice', (d, caller, data) => devices.unregisterDevice(d, devicePort(), caller, data))
+
+// Browsers report crashes here: signed-in users only, rate limited per user, scrubbed and truncated, logs only.
+export const reportClientError = callable('reportClientError', clientErrors.reportClientError, { rateLimit: true })

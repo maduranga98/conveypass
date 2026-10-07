@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore'
 import { connectFunctionsEmulator, getFunctions } from 'firebase/functions'
 import { connectStorageEmulator, getStorage } from 'firebase/storage'
+import { initAppCheck } from './appCheck'
 
 /** Must match FUNCTIONS_REGION in functions/.env */
 export const FUNCTIONS_REGION: string = import.meta.env.VITE_FUNCTIONS_REGION || 'asia-south1'
@@ -20,6 +21,9 @@ export const app = initializeApp({
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 })
+
+// Before any other service is used, so every request carries a token once App Check is configured.
+initAppCheck(app)
 
 export const auth = getAuth(app)
 // In-memory cache with LRU eviction: documents read earlier in the session (the gate's vehicles, drivers and today's

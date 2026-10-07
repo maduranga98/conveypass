@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom'
+import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 import { FailedQueueBanner } from './GateBanners'
 import { GateTopBar } from './GateTopBar'
 import { useGateRuntime } from './useGate'
@@ -10,7 +11,9 @@ export default function SecurityLayout() {
     <div className="min-h-dvh bg-slate-50">
       <GateTopBar />
       <FailedQueueBanner />
-      <Outlet />
+      <RouteErrorBoundary variant="gate">
+        <Outlet />
+      </RouteErrorBoundary>
     </div>
   )
 }

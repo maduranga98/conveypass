@@ -20,6 +20,8 @@ export type LogExtra = Record<string, string | number | boolean | null | undefin
 const SENSITIVE_KEY = /passw|passphrase|pin$|^pin|token|secret|credential|authorization|cookie|url|phone|email|name$|photo|plate|payload|body/i
 const MASKABLE = /https?:\/\/|data:|^eyJ|[A-Za-z0-9_-]{40,}/
 const MAX_STRING = 120
+/** A few keys carry longer text (a client error message and stack): they are scrubbed by their caller first. */
+const LONG_KEYS: Record<string, number> = { message: 300, stack: 1500 }
 
 export interface LogSink {
   info(message: string, fields: Record<string, unknown>): void
@@ -38,15 +40,15 @@ export function setLogSink(next: LogSink): () => void {
   }
 }
 
-const cleanString = (value: string): string =>
-  MASKABLE.test(value) ? '[masked]' : value.length > MAX_STRING ? `${value.slice(0, MAX_STRING)}…` : value
+const cleanString = (value: string, max: number = MAX_STRING): string =>
+  MASKABLE.test(value) ? '[masked]' : value.length > max ? `${value.slice(0, max)}…` : value
 
 /** Keeps short scalars only, drops sensitive keys, masks sensitive-looking strings. */
 export function sanitiseExtra(extra: LogExtra = {}): Record<string, string | number | boolean | null> {
   const out: Record<string, string | number | boolean | null> = {}
   for (const [key, value] of Object.entries(extra)) {
     if (value === undefined || SENSITIVE_KEY.test(key)) continue
-    out[key] = typeof value === 'string' ? cleanString(value) : value
+    out[key] = typeof value === 'string' ? cleanString(value, LONG_KEYS[key] ?? MAX_STRING) : value
   }
   return out
 }

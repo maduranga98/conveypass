@@ -118,3 +118,9 @@ export const registerDevice = call<{ deviceId: string; token: string; platform: 
   20_000,
 )
 export const unregisterDevice = call<{ deviceId: string }, { ok: true }>('unregisterDevice', 20_000)
+
+// Crash reports (signed-in users only; the server scrubs, truncates and rate limits).
+export const reportClientError = call<
+  { message: string; stack?: string; route?: string; source: 'boundary' | 'window' | 'promise' | 'gate' | 'form'; appVersion?: string },
+  { ok: true }
+>('reportClientError', 10_000)

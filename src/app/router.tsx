@@ -1,5 +1,6 @@
 import { Suspense, type ReactNode } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { VehicleRouteBoundary } from '@/components/RouteErrorBoundary'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { ForbiddenPage, NotFoundPage } from '@/features/auth/ErrorPages'
 import { RequireAuth, RequireRole, RoleHomeRedirect } from '@/features/auth/guards'
@@ -50,7 +51,7 @@ export const router = createBrowserRouter([
       { path: '/notifications', element: lazyEl(<NotificationsPage />) },
       { path: '/settings', element: lazyEl(<UserSettingsPage />) },
       { path: '/change-password', element: lazyEl(<ChangePasswordPage />) },
-      { path: '/v/:vehicleId', element: lazyEl(<VehicleRoute />) },
+      { path: '/v/:vehicleId', element: <VehicleRouteBoundary>{lazyEl(<VehicleRoute />)}</VehicleRouteBoundary> },
       {
         element: <RequireRole roles={['admin']} />,
         children: [
