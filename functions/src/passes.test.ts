@@ -59,7 +59,7 @@ const seedPass = (over: Partial<PassData> = {}): PassData => {
   return p
 }
 const rejected = (over: Partial<PassData> = {}) =>
-  seedPass({ status: 'rejected', rejection: { reason: 'Dashcam not visible', byUid: 'sup1', byRole: 'supervisor', at: NOW * 1000 - 1000 }, ...over })
+  seedPass({ status: 'rejected', rejection: { reason: 'Dashcam not visible', reasonCode: 'dashcam_unclear', stage: 'supervisor', byUid: 'sup1', byName: 'Sup', byRole: 'supervisor', at: NOW * 1000 - 1000 }, ...over })
 
 describe('resolveVehicle', () => {
   it('returns can_submit with the default checklist, settings and today’s dateKey', async () => {
@@ -205,7 +205,7 @@ describe('submitPass', () => {
     expect(w.audits.at(-1)).toMatchObject({ action: 'pass.resubmit' })
   })
   it('a second rejection appends to the history', async () => {
-    rejected({ attempt: 2, rejectionHistory: [{ reason: 'first', byUid: 's', byRole: 'supervisor', at: 1, attempt: 1, checklist: [], evidence: seedPass().evidence }] })
+    rejected({ attempt: 2, rejectionHistory: [{ reason: 'first', reasonCode: 'other', stage: 'supervisor', byUid: 's', byName: 'S', byRole: 'supervisor', at: 1, attempt: 1, checklist: [], evidence: seedPass().evidence }] })
     putFiles(3)
     await submit(drv1(), { attempt: 3 })
     expect((w.passes.get(PASS_ID) as PassData).rejectionHistory?.map((h) => h.attempt)).toEqual([1, 2])

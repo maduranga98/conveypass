@@ -127,6 +127,39 @@ export const submitPassSchema = z.object({
   }),
 })
 
+export const MAX_BULK_ITEMS = 50
+export const REASON_ID_PATTERN = /^[a-z0-9_]{2,40}$/
+export const MIN_REJECTION_NOTE = 3
+export const MAX_REJECTION_NOTE = 200
+
+const passId = z.string().min(1).max(128)
+const reasonCode = z.string().max(40)
+const rejectionNote = z.string().trim().max(MAX_REJECTION_NOTE)
+
+export const decidePassSchema = z.object({
+  passId,
+  action: z.enum(['approve', 'reject']),
+  expectedStatus: z.enum(['submitted', 'supervisor_approved', 'officer_approved', 'checked_in', 'rejected']),
+  expectedAttempt: z.number().int().min(1).max(MAX_ATTEMPTS),
+  reasonCode: reasonCode.optional(),
+  note: rejectionNote.optional(),
+})
+
+export const bulkApproveSchema = z.object({
+  items: z
+    .array(z.object({ passId, expectedAttempt: z.number().int().min(1).max(MAX_ATTEMPTS) }))
+    .min(1)
+    .max(MAX_BULK_ITEMS),
+})
+
+export const revokePassSchema = z.object({
+  passId,
+  reasonCode,
+  note: rejectionNote.optional(),
+  /** Optional guard: when given, the pass must still be on this attempt. */
+  expectedAttempt: z.number().int().min(1).max(MAX_ATTEMPTS).optional(),
+})
+
 export const updateTenantSettingsSchema = z
   .object({
     passSettings: z
@@ -143,5 +176,12 @@ export const updateTenantSettingsSchema = z
       .min(1)
       .max(MAX_CHECKLIST_ITEMS)
       .optional(),
+    rejectionReasons: z
+      .array(z.object({ id: z.string().regex(REASON_ID_PATTERN), label: z.string().trim().min(3).max(60) }))
+      .min(2)
+      .max(10)
+      .optional(),
   })
-  .refine((v) => v.passSettings !== undefined || v.checklist !== undefined, { message: 'Nothing to update' })
+  .refine((v) => v.passSettings !== undefined || v.checklist !== undefined || v.rejectionReasons !== undefined, {
+    message: 'Nothing to update',
+  })

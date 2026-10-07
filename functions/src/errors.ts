@@ -32,6 +32,15 @@ export type Reason =
   | 'evidence-invalid'
   | 'evidence-stale'
   | 'location-required'
+  | 'pass-not-found'
+  | 'pass-changed'
+  | 'pass-expired'
+  | 'wrong-stage'
+  | 'driver-inactive'
+  | 'already-checked-in'
+  | 'has_issues'
+  | 'reason-invalid'
+  | 'note-required'
   | 'internal'
 
 /** Typed error: `code` is the gRPC-style code, `details.reason` is a stable key the client maps to a string. */

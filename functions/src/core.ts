@@ -30,6 +30,11 @@ import type {
   VehicleData,
   VehiclePatch,
   ChecklistItemDef,
+  ApprovalStamp,
+  HistoryEntry,
+  PassStatus,
+  Rejection,
+  RejectionReasonDef,
 } from './types.js'
 
 /** Thrown by the data port when the plate guard document already exists. */
@@ -57,6 +62,29 @@ export interface AuthPort {
   ): Promise<void>
   setCustomUserClaims(uid: string, claims: Claims): Promise<void>
   revokeRefreshTokens(uid: string): Promise<void>
+}
+
+/** What `decidePassTx` reads inside its transaction. `null` members mean the document does not exist. */
+export interface DecisionContext {
+  pass: PassData
+  vehicle: VehicleData | null
+  contractor: ContractorData | null
+  /** The driver's `users` doc (source of truth for status; every driver has one). */
+  driver: UserData | null
+}
+
+/** The change a decision makes to a pass. Times are milliseconds; the port converts them. */
+export interface PassDecisionUpdate {
+  status: PassStatus
+  supervisor?: ApprovalStamp
+  officer?: ApprovalStamp
+  rejection?: Rejection
+  entry: HistoryEntry
+}
+
+export interface DecisionPlan {
+  update: PassDecisionUpdate
+  audit: AuditEntry
 }
 
 export interface DataPort {
@@ -108,10 +136,17 @@ export interface DataPort {
    * `rejectionHistory`). Throws PassConflictError when the stored pass does not allow that. Writes the audit entry.
    */
   submitPassTx(p: { passId: string; pass: PassWrite; audit: AuditEntry }): Promise<void>
+  /**
+   * One transaction: re-reads the pass and what a decision depends on (vehicle, contractor, driver), hands them to
+   * `plan` (pure; throws HttpsError to refuse, `null` pass = it does not exist), then writes the planned change,
+   * appends to `history` and writes the audit entry. Two concurrent decisions on one pass cannot both succeed
+   * because the loser's re-read sees the winner's status.
+   */
+  decidePassTx(p: { passId: string; plan: (ctx: DecisionContext | null) => DecisionPlan }): Promise<DecisionPlan>
   /** Merges the given settings into `tenants/{tenantId}` (+ audit) in one batch. */
   updateTenantSettingsWithAudit(
     tenantId: string,
-    patch: { passSettings?: PassSettings; checklist?: ChecklistItemDef[] },
+    patch: { passSettings?: PassSettings; checklist?: ChecklistItemDef[]; rejectionReasons?: RejectionReasonDef[] },
     audit: AuditEntry,
   ): Promise<void>
   /** Auth uids of every `users` doc of this contractor. */

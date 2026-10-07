@@ -1,6 +1,7 @@
 import { audit, parse, PassConflictError, requireActiveCaller, type Deps } from './core.js'
 import { dateKey as computeDateKey, DEFAULT_TIMEZONE, isValidTimezone } from './dates.js'
 import { DEFAULT_CHECKLIST, DEFAULT_PASS_SETTINGS } from './defaultChecklist.js'
+import { OTHER_REASON_ID } from './defaultRejectionReasons.js'
 import { fail } from './errors.js'
 import {
   evidenceFolder,
@@ -316,6 +317,15 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
   if (input.checklist && new Set(input.checklist.map((c) => c.id)).size !== input.checklist.length) {
     throw fail('invalid-argument', 'invalid-input', 'Checklist ids must be unique')
   }
+  if (input.rejectionReasons) {
+    // Ids are created once and never edited (passes keep the code they were rejected with); `other` is always there.
+    if (new Set(input.rejectionReasons.map((r) => r.id)).size !== input.rejectionReasons.length) {
+      throw fail('invalid-argument', 'invalid-input', 'Reason ids must be unique')
+    }
+    if (!input.rejectionReasons.some((r) => r.id === OTHER_REASON_ID)) {
+      throw fail('invalid-argument', 'invalid-input', 'The “other” reason cannot be removed')
+    }
+  }
   if (!(await deps.data.getTenant(caller.tenantId))) throw fail('failed-precondition', 'internal', 'Tenant not found')
 
   await deps.data.updateTenantSettingsWithAudit(
@@ -323,6 +333,7 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
     {
       ...(input.passSettings ? { passSettings: input.passSettings } : {}),
       ...(input.checklist ? { checklist: input.checklist } : {}),
+      ...(input.rejectionReasons ? { rejectionReasons: input.rejectionReasons } : {}),
     },
     audit(
       caller,
@@ -331,6 +342,7 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
       {
         passSettings: input.passSettings !== undefined,
         checklistItems: input.checklist?.length ?? null,
+        rejectionReasons: input.rejectionReasons?.length ?? null,
         requireLocation: input.passSettings?.requireLocation ?? null,
         maxExtraPhotos: input.passSettings?.maxExtraPhotos ?? null,
       },

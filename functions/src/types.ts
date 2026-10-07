@@ -89,11 +89,18 @@ export interface PassSettings {
   maxExtraPhotos: number
 }
 
+export interface RejectionReasonDef {
+  id: string
+  label: string
+}
+
 /** `tenants/{tenantId}`: only the fields functions read or write. Every field is optional on older tenants. */
 export interface TenantData {
   timezone?: string
   passSettings?: Partial<PassSettings>
   checklist?: ChecklistItemDef[]
+  /** Falls back to DEFAULT_REJECTION_REASONS when absent or empty. */
+  rejectionReasons?: RejectionReasonDef[]
 }
 
 export interface EvidenceFile {
@@ -121,13 +128,40 @@ export interface CaptureMeta {
   location?: { lat: number; lng: number; accuracy: number }
 }
 
-/** Written by Module 4 when a pass is rejected. */
+export type DecisionStage = 'supervisor' | 'officer' | 'revoked'
+
+/** Written by `decidePass` / `revokePass` when a pass is rejected. */
 export interface Rejection {
+  /** Human readable: the reason label plus the note (the Module 3 resubmit screen shows exactly this). */
   reason: string
+  reasonCode: string
+  note?: string
+  stage: DecisionStage
   byUid: string
+  byName: string
   byRole: Role
   /** Milliseconds since epoch (converted from a Timestamp by the data port). */
   at: number
+}
+
+/** Who approved at a step. */
+export interface ApprovalStamp {
+  uid: string
+  name: string
+  /** Milliseconds since epoch. */
+  at: number
+}
+
+/** Appended on every decision and never removed, not even on resubmit. */
+export interface HistoryEntry {
+  action: 'approve' | 'reject' | 'revoke'
+  stage: DecisionStage
+  byUid: string
+  byName: string
+  byRole: Role
+  /** Milliseconds since epoch. */
+  at: number
+  attempt: number
 }
 
 /** Kept when a rejected pass is resubmitted, with what that attempt looked like. */
@@ -153,12 +187,18 @@ export interface PassData {
   checklist: PassChecklistItem[]
   evidence: Evidence
   captureMeta: CaptureMeta
+  supervisor?: ApprovalStamp
+  officer?: ApprovalStamp
   rejection?: Rejection
   rejectionHistory?: RejectionHistoryEntry[]
+  history?: HistoryEntry[]
 }
 
 /** What `submitPass` hands the data port; the port adds status, timestamps and history. */
-export type PassWrite = Omit<PassData, 'status' | 'submittedAt' | 'rejection' | 'rejectionHistory'>
+export type PassWrite = Omit<
+  PassData,
+  'status' | 'submittedAt' | 'supervisor' | 'officer' | 'rejection' | 'rejectionHistory' | 'history'
+>
 
 /** Object metadata read from Storage with the Admin SDK. */
 export interface StoredFile {

@@ -1,15 +1,18 @@
 import { getAuth } from 'firebase-admin/auth'
-import { FieldValue, getFirestore } from 'firebase-admin/firestore'
+import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
 import {
   PlateTakenError,
   VehicleIdTakenError,
   type AuthPort,
   type DataPort,
+  type DecisionContext,
   type StoragePort,
 } from './core.js'
 import { planSubmit } from './passRules.js'
 import type { ContractorData, DriverData, PassData, TenantData, UserData, VehicleData } from './types.js'
+
+const ts = (ms: number): Timestamp => Timestamp.fromMillis(ms)
 
 /** Firestore Timestamp (or anything with toMillis) -> milliseconds. */
 const millis = (v: unknown): number | null =>
@@ -20,17 +23,23 @@ const millis = (v: unknown): number | null =>
 /** Stored pass -> PassData with every timestamp as milliseconds. */
 function toPass(raw: Record<string, unknown>): PassData {
   const data = raw as unknown as PassData & {
+    supervisor?: { at: unknown }
+    officer?: { at: unknown }
     rejection?: { at: unknown }
     rejectionHistory?: { at: unknown }[]
+    history?: { at: unknown }[]
   }
-  const { rejection, rejectionHistory, ...rest } = data
+  const { supervisor, officer, rejection, rejectionHistory, history, ...rest } = data
   return {
     ...rest,
     submittedAt: millis(raw.submittedAt),
+    ...(supervisor ? { supervisor: { ...supervisor, at: millis(supervisor.at) ?? 0 } } : {}),
+    ...(officer ? { officer: { ...officer, at: millis(officer.at) ?? 0 } } : {}),
     ...(rejection ? { rejection: { ...rejection, at: millis(rejection.at) ?? 0 } } : {}),
     ...(rejectionHistory
       ? { rejectionHistory: rejectionHistory.map((h) => ({ ...h, at: millis(h.at) ?? 0 })) }
       : {}),
+    ...(history ? { history: history.map((h) => ({ ...h, at: millis(h.at) ?? 0 })) } : {}),
   } as PassData
 }
 
@@ -203,6 +212,9 @@ export const dataPort = (): DataPort => {
             ...pass,
             ...stamps,
             rejection: FieldValue.delete(),
+            // A new attempt starts a fresh review; `history` (every decision ever made) is left untouched.
+            supervisor: FieldValue.delete(),
+            officer: FieldValue.delete(),
             rejectionHistory: FieldValue.arrayUnion({
               ...(previous.rejection ?? {}),
               attempt: previous.attempt,
@@ -212,6 +224,43 @@ export const dataPort = (): DataPort => {
           })
         }
         tx.create(db.collection('auditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
+      })
+    },
+    decidePassTx: async ({ passId, plan }) => {
+      const ref = db.doc(`passes/${passId}`)
+      return db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref)
+        let ctx: DecisionContext | null = null
+        let existingHistory: unknown[] = []
+        if (snap.exists) {
+          const raw = snap.data() as Record<string, unknown>
+          const pass = toPass(raw)
+          existingHistory = Array.isArray(raw.history) ? (raw.history as unknown[]) : []
+          const [vehicle, contractor, driver] = await tx.getAll(
+            db.doc(`vehicles/${pass.vehicleId}`),
+            db.doc(`contractors/${pass.contractorId}`),
+            db.doc(`users/${pass.driverId}`),
+          )
+          ctx = {
+            pass,
+            vehicle: vehicle?.exists ? (vehicle.data() as VehicleData) : null,
+            contractor: contractor?.exists ? (contractor.data() as ContractorData) : null,
+            driver: driver?.exists ? (driver.data() as UserData) : null,
+          }
+        }
+        const decision = plan(ctx)
+        const { update, audit } = decision
+        const stamp = (s: { uid: string; name: string; at: number }) => ({ ...s, at: ts(s.at) })
+        tx.update(ref, {
+          status: update.status,
+          updatedAt: FieldValue.serverTimestamp(),
+          ...(update.supervisor ? { supervisor: stamp(update.supervisor) } : {}),
+          ...(update.officer ? { officer: stamp(update.officer) } : {}),
+          ...(update.rejection ? { rejection: { ...update.rejection, at: ts(update.rejection.at) } } : {}),
+          history: [...existingHistory, { ...update.entry, at: ts(update.entry.at) }],
+        })
+        tx.create(db.collection('auditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
+        return decision
       })
     },
     updateTenantSettingsWithAudit: async (tenantId, patch, audit) => {

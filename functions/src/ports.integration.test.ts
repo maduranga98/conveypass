@@ -6,7 +6,9 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { PassConflictError, PlateTakenError, type Deps } from './core.js'
 import { newVehicleId } from './ids.js'
 import { dataPort } from './ports.js'
-import { admin, makeWorld } from './test-utils.js'
+import { bulkApprove, decidePass, revokePass } from './approvals.js'
+import { dateKey } from './dates.js'
+import { caller, makeWorld, NOW, admin } from './test-utils.js'
 import type { AuditEntry, PassWrite, UserData, VehicleData } from './types.js'
 import { createVehicle, updateVehicle } from './vehicles.js'
 
@@ -185,6 +187,88 @@ describe.skipIf(!emulator)('Firestore data port (emulator)', () => {
     expect(raw?.rejectionHistory).toHaveLength(1)
     expect(raw?.rejectionHistory[0]).toMatchObject({ attempt: 1, reason: 'Blurry', evidence: { gps: { path: 'p/1/gps.jpg' } } })
     expect(raw?.evidence.gps.path).toBe('p/2/gps.jpg')
+  })
+
+  describe('decidePassTx on the real port', () => {
+    const DAY = dateKey('Asia/Colombo', new Date(NOW * 1000))
+    const VID = 'veh_aaaaaaaaaa'
+    const ID = `${VID}_${DAY}`
+    const sup = () => caller('sup1', 'supervisor', 'C1')
+    const officer = () => caller('officer', 'officer')
+    // The real port for pass data, the fake world for the caller checks and the clock.
+    const deps = (): Deps => {
+      const w = makeWorld()
+      return { ...w.deps, data: { ...port(), getUser: w.deps.data.getUser, getContractor: w.deps.data.getContractor, getTenant: w.deps.data.getTenant } }
+    }
+    const seedPass = async (over: Record<string, unknown> = {}) => {
+      await db.doc(`vehicles/${VID}`).set({ tenantId: 'T1', contractorId: 'C1', status: 'active', assignedDriverIds: ['drv1'] })
+      await db.doc('contractors/C1').set({ tenantId: 'T1', status: 'active' })
+      await db.doc('users/drv1').set({ tenantId: 'T1', role: 'driver', contractorId: 'C1', status: 'active', name: 'Dan' })
+      await db.doc(`passes/${ID}`).set({
+        tenantId: 'T1', contractorId: 'C1', vehicleId: VID, plateNo: 'CAB-1', dateKey: DAY, driverId: 'drv1', driverName: 'Dan',
+        status: 'submitted', attempt: 1, checklist: [{ id: 'x', label: 'X', answer: 'yes' }],
+        evidence: { gps: { path: 'g', size: 1, contentType: 'image/jpeg' }, dashcam: { path: 'd', size: 1, contentType: 'image/jpeg' }, extra: [] },
+        ...over,
+      })
+    }
+    const body = { passId: ID, action: 'approve', expectedStatus: 'submitted', expectedAttempt: 1 }
+
+    it('two simultaneous approvals: exactly one succeeds, one history entry, one audit entry', async () => {
+      await seedPass()
+      const results = await Promise.allSettled(Array.from({ length: 5 }, () => decidePass(deps(), sup(), body)))
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
+      for (const r of results) if (r.status === 'rejected') expect(r.reason).toMatchObject({ details: { reason: 'pass-changed' } })
+      const raw = (await db.doc(`passes/${ID}`).get()).data()
+      expect(raw).toMatchObject({ status: 'supervisor_approved', supervisor: { uid: 'sup1' } })
+      expect(raw?.history).toHaveLength(1)
+      expect(raw?.supervisor.at.toMillis()).toBe(NOW * 1000) // stored as a Timestamp
+      expect((await db.collection('auditLog').get()).size).toBe(1)
+    })
+
+    it('approve then officer approve, then revoke, then resubmit keeps the history', async () => {
+      await seedPass()
+      await decidePass(deps(), sup(), body)
+      await decidePass(deps(), officer(), { ...body, expectedStatus: 'supervisor_approved' })
+      await revokePass(deps(), admin(), { passId: ID, reasonCode: 'photo_not_fresh' })
+      const stored = await port().getPass(ID)
+      expect(stored).toMatchObject({ status: 'rejected', rejection: { stage: 'revoked', byRole: 'admin' } })
+      expect(typeof stored?.rejection?.at).toBe('number')
+      expect(stored?.history?.map((h) => h.action)).toEqual(['approve', 'approve', 'revoke'])
+
+      await port().submitPassTx({
+        passId: ID, audit: { ...audit, targetType: 'pass', targetId: ID },
+        pass: {
+          tenantId: 'T1', contractorId: 'C1', vehicleId: VID, plateNo: 'CAB-1', vehicleType: 'Tipper', dateKey: DAY, driverId: 'drv1',
+          driverName: 'Dan', attempt: 2, checklist: [{ id: 'x', label: 'X', answer: 'yes' }],
+          evidence: { gps: { path: 'g', size: 1, contentType: 'image/jpeg' }, dashcam: { path: 'd', size: 1, contentType: 'image/jpeg' }, extra: [] },
+          captureMeta: { method: 'live', clientCapturedAt: { gps: 'a', dashcam: 'b' } },
+        },
+      })
+      const raw = (await db.doc(`passes/${ID}`).get()).data()
+      expect(raw).toMatchObject({ status: 'submitted', attempt: 2 })
+      expect(raw).not.toHaveProperty('supervisor')
+      expect(raw).not.toHaveProperty('officer')
+      expect(raw?.history).toHaveLength(3)
+      expect(raw?.rejectionHistory).toHaveLength(1)
+    })
+
+    it('bulkApprove approves clean passes and refuses ones with a "No" on the real port', async () => {
+      await seedPass()
+      await db.doc(`passes/${VID}2_${DAY}`).set({
+        tenantId: 'T1', contractorId: 'C1', vehicleId: VID, dateKey: DAY, driverId: 'drv1', status: 'submitted', attempt: 1,
+        checklist: [{ id: 'x', label: 'X', answer: 'no', note: 'broken' }],
+      })
+      const { results } = await bulkApprove(deps(), sup(), {
+        items: [{ passId: ID, expectedAttempt: 1 }, { passId: `${VID}2_${DAY}`, expectedAttempt: 1 }],
+      })
+      expect(results).toEqual([{ passId: ID, ok: true }, { passId: `${VID}2_${DAY}`, ok: false, error: 'has_issues' }])
+    })
+
+    it('refuses to approve when the driver is disabled, naming the driver', async () => {
+      await seedPass()
+      await db.doc('users/drv1').update({ status: 'disabled' })
+      await expect(decidePass(deps(), sup(), body)).rejects.toMatchObject({ details: { reason: 'driver-inactive' } })
+    })
   })
 
   it('updateTenantSettingsWithAudit merges settings and keeps other tenant fields', async () => {

@@ -166,7 +166,9 @@ export function makeWorld(): World {
           w.passes.set(passId, { ...structuredClone(pass), status: 'submitted', submittedAt: NOW * 1000 })
         } else {
           const prev = existing as PassData
-          const { rejection, ...keep } = prev
+          const { rejection, supervisor: _s, officer: _o, ...keep } = prev
+          void _s
+          void _o
           w.passes.set(passId, {
             ...keep,
             ...structuredClone(pass),
@@ -179,6 +181,32 @@ export function makeWorld(): World {
           })
         }
         w.audits.push(audit)
+      },
+      decidePassTx: async ({ passId, plan }) => {
+        // Synchronous from the read to the write, which models transaction atomicity.
+        const pass = w.passes.get(passId)
+        const ctx = pass
+          ? {
+              pass: structuredClone(pass),
+              vehicle: w.vehicles.get(pass.vehicleId) ?? null,
+              contractor: w.contractors.get(pass.contractorId) ?? null,
+              driver: w.users.get(pass.driverId) ?? null,
+            }
+          : null
+        const decision = plan(ctx)
+        const { update, audit } = decision
+        const { rejection: _old, ...rest } = pass as PassData
+        void _old
+        w.passes.set(passId, {
+          ...rest,
+          ...structuredClone(update.supervisor ? { supervisor: update.supervisor } : {}),
+          ...structuredClone(update.officer ? { officer: update.officer } : {}),
+          ...structuredClone(update.rejection ? { rejection: update.rejection } : {}),
+          status: update.status,
+          history: [...(rest.history ?? []), structuredClone(update.entry)],
+        })
+        w.audits.push(audit)
+        return decision
       },
       updateTenantSettingsWithAudit: async (id, patch, audit) => {
         w.tenants.set(id, { ...(w.tenants.get(id) as TenantData), ...patch })
