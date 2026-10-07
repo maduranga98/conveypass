@@ -12,6 +12,8 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -581,6 +583,98 @@ describe('passes: approval queues (Module 4)', () => {
       const snap = await assertSucceeds(getDoc(doc(db, 'tenants', A)))
       expect(snap.data()?.rejectionReasons).toEqual([{ id: 'other', label: 'Other' }])
       await assertFails(updateDoc(doc(db, 'tenants', A), { rejectionReasons: [] }))
+    }
+  })
+})
+
+describe('the gate (Module 5)', () => {
+  const DAY = '20260310'
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore()
+      const pass = (tenantId: string, contractorId: string, driverId: string, status: string) => ({
+        tenantId, contractorId, driverId, status, attempt: 1, dateKey: DAY, submittedAt: new Date(),
+      })
+      await setDoc(doc(db, 'passes', 'g1'), pass(A, 'c1', 'drvA1', 'officer_approved'))
+      await setDoc(doc(db, 'passes', 'g2'), pass(A, 'c2', 'drvA2', 'checked_in'))
+      await setDoc(doc(db, 'passes', 'g3'), pass(A, 'c1', 'drvA1b', 'submitted'))
+      await setDoc(doc(db, 'passes', 'gB'), pass(B, 'cB', 'drvB1', 'officer_approved'))
+      const event = (tenantId: string) => ({
+        tenantId, type: 'denied', vehicleId: 'veh_a1', plateNo: 'CAB-1234', contractorId: 'c1', passId: null, passStatus: null,
+        reasonCode: 'not_approved', gateId: 'main', gateName: 'Main Gate', byUid: 'secA', byName: 'S', at: new Date(), requestId: 'r',
+      })
+      await setDoc(doc(db, 'gateEvents', 'den_a'), event(A))
+      await setDoc(doc(db, 'gateEvents', 'den_b'), event(B))
+      await setDoc(doc(db, 'tenants', A), { name: 'A', status: 'active', gates: [{ id: 'main', name: 'Main Gate' }] })
+    })
+  })
+
+  it('security reads the tenant’s vehicles, drivers and contractors (get and the gate home queries)', async () => {
+    const db = securityA()
+    await assertSucceeds(getDoc(doc(db, 'vehicles', 'veh_a4')))
+    const vehicles = await assertSucceeds(getDocs(query(collection(db, 'vehicles'), where('tenantId', '==', A), orderBy('plateKey'), limit(1000))))
+    expect(vehicles.size).toBe(4)
+    await assertSucceeds(getDocs(query(collection(db, 'vehicles'), where('tenantId', '==', A), where('plateKey', '>=', 'CAB'), where('plateKey', '<', 'CAB\uf8ff'), orderBy('plateKey'), limit(8))))
+    await assertSucceeds(getDoc(doc(db, 'drivers', 'drvA2')))
+    await assertSucceeds(getDoc(doc(db, 'contractors', 'c2')))
+    await assertSucceeds(getDocs(query(collection(db, 'contractors'), where('tenantId', '==', A), orderBy('createdAt', 'desc'))))
+  })
+  it('security reads today’s approved and checked-in passes across contractors, and a single pass', async () => {
+    const db = securityA()
+    const live = await assertSucceeds(
+      getDocs(query(collection(db, 'passes'), where('tenantId', '==', A), where('dateKey', '==', DAY), where('status', 'in', ['officer_approved', 'checked_in']), limit(300))),
+    )
+    expect(live.docs.map((d) => d.id).sort()).toEqual(['g1', 'g2'])
+    await assertSucceeds(getDoc(doc(db, 'passes', 'g3')))
+  })
+  it('security is denied cross-tenant reads and unscoped queries', async () => {
+    const db = securityA()
+    for (const [col, id] of [['passes', 'gB'], ['vehicles', 'veh_b1'], ['drivers', 'drvB1'], ['contractors', 'cB'], ['tenants', B]] as const) {
+      await assertFails(getDoc(doc(db, col, id)))
+    }
+    await assertFails(getDocs(query(collection(db, 'passes'), where('tenantId', '==', B))))
+    await assertFails(getDocs(collection(db, 'vehicles')))
+  })
+  it('members read the gates from their tenant document but nobody writes it', async () => {
+    for (const db of [securityA(), adminA(), officerA(), supA1()]) {
+      const snap = await assertSucceeds(getDoc(doc(db, 'tenants', A)))
+      expect(snap.data()?.gates).toEqual([{ id: 'main', name: 'Main Gate' }])
+      await assertFails(updateDoc(doc(db, 'tenants', A), { gates: [] }))
+    }
+  })
+  it('gateEvents: admin and officer read their tenant’s log only', async () => {
+    for (const db of [adminA(), officerA()]) {
+      await assertSucceeds(getDoc(doc(db, 'gateEvents', 'den_a')))
+      const log = await assertSucceeds(getDocs(query(collection(db, 'gateEvents'), where('tenantId', '==', A), where('at', '>=', new Date(0)), orderBy('at', 'desc'))))
+      expect(log.docs.map((d) => d.id)).toEqual(['den_a'])
+      await assertFails(getDoc(doc(db, 'gateEvents', 'den_b')))
+      await assertFails(getDocs(query(collection(db, 'gateEvents'), where('tenantId', '==', B))))
+    }
+  })
+  it('gateEvents: security, supervisors and drivers have no access', async () => {
+    for (const db of [securityA(), supA1(), drvA1()]) {
+      await assertFails(getDoc(doc(db, 'gateEvents', 'den_a')))
+      await assertFails(getDocs(query(collection(db, 'gateEvents'), where('tenantId', '==', A))))
+    }
+  })
+  it('gateEvents are never written from the client, by any role', async () => {
+    const event = { tenantId: A, type: 'denied', vehicleId: 'veh_a1', reasonCode: 'other', byUid: 'secA', at: serverTimestamp() }
+    for (const db of [adminA(), officerA(), securityA(), supA1(), drvA1()]) {
+      await assertFails(setDoc(doc(db, 'gateEvents', 'den_x'), event))
+      await assertFails(addDoc(collection(db, 'gateEvents'), event))
+      await assertFails(updateDoc(doc(db, 'gateEvents', 'den_a'), { note: 'changed' }))
+      await assertFails(deleteDoc(doc(db, 'gateEvents', 'den_a')))
+    }
+  })
+  it('no client can check a pass in: status, checkIn block and history stay function-only', async () => {
+    const patches = [
+      { status: 'checked_in' },
+      { checkIn: { uid: 'secA', name: 'S', gateId: 'main', requestId: 'r' } },
+      { status: 'checked_in', checkIn: { uid: 'secA' }, history: [{ action: 'check_in' }] },
+    ]
+    for (const db of [securityA(), adminA(), officerA(), supA1(), drvA1()]) {
+      for (const patch of patches) await assertFails(updateDoc(doc(db, 'passes', 'g1'), patch))
+      await assertFails(setDoc(doc(db, 'passes', 'g1'), { tenantId: A, status: 'checked_in' }))
     }
   })
 })

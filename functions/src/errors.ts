@@ -41,8 +41,23 @@ export type Reason =
   | 'has_issues'
   | 'reason-invalid'
   | 'note-required'
+  | 'gate-invalid'
+  | 'pass-not-approved'
+  | 'pass-checked-in'
+  | 'offline-time-future'
+  | 'offline-time-stale'
+  | 'offline-day-mismatch'
+  | 'request-conflict'
   | 'internal'
 
 /** Typed error: `code` is the gRPC-style code, `details.reason` is a stable key the client maps to a string. */
 export const fail = (code: FunctionsErrorCode, reason: Reason, message: string): HttpsError =>
   new HttpsError(code, message, { reason })
+
+/** Same as `fail`, with extra details for the client (never secrets or photo URLs). */
+export const failWith = (
+  code: FunctionsErrorCode,
+  reason: Reason,
+  message: string,
+  extra: Record<string, string | number | null>,
+): HttpsError => new HttpsError(code, message, { ...extra, reason })

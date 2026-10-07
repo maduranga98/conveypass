@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest'
 import * as fn from '../../functions/src/passTransitions'
 import { DEFAULT_REJECTION_REASONS as fnReasons } from '../../functions/src/defaultRejectionReasons'
 import { DEFAULT_REJECTION_REASONS } from './defaultRejectionReasons'
+import * as fnDeny from '../../functions/src/denyReasons'
+import * as fnGates from '../../functions/src/gates'
+import * as webDeny from './denyReasons'
+import * as webGates from './gates'
 import * as web from './passTransitions'
 import type { Role } from './roles'
 import type { PassStatus } from '@/types/passes'
@@ -17,8 +21,8 @@ describe('passTransitions mirror', () => {
       expect(web.reviewStageOf(role)).toBe(fn.reviewStageOf(role))
       for (const stage of ['supervisor', 'officer'] as const) expect(web.statusForStage(stage)).toBe(fn.statusForStage(stage))
       for (const status of statuses) {
-        for (const action of ['approve', 'reject', 'revoke'] as const) {
-          for (const stage of ['supervisor', 'officer', 'revoked'] as const) {
+        for (const action of ['approve', 'reject', 'revoke', 'check_in'] as const) {
+          for (const stage of ['supervisor', 'officer', 'revoked', 'gate'] as const) {
             expect(web.canTransition(role, status, action, stage)).toBe(fn.canTransition(role, status, action, stage))
           }
         }
@@ -33,5 +37,24 @@ describe('passTransitions mirror', () => {
   it('keeps the default rejection reasons in sync, ending with "other"', () => {
     expect(DEFAULT_REJECTION_REASONS).toEqual(fnReasons)
     expect(DEFAULT_REJECTION_REASONS.at(-1)?.id).toBe('other')
+  })
+  it('only security can check in, and only an officer_approved pass', () => {
+    expect(web.canTransition('security', 'officer_approved', 'check_in', 'gate')).toBe(true)
+    for (const role of ['admin', 'officer', 'supervisor', 'driver'] as const) {
+      expect(web.canTransition(role, 'officer_approved', 'check_in', 'gate')).toBe(false)
+    }
+    expect(web.canTransition('security', 'supervisor_approved', 'check_in', 'gate')).toBe(false)
+  })
+  it('keeps the deny reasons and the gate defaults in sync with the functions copies', () => {
+    expect(webDeny.DENY_REASONS).toEqual(fnDeny.DENY_REASONS)
+    expect(webDeny.DENY_OTHER_ID).toBe(fnDeny.DENY_OTHER_ID)
+    expect([webDeny.MIN_DENY_NOTE, webDeny.MAX_DENY_NOTE]).toEqual([fnDeny.MIN_DENY_NOTE, fnDeny.MAX_DENY_NOTE])
+    expect(webGates.DEFAULT_GATES).toEqual(fnGates.DEFAULT_GATES)
+    expect(String(webGates.GATE_ID_PATTERN)).toBe(String(fnGates.GATE_ID_PATTERN))
+    expect([webGates.MIN_GATES, webGates.MAX_GATES, webGates.GATE_NAME_MIN, webGates.GATE_NAME_MAX]).toEqual([
+      fnGates.MIN_GATES, fnGates.MAX_GATES, fnGates.GATE_NAME_MIN, fnGates.GATE_NAME_MAX,
+    ])
+    expect(webGates.gatesOf({ gates: [] })).toEqual(webGates.DEFAULT_GATES)
+    expect(webGates.gatesOf({ gates: [{ id: 'north', name: 'North' }] })).toEqual([{ id: 'north', name: 'North' }])
   })
 })

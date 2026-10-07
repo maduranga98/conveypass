@@ -2,8 +2,8 @@
 // in sync with this file; a unit test compares them.
 import type { PassStatus, Role } from './types.js'
 
-export type Stage = 'supervisor' | 'officer' | 'revoked'
-export type Action = 'approve' | 'reject' | 'revoke'
+export type Stage = 'supervisor' | 'officer' | 'revoked' | 'gate'
+export type Action = 'approve' | 'reject' | 'revoke' | 'check_in'
 
 export interface Transition {
   from: PassStatus
@@ -22,6 +22,8 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'supervisor_approved', to: 'officer_approved', action: 'approve', stage: 'officer', roles: ['officer'], ownContractor: false },
   { from: 'supervisor_approved', to: 'rejected', action: 'reject', stage: 'officer', roles: ['officer'], ownContractor: false },
   { from: 'officer_approved', to: 'rejected', action: 'revoke', stage: 'revoked', roles: ['officer', 'admin'], ownContractor: false },
+  // Module 5: the gate. Security only; admin and officer can never check a vehicle in. There is no check-out.
+  { from: 'officer_approved', to: 'checked_in', action: 'check_in', stage: 'gate', roles: ['security'], ownContractor: false },
 ]
 
 /** The review step a role works at. Admin and everyone else have none: they cannot approve or reject. */

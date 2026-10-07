@@ -12,12 +12,12 @@ const stepsDone = (status: PassStatus): number =>
 
 const STEPS = [t.steps.submitted, t.steps.supervisor, t.steps.officer, t.steps.gate] as const
 
-type Detail = Pick<PassDoc, 'submittedAt' | 'supervisor' | 'officer'>
+type Detail = Pick<PassDoc, 'submittedAt' | 'supervisor' | 'officer'> & Partial<Pick<PassDoc, 'checkIn'>>
 
 /** Who did a step and when: shown under the step label when the pass itself is given. */
 function stepNote(i: number, detail: Detail | undefined): string | null {
   if (!detail) return null
-  const stamp = i === 1 ? detail.supervisor : i === 2 ? detail.officer : null
+  const stamp = i === 1 ? detail.supervisor : i === 2 ? detail.officer : i === 3 ? detail.checkIn : null
   if (i === 0) return formatTime(toMs(detail.submittedAt))
   return stamp ? `${stamp.name} · ${formatTime(toMs(stamp.at))}` : null
 }

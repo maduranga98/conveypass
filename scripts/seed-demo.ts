@@ -5,19 +5,21 @@
  *   npm run emulators            # in one terminal
  *   npm run seed:demo            # in another
  *
- * Creates tenant "demo" (timezone, pass settings, the default checklist and rejection reasons), 1 admin, 1 officer,
- * 2 contractors (each with a supervisor), 4 drivers and 9 vehicles with assignments, plus passes for today in every
- * state (submitted, supervisor_approved, officer_approved, rejected) across both contractors, some with a "No" answer,
- * and two passes from yesterday that are now expired. Evidence photos are copied from scripts/fixtures/evidence into
- * the Storage emulator, so thumbnails work. Then it prints the logins. Re-running needs a clean emulator (the script
- * stops if the tenant already exists).
+ * Creates tenant "demo" (timezone, pass settings, the default checklist and rejection reasons, two gates), 1 admin,
+ * 1 officer, 1 security guard, 3 contractors (one suspended; two with a supervisor), 6 drivers (one disabled, one
+ * without a photo) and 14 vehicles with assignments, plus passes for today in every state (submitted,
+ * supervisor_approved, officer_approved, checked_in, rejected) and one for every gate result (approved, already
+ * checked in, pending, rejected, no pass, and approved passes blocked by a suspended vehicle, driver or contractor),
+ * two passes from yesterday that are now expired, and one denied entry in the gate log. Evidence and driver photos are
+ * copied from scripts/fixtures into the Storage emulator. Then it prints the logins and the URLs to test.
+ * Re-running needs a clean emulator (the script stops if the tenant already exists).
  */
 import { initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
 import { readFileSync } from 'node:fs'
-import { randomInt } from 'node:crypto'
+import { randomInt, randomUUID } from 'node:crypto'
 import { dateKey } from '../src/lib/dates.ts'
 import { DEFAULT_CHECKLIST, DEFAULT_PASS_SETTINGS } from '../src/lib/defaultChecklist.ts'
 import { DEFAULT_REJECTION_REASONS } from '../src/lib/defaultRejectionReasons.ts'
@@ -58,7 +60,9 @@ if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
 
 const projectId = process.env.FIREBASE_PROJECT_ID ?? firebaserc.projects?.default ?? 'demo-conveypass'
 const TENANT = 'demo'
-const PASSWORD = { admin: 'DemoAdmin123', supervisor: 'DemoSuper123', officer: 'DemoOfficer123' }
+const PASSWORD = { admin: 'DemoAdmin123', supervisor: 'DemoSuper123', officer: 'DemoOfficer123', security: 'DemoGate123' }
+const GATES = [{ id: 'main', name: 'Main Gate' }, { id: 'north', name: 'North Gate' }]
+const SECURITY = { email: 'security@demo.convoypass.test', name: 'Nimal Jayawardena' }
 
 /** The bucket the web app uses (VITE_FIREBASE_STORAGE_BUCKET in .env), so the emulator serves it under that name. */
 const envFile = (): Record<string, string> => {
@@ -72,22 +76,30 @@ const envFile = (): Record<string, string> => {
 }
 
 const contractors = [
-  { key: 'lanka', name: 'Lanka Cement Haulage', contactName: 'Nimal Perera', phone: '0112345678', address: '12 Galle Road, Colombo 03' },
-  { key: 'ceylon', name: 'Ceylon Bulk Transport', contactName: 'Anura Silva', phone: '0812233445', address: '48 Peradeniya Road, Kandy' },
+  { key: 'lanka', name: 'Lanka Cement Haulage', contactName: 'Nimal Perera', phone: '0112345678', address: '12 Galle Road, Colombo 03', status: 'active' },
+  { key: 'ceylon', name: 'Ceylon Bulk Transport', contactName: 'Anura Silva', phone: '0812233445', address: '48 Peradeniya Road, Kandy', status: 'active' },
+  // Suspended: its approved pass must still be blocked at the gate.
+  { key: 'southern', name: 'Southern Haulers', contactName: 'Ravi Mendis', phone: '0912255667', address: '7 Matara Road, Galle', status: 'suspended' },
 ] as const
 
 const supervisors = [
   { contractor: 'lanka', name: 'Kasun Fernando', email: 'supervisor.lanka@demo.convoypass.test' },
   { contractor: 'ceylon', name: 'Dilini Jayasuriya', email: 'supervisor.ceylon@demo.convoypass.test' },
+  { contractor: 'southern', name: 'Tharindu Silva', email: 'supervisor.southern@demo.convoypass.test' },
 ] as const
 
 // PINs are deliberately non-trivial.
+// `photo`: fixture in scripts/fixtures/drivers. d2 has none on purpose (the gate shows "No photo on file").
 const drivers = [
-  { key: 'd1', contractor: 'lanka', name: 'Sunil Rathnayake', phone: '0771000001', pin: '482915', licenseNo: 'B1234567' },
-  { key: 'd2', contractor: 'lanka', name: 'Ruwan Kumara', phone: '0771000002', pin: '739204' },
-  { key: 'd3', contractor: 'ceylon', name: 'Mahesh Bandara', phone: '0771000003', pin: '516283', licenseNo: 'B7654321' },
-  { key: 'd4', contractor: 'ceylon', name: 'Chaminda Wickrama', phone: '0771000004', pin: '902817' },
+  { key: 'd1', contractor: 'lanka', name: 'Sunil Rathnayake', phone: '0771000001', pin: '482915', licenseNo: 'B1234567', photo: 1, status: 'active' },
+  { key: 'd2', contractor: 'lanka', name: 'Ruwan Kumara', phone: '0771000002', pin: '739204', photo: null, status: 'active' },
+  { key: 'd3', contractor: 'ceylon', name: 'Mahesh Bandara', phone: '0771000003', pin: '516283', licenseNo: 'B7654321', photo: 3, status: 'active' },
+  { key: 'd4', contractor: 'ceylon', name: 'Chaminda Wickrama', phone: '0771000004', pin: '902817', photo: 2, status: 'active' },
+  // Disabled after submitting: their approved pass must be blocked at the gate.
+  { key: 'd5', contractor: 'ceylon', name: 'Pradeep Senanayake', phone: '0771000005', pin: '613408', photo: 4, status: 'disabled' },
+  { key: 'd6', contractor: 'southern', name: 'Lahiru Gamage', phone: '0771000006', pin: '284751', photo: 1, status: 'active' },
 ] as const
+type DriverKey = (typeof drivers)[number]['key']
 
 const vehicles = [
   { contractor: 'lanka', plate: 'WP LJ-4821', type: 'Bulk Tanker', makeModel: 'Tata Prima 4028', drivers: ['d1'] },
@@ -100,12 +112,18 @@ const vehicles = [
   { contractor: 'ceylon', plate: 'SP KB-9087', type: 'Container Carrier', drivers: ['d4'] },
   { contractor: 'ceylon', plate: 'CAD-5566', type: 'Lorry', makeModel: 'Eicher Pro 3015', drivers: ['d3'] },
   { contractor: 'ceylon', plate: 'SP CAA-1001', type: 'Flatbed', drivers: ['d4'] },
+  // Module 5: one vehicle per gate result.
+  { contractor: 'lanka', plate: 'WP PC-7788', type: 'Tipper', drivers: ['d2'] },
+  { contractor: 'lanka', plate: 'WP NB-2244', type: 'Lorry', drivers: ['d1'] },
+  { contractor: 'ceylon', plate: 'SP LE-6612', type: 'Flatbed', drivers: ['d4'], status: 'suspended' },
+  { contractor: 'ceylon', plate: 'CP KD-3141', type: 'Lorry', drivers: ['d5'] },
+  { contractor: 'southern', plate: 'SG LA-9001', type: 'Tipper', drivers: ['d6'] },
 ] as const
 
-type PassState = 'submitted' | 'supervisor_approved' | 'officer_approved' | 'rejected_supervisor' | 'rejected_officer'
+type PassState = 'submitted' | 'supervisor_approved' | 'officer_approved' | 'checked_in' | 'rejected_supervisor' | 'rejected_officer'
 interface DemoPass {
   plate: string
-  driver: 'd1' | 'd2' | 'd3' | 'd4'
+  driver: DriverKey
   state: PassState
   /** 0 = today, 1 = yesterday (expired when still waiting). */
   daysAgo: 0 | 1
@@ -123,12 +141,19 @@ const demoPasses: readonly DemoPass[] = [
   { plate: 'SP KB-9087', driver: 'd4', state: 'supervisor_approved', daysAgo: 0, no: ['gps_mounted'], minutes: 18 }, // has issues
   { plate: 'CAD-5566', driver: 'd3', state: 'officer_approved', daysAgo: 0, minutes: 55 },
   { plate: 'SP CAA-1001', driver: 'd4', state: 'rejected_officer', daysAgo: 0, minutes: 70 },
+  // Gate results (Module 5).
+  { plate: 'WP PC-7788', driver: 'd2', state: 'officer_approved', daysAgo: 0, minutes: 45 }, // approved, driver has no photo
+  { plate: 'WP NB-2244', driver: 'd1', state: 'checked_in', daysAgo: 0, minutes: 90 }, // already checked in
+  { plate: 'SP LE-6612', driver: 'd4', state: 'officer_approved', daysAgo: 0, minutes: 50 }, // vehicle suspended
+  { plate: 'CP KD-3141', driver: 'd5', state: 'officer_approved', daysAgo: 0, minutes: 65 }, // driver disabled
+  { plate: 'SG LA-9001', driver: 'd6', state: 'officer_approved', daysAgo: 0, minutes: 80 }, // contractor suspended
   // Yesterday, never decided: shown as Expired, read only.
   { plate: 'WP LJ-4821', driver: 'd1', state: 'submitted', daysAgo: 1, minutes: 60 * 26 },
   { plate: '250-1234', driver: 'd3', state: 'supervisor_approved', daysAgo: 1, minutes: 60 * 27 },
 ]
 
 const FIXTURES = 'scripts/fixtures/evidence'
+const PORTRAITS = 'scripts/fixtures/drivers'
 
 // Same shape as functions/src/ids.ts: `veh_` + 10 chars [a-z0-9].
 const ID_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789'
@@ -150,6 +175,7 @@ async function main(): Promise<void> {
   batch.create(tenantRef, {
     name: 'ConvoyPass Demo', status: 'active', createdAt: ts,
     timezone: TIMEZONE, passSettings: DEFAULT_PASS_SETTINGS, checklist: DEFAULT_CHECKLIST, rejectionReasons: DEFAULT_REJECTION_REASONS,
+    gates: GATES,
   })
 
   const audit = (action: string, targetType: string, targetId: string) =>
@@ -158,17 +184,17 @@ async function main(): Promise<void> {
     })
 
   const user = async (p: {
-    email: string; password: string; name: string; role: 'admin' | 'officer' | 'supervisor' | 'driver'
-    contractorId: string | null; phone?: string
+    email: string; password: string; name: string; role: 'admin' | 'officer' | 'supervisor' | 'driver' | 'security'
+    contractorId: string | null; phone?: string; disabled?: boolean
   }): Promise<string> => {
-    const created = await auth.createUser({ email: p.email, password: p.password, displayName: p.name })
+    const created = await auth.createUser({ email: p.email, password: p.password, displayName: p.name, disabled: p.disabled ?? false })
     await auth.setCustomUserClaims(created.uid, {
       role: p.role, tenantId: TENANT, ...(p.contractorId ? { contractorId: p.contractorId } : {}),
     })
     batch.create(db.doc(`users/${created.uid}`), {
       tenantId: TENANT, role: p.role, contractorId: p.contractorId, name: p.name,
       email: p.role === 'driver' ? null : p.email, phone: p.phone ?? null,
-      status: 'active', mustChangePassword: false, createdAt: ts, createdBy: 'seed-demo', updatedAt: ts,
+      status: p.disabled ? 'disabled' : 'active', mustChangePassword: false, createdAt: ts, createdBy: 'seed-demo', updatedAt: ts,
     })
     audit('seed.demo.user', 'user', created.uid)
     return created.uid
@@ -176,6 +202,7 @@ async function main(): Promise<void> {
 
   await user({ email: 'admin@demo.convoypass.test', password: PASSWORD.admin, name: 'Demo Admin', role: 'admin', contractorId: null })
   const officerUid = await user({ email: 'officer@demo.convoypass.test', password: PASSWORD.officer, name: 'Olivia Officer', role: 'officer', contractorId: null })
+  const securityUid = await user({ email: SECURITY.email, password: PASSWORD.security, name: SECURITY.name, role: 'security', contractorId: null })
 
   const contractorIds = new Map<string, string>()
   for (const c of contractors) {
@@ -183,7 +210,7 @@ async function main(): Promise<void> {
     contractorIds.set(c.key, ref.id)
     batch.create(ref, {
       tenantId: TENANT, name: c.name, contactName: c.contactName, phone: c.phone, address: c.address,
-      status: 'active', createdAt: ts, createdBy: 'seed-demo', updatedAt: ts,
+      status: c.status, createdAt: ts, createdBy: 'seed-demo', updatedAt: ts,
     })
     audit('seed.demo.contractor', 'contractor', ref.id)
   }
@@ -198,16 +225,20 @@ async function main(): Promise<void> {
   }
 
   const driverIds = new Map<string, string>()
+  const uploads: { path: string; file: string }[] = []
   for (const d of drivers) {
     const phone = normalisePhone(d.phone)
     const uid = await user({
       email: `${phone}@drivers.convoypass.com`, password: d.pin, name: d.name, role: 'driver',
-      contractorId: cid(d.contractor), phone,
+      contractorId: cid(d.contractor), phone, disabled: d.status === 'disabled',
     })
     driverIds.set(d.key, uid)
+    const photoPath = d.photo ? `tenants/${TENANT}/contractors/${cid(d.contractor)}/drivers/${uid}.jpg` : null
+    if (photoPath) uploads.push({ path: photoPath, file: `${PORTRAITS}/driver-${d.photo}.jpg` })
     batch.create(db.doc(`drivers/${uid}`), {
       tenantId: TENANT, contractorId: cid(d.contractor), name: d.name, phone,
-      ...('licenseNo' in d ? { licenseNo: d.licenseNo } : {}), status: 'active', createdAt: ts, updatedAt: ts,
+      ...('licenseNo' in d ? { licenseNo: d.licenseNo } : {}), ...(photoPath ? { photoPath } : {}),
+      status: d.status, createdAt: ts, updatedAt: ts,
     })
   }
 
@@ -221,7 +252,7 @@ async function main(): Promise<void> {
       tenantId: TENANT, contractorId: cid(v.contractor), plateNo: plate.plateNo, plateKey: plate.plateKey, type: v.type,
       ...('makeModel' in v ? { makeModel: v.makeModel } : {}),
       assignedDriverIds: v.drivers.map((k) => driverIds.get(k) as string),
-      status: 'active', createdAt: ts, createdBy: 'seed-demo', updatedAt: ts,
+      status: 'status' in v ? v.status : 'active', createdAt: ts, createdBy: 'seed-demo', updatedAt: ts,
     })
     audit('seed.demo.vehicle', 'vehicle', id)
   }
@@ -233,8 +264,8 @@ async function main(): Promise<void> {
   const people = {
     supervisor: (c: string) => ({ uid: supervisorUids.get(c) as string, name: supervisors.find((x) => x.contractor === c)?.name as string }),
     officer: { uid: officerUid, name: 'Olivia Officer' },
+    security: { uid: securityUid, name: SECURITY.name },
   }
-  const uploads: { path: string; file: string }[] = []
   let photoN = 0
 
   for (const p of demoPasses) {
@@ -263,15 +294,20 @@ async function main(): Promise<void> {
     const stamps: Record<string, unknown> = {}
     const history: unknown[] = []
     let status = 'submitted'
-    if (p.state === 'supervisor_approved' || p.state === 'officer_approved' || p.state === 'rejected_officer') {
+    if (p.state === 'supervisor_approved' || p.state === 'officer_approved' || p.state === 'checked_in' || p.state === 'rejected_officer') {
       status = 'supervisor_approved'
       stamps.supervisor = { ...sup, at: at(p.minutes - 5) }
       history.push(entry('approve', 'supervisor', sup, 'supervisor', p.minutes - 5))
     }
-    if (p.state === 'officer_approved') {
+    if (p.state === 'officer_approved' || p.state === 'checked_in') {
       status = 'officer_approved'
       stamps.officer = { ...people.officer, at: at(p.minutes - 12) }
       history.push(entry('approve', 'officer', people.officer, 'officer', p.minutes - 12))
+    }
+    if (p.state === 'checked_in') {
+      status = 'checked_in'
+      stamps.checkIn = { ...people.security, at: at(p.minutes - 30), gateId: 'main', gateName: 'Main Gate', requestId: randomUUID() }
+      history.push(entry('check_in', 'gate', people.security, 'security', p.minutes - 30))
     }
     if (p.state === 'rejected_supervisor' || p.state === 'rejected_officer') {
       status = 'rejected'
@@ -294,6 +330,19 @@ async function main(): Promise<void> {
     })
   }
 
+  // One denied entry for the gate log: a vehicle still waiting for the officer was turned away.
+  {
+    const plate = 'SP KB-9087'
+    const vehicleId = vehicleIds.get(plate) as string
+    const requestId = randomUUID()
+    batch.create(db.doc(`gateEvents/den_${requestId}`), {
+      tenantId: TENANT, type: 'denied', vehicleId, plateNo: plate, contractorId: cid('ceylon'), passId: `${vehicleId}_${today}`,
+      passStatus: 'supervisor_approved', driverName: 'Chaminda Wickrama', dateKey: today, reasonCode: 'not_approved',
+      note: 'Arrived before the officer approved', gateId: 'north', gateName: 'North Gate', byUid: securityUid, byName: SECURITY.name,
+      at: at(8), requestId,
+    })
+  }
+
   await batch.commit()
 
   const bucketName = process.env.FIREBASE_STORAGE_BUCKET ?? envFile().VITE_FIREBASE_STORAGE_BUCKET ?? `${projectId}.appspot.com`
@@ -308,16 +357,19 @@ async function main(): Promise<void> {
     const c = contractors.find((x) => x.key === s.contractor)
     console.log(`    supervisor  ${s.email.padEnd(42)}${PASSWORD.supervisor}   (${c?.name})`)
   }
+  console.log(`    security    ${SECURITY.email.padEnd(42)}${PASSWORD.security}   (${SECURITY.name}; gates: ${GATES.map((g) => g.name).join(', ')})`)
   console.log('\n  Drivers (phone / PIN)')
   for (const d of drivers) {
     const c = contractors.find((x) => x.key === d.contractor)
-    console.log(`    ${d.phone}  ${d.pin}   ${d.name} (${c?.name})`)
+    const notes = [d.photo ? null : 'no photo', d.status === 'disabled' ? 'DISABLED' : null, c?.status === 'suspended' ? 'contractor SUSPENDED' : null].filter(Boolean)
+    console.log(`    ${d.phone}  ${d.pin}   ${d.name} (${c?.name})${notes.length ? `  [${notes.join(', ')}]` : ''}`)
   }
   console.log('\n  Passes for today (and what to try):')
   const label: Record<PassState, string> = {
     submitted: 'submitted (waiting for the supervisor)',
     supervisor_approved: 'supervisor approved (waiting for the officer)',
     officer_approved: 'officer approved',
+    checked_in: 'checked in at Main Gate',
     rejected_supervisor: 'rejected by the supervisor (driver can fix and resubmit)',
     rejected_officer: 'rejected by the officer (driver can fix and resubmit)',
   }
@@ -329,6 +381,23 @@ async function main(): Promise<void> {
   console.log(`\n  Live demo: sign in as driver 0771000001 (PIN 482915), open /v/${live} (CAB-1234, no pass yet) and submit.`)
   console.log('  Then as supervisor.lanka@... it appears under Approvals; approve it, and the officer sees it under "Awaiting me".')
   console.log('\n  Vehicle ids:', [...vehicleIds].map(([p, id]) => `${p} -> /v/${id}`).join('\n               '), '\n')
+
+  const url = (plate: string) => `/v/${vehicleIds.get(plate) as string}`
+  const gate: [string, string][] = [
+    ['APPROVED (driver has a photo)', 'CAD-5566'],
+    ['APPROVED (driver has no photo)', 'WP PC-7788'],
+    ['ALREADY CHECKED IN', 'WP NB-2244'],
+    ['NOT APPROVED: pending supervisor', 'WP CBA-5521'],
+    ['NOT APPROVED: pending officer (approve it as the officer and watch it turn green)', '250-1234'],
+    ['NOT APPROVED: rejected', 'NP KA 1234'],
+    ['NOT APPROVED: no pass today', 'CAB-1234'],
+    ['NOT APPROVED: vehicle suspended (pass approved)', 'SP LE-6612'],
+    ['NOT APPROVED: driver disabled (pass approved)', 'CP KD-3141'],
+    ['NOT APPROVED: contractor suspended (pass approved)', 'SG LA-9001'],
+  ]
+  console.log(`  The gate (sign in as ${SECURITY.email} / ${PASSWORD.security}, pick a gate, then open):`)
+  for (const [what, plate] of gate) console.log(`    ${url(plate).padEnd(20)} ${plate.padEnd(12)} ${what}`)
+  console.log('  Admin, officer and supervisors can open the same URLs read only. /admin/gate-log shows the check-in and a denial.\n')
 }
 
 main().catch((e: unknown) => {

@@ -3,7 +3,6 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { ForbiddenPage, NotFoundPage } from '@/features/auth/ErrorPages'
 import { RequireAuth, RequireRole, RoleHomeRedirect } from '@/features/auth/guards'
-import type { Role } from '@/lib/roles'
 import {
   AdminLayout,
   ApprovalsPage,
@@ -12,13 +11,16 @@ import {
   ContractorsPage,
   DriverHome,
   DriversPage,
+  GateHome,
+  GateLogPage,
   LoginPage,
   OfficerLayout,
   OfficerQueue,
   PassesPage,
   QrLabelsPage,
+  QueuePage,
   ReviewPage,
-  RolePlaceholder,
+  SecurityLayout,
   SettingsPage,
   SupervisorHome,
   SupervisorLayout,
@@ -29,11 +31,6 @@ import {
 
 
 const lazyEl = (node: ReactNode) => <Suspense fallback={<PageSpinner />}>{node}</Suspense>
-
-const placeholderRoute = (role: Exclude<Role, 'admin' | 'officer' | 'supervisor' | 'driver'>) => ({
-  element: <RequireRole roles={[role]} />,
-  children: [{ path: `/${role}`, element: lazyEl(<RolePlaceholder />) }],
-})
 
 export const router = createBrowserRouter([
   { path: '/login', element: lazyEl(<LoginPage />) },
@@ -57,6 +54,7 @@ export const router = createBrowserRouter([
               { path: 'vehicles', element: lazyEl(<VehiclesPage scope="admin" />) },
               { path: 'drivers', element: lazyEl(<DriversPage scope="admin" />) },
               { path: 'passes', element: lazyEl(<PassesPage />) },
+              { path: 'gate-log', element: lazyEl(<GateLogPage />) },
               { path: 'qr', element: lazyEl(<QrLabelsPage scope="admin" />) },
               { path: 'settings', element: lazyEl(<SettingsPage />) },
             ],
@@ -94,7 +92,19 @@ export const router = createBrowserRouter([
         element: <RequireRole roles={['driver']} />,
         children: [{ path: '/driver', element: lazyEl(<DriverHome />) }],
       },
-      placeholderRoute('security'),
+      {
+        element: <RequireRole roles={['security']} />,
+        children: [
+          {
+            path: '/security',
+            element: lazyEl(<SecurityLayout />),
+            children: [
+              { index: true, element: lazyEl(<GateHome />) },
+              { path: 'queue', element: lazyEl(<QueuePage />) },
+            ],
+          },
+        ],
+      },
     ],
   },
   { path: '/403', element: <ForbiddenPage /> },

@@ -11,6 +11,7 @@ import { dateKey } from './dates.js'
 import { caller, makeWorld, NOW, admin } from './test-utils.js'
 import type { AuditEntry, PassWrite, UserData, VehicleData } from './types.js'
 import { createVehicle, updateVehicle } from './vehicles.js'
+import { checkIn, denyEntry } from './gate.js'
 
 const emulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST)
 
@@ -43,7 +44,7 @@ describe.skipIf(!emulator)('Firestore data port (emulator)', () => {
     db = getFirestore()
   })
   beforeEach(async () => {
-    for (const c of ['vehicles', 'vehiclePlates', 'auditLog', 'users', 'drivers', 'contractors', 'passes', 'tenants']) {
+    for (const c of ['vehicles', 'vehiclePlates', 'auditLog', 'users', 'drivers', 'contractors', 'passes', 'tenants', 'gateEvents']) {
       await db.recursiveDelete(db.collection(c))
     }
   })
@@ -262,6 +263,41 @@ describe.skipIf(!emulator)('Firestore data port (emulator)', () => {
         items: [{ passId: ID, expectedAttempt: 1 }, { passId: `${VID}2_${DAY}`, expectedAttempt: 1 }],
       })
       expect(results).toEqual([{ passId: ID, ok: true }, { passId: `${VID}2_${DAY}`, ok: false, error: 'has_issues' }])
+    })
+
+    it('checkIn: ten guards at once, exactly one wins; the stored check-in reads back in milliseconds', async () => {
+      await seedPass({ status: 'officer_approved' })
+      const sec = () => caller('sec', 'security')
+      const ids = Array.from({ length: 10 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`)
+      const results = await Promise.allSettled(ids.map((requestId) => checkIn(deps(), sec(), { passId: ID, expectedAttempt: 1, gateId: 'main', requestId })))
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
+      for (const r of results) if (r.status === 'rejected') expect(r.reason).toMatchObject({ code: 'already-exists', details: { reason: 'pass-checked-in' } })
+      const raw = (await db.doc(`passes/${ID}`).get()).data()
+      expect(raw).toMatchObject({ status: 'checked_in', checkIn: { uid: 'sec', gateId: 'main', gateName: 'Main Gate' } })
+      expect(raw?.checkIn.at.toMillis()).toBe(NOW * 1000)
+      expect(raw?.history).toHaveLength(1)
+      expect((await db.collection('auditLog').get()).size).toBe(1)
+      const winner = raw?.checkIn.requestId as string
+      // Replaying the winner's request is a success with the same time, and writes nothing.
+      expect(await checkIn(deps(), sec(), { passId: ID, expectedAttempt: 1, gateId: 'main', requestId: winner })).toEqual({ passId: ID, status: 'checked_in', at: NOW * 1000 })
+      expect((await port().getPass(ID))?.checkIn?.at).toBe(NOW * 1000)
+      expect((await db.collection('auditLog').get()).size).toBe(1)
+    })
+
+    it('denyEntry writes gateEvents/den_{requestId} once and leaves the pass alone', async () => {
+      await seedPass({ status: 'officer_approved', plateNo: 'CAB-1' })
+      await db.doc(`vehicles/${VID}`).update({ plateNo: 'CAB-1' })
+      const before = (await db.doc(`passes/${ID}`).get()).data()
+      const requestId = '33333333-3333-4333-8333-333333333333'
+      const body = { vehicleId: VID, reasonCode: 'vehicle_condition', gateId: 'main', requestId }
+      const first = await denyEntry(deps(), caller('sec', 'security'), body)
+      expect(await denyEntry(deps(), caller('sec', 'security'), body)).toEqual(first)
+      const event = (await db.doc(`gateEvents/den_${requestId}`).get()).data()
+      expect(event).toMatchObject({ tenantId: 'T1', type: 'denied', plateNo: 'CAB-1', passId: ID, passStatus: 'officer_approved', byUid: 'sec' })
+      expect(event?.at.toMillis()).toBe(NOW * 1000)
+      expect((await db.collection('gateEvents').get()).size).toBe(1)
+      expect((await db.collection('auditLog').get()).size).toBe(1)
+      expect((await db.doc(`passes/${ID}`).get()).data()).toEqual(before)
     })
 
     it('refuses to approve when the driver is disabled, naming the driver', async () => {

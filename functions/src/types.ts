@@ -1,5 +1,9 @@
+import type { GateDef } from './gates.js'
+
 export const ROLES = ['admin', 'officer', 'supervisor', 'driver', 'security'] as const
 export type Role = (typeof ROLES)[number]
+
+export type { GateDef }
 
 export type UserStatus = 'active' | 'disabled'
 
@@ -63,7 +67,7 @@ export interface AuditEntry {
   action: string
   actorUid: string
   actorRole: Role
-  targetType: 'user' | 'vehicle' | 'contractor' | 'tenant' | 'pass'
+  targetType: 'user' | 'vehicle' | 'contractor' | 'tenant' | 'pass' | 'gateEvent'
   targetId: string
   meta: Record<string, string | number | boolean | null>
 }
@@ -101,7 +105,10 @@ export interface TenantData {
   checklist?: ChecklistItemDef[]
   /** Falls back to DEFAULT_REJECTION_REASONS when absent or empty. */
   rejectionReasons?: RejectionReasonDef[]
+  /** Falls back to DEFAULT_GATES when absent or empty. */
+  gates?: GateDef[]
 }
+
 
 export interface EvidenceFile {
   path: string
@@ -152,10 +159,10 @@ export interface ApprovalStamp {
   at: number
 }
 
-/** Appended on every decision and never removed, not even on resubmit. */
+/** Appended on every decision (and the gate check-in) and never removed, not even on resubmit. */
 export interface HistoryEntry {
-  action: 'approve' | 'reject' | 'revoke'
-  stage: DecisionStage
+  action: 'approve' | 'reject' | 'revoke' | 'check_in'
+  stage: DecisionStage | 'gate'
   byUid: string
   byName: string
   byRole: Role
@@ -192,12 +199,52 @@ export interface PassData {
   rejection?: Rejection
   rejectionHistory?: RejectionHistoryEntry[]
   history?: HistoryEntry[]
+  /** Set once by `checkIn`. There is no check-out. */
+  checkIn?: CheckInStamp
+}
+
+/** Who let the vehicle in, where and when. `at` is the server time (milliseconds here; the data port converts). */
+export interface CheckInStamp {
+  uid: string
+  name: string
+  at: number
+  gateId: string
+  gateName: string
+  /** Client UUID that makes the call idempotent (retries and the offline queue rely on it). */
+  requestId: string
+  /** Device time of an offline check-in, ISO string. Bounded on the server but never trusted: shown as unverified. */
+  offlineCapturedAt?: string
+}
+
+/** `gateEvents/den_{requestId}`: a vehicle turned away at the gate. Never changes the pass. */
+export interface GateEventData {
+  tenantId: string
+  type: 'denied'
+  vehicleId: string
+  plateNo: string
+  contractorId: string
+  /** Today's pass for the vehicle, when there is one. */
+  passId: string | null
+  /** Its status at the moment of the denial, read by the server. */
+  passStatus: PassStatus | null
+  /** The driver named on that pass, for the gate log. */
+  driverName: string | null
+  dateKey: string
+  reasonCode: string
+  note?: string
+  gateId: string
+  gateName: string
+  byUid: string
+  byName: string
+  /** Milliseconds since epoch (server time). */
+  at: number
+  requestId: string
 }
 
 /** What `submitPass` hands the data port; the port adds status, timestamps and history. */
 export type PassWrite = Omit<
   PassData,
-  'status' | 'submittedAt' | 'supervisor' | 'officer' | 'rejection' | 'rejectionHistory' | 'history'
+  'status' | 'submittedAt' | 'supervisor' | 'officer' | 'rejection' | 'rejectionHistory' | 'history' | 'checkIn'
 >
 
 /** Object metadata read from Storage with the Admin SDK. */

@@ -326,6 +326,12 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
       throw fail('invalid-argument', 'invalid-input', 'The “other” reason cannot be removed')
     }
   }
+  if (input.gates) {
+    // Ids are slugs created once and never edited (check-ins and denials keep the id); at least one gate remains.
+    if (new Set(input.gates.map((g) => g.id)).size !== input.gates.length) {
+      throw fail('invalid-argument', 'invalid-input', 'Gate ids must be unique')
+    }
+  }
   if (!(await deps.data.getTenant(caller.tenantId))) throw fail('failed-precondition', 'internal', 'Tenant not found')
 
   await deps.data.updateTenantSettingsWithAudit(
@@ -334,6 +340,7 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
       ...(input.passSettings ? { passSettings: input.passSettings } : {}),
       ...(input.checklist ? { checklist: input.checklist } : {}),
       ...(input.rejectionReasons ? { rejectionReasons: input.rejectionReasons } : {}),
+      ...(input.gates ? { gates: input.gates } : {}),
     },
     audit(
       caller,
@@ -343,6 +350,7 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
         passSettings: input.passSettings !== undefined,
         checklistItems: input.checklist?.length ?? null,
         rejectionReasons: input.rejectionReasons?.length ?? null,
+        gates: input.gates?.length ?? null,
         requireLocation: input.passSettings?.requireLocation ?? null,
         maxExtraPhotos: input.passSettings?.maxExtraPhotos ?? null,
       },

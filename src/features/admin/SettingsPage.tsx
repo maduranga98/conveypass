@@ -15,13 +15,15 @@ import {
   type PassSettings,
 } from '@/lib/defaultChecklist'
 import { DEFAULT_REJECTION_REASONS, type RejectionReasonDef } from '@/lib/defaultRejectionReasons'
+import { DEFAULT_GATES, MIN_GATES, type GateDef } from '@/lib/gates'
 import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
 import { useSession } from '@/features/auth/useAuth'
 import { useTenant } from '@/features/passes/queries'
 import type { Tenant } from '@/types'
-import { MAX_REASONS, MIN_REASONS, reasonLabelOk } from './reasons'
+import { gateNameOk, MAX_REASONS, MIN_REASONS, reasonLabelOk } from './reasons'
 import { RejectionReasonsEditor } from './RejectionReasonsEditor'
+import { GatesEditor } from './GatesEditor'
 
 const t = strings.admin.settings
 const MAX_ITEMS = 12
@@ -34,12 +36,14 @@ interface Baseline {
   checklist: ChecklistItemDef[]
   settings: PassSettings
   reasons: RejectionReasonDef[]
+  gates: GateDef[]
 }
 
 const baselineOf = (tenant: Tenant | null): Baseline => ({
   checklist: tenant?.checklist && tenant.checklist.length > 0 ? tenant.checklist : [...DEFAULT_CHECKLIST],
   settings: { ...DEFAULT_PASS_SETTINGS, ...tenant?.passSettings },
   reasons: tenant?.rejectionReasons && tenant.rejectionReasons.length > 0 ? tenant.rejectionReasons : [...DEFAULT_REJECTION_REASONS],
+  gates: tenant?.gates && tenant.gates.length > 0 ? tenant.gates : [...DEFAULT_GATES],
 })
 
 function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: string }) {
@@ -50,15 +54,20 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
   const [settings, setSettings] = useState<PassSettings>(baseline.settings)
   const [reasons, setReasons] = useState<RejectionReasonDef[]>(baseline.reasons)
   const usingDefaultReasons = !tenant?.rejectionReasons || tenant.rejectionReasons.length === 0
+  const [gates, setGates] = useState<GateDef[]>(baseline.gates)
+  const usingDefaultGates = !tenant?.gates || tenant.gates.length === 0
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [touched, setTouched] = useState(false)
 
   const dirty =
-    JSON.stringify({ items, settings, reasons }) !== JSON.stringify({ items: baseline.checklist, settings: baseline.settings, reasons: baseline.reasons })
+    JSON.stringify({ items, settings, reasons, gates }) !==
+    JSON.stringify({ items: baseline.checklist, settings: baseline.settings, reasons: baseline.reasons, gates: baseline.gates })
   const reasonsChanged = JSON.stringify(reasons) !== JSON.stringify(baseline.reasons)
-  const invalidLabels = items.some((i) => !labelOk(i.label)) || reasons.some((r) => !reasonLabelOk(r.label))
-  const reasonCountBad = reasons.length < MIN_REASONS || reasons.length > MAX_REASONS
+  const gatesChanged = JSON.stringify(gates) !== JSON.stringify(baseline.gates)
+  const invalidLabels =
+    items.some((i) => !labelOk(i.label)) || reasons.some((r) => !reasonLabelOk(r.label)) || gates.some((g) => !gateNameOk(g.name))
+  const reasonCountBad = reasons.length < MIN_REASONS || reasons.length > MAX_REASONS || gates.length < MIN_GATES
   const problem = items.length === 0 ? t.needOne : null
 
   const update = (index: number, patch: Partial<ChecklistItemDef>) =>
@@ -80,13 +89,21 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
     setError(null)
     const checklist = items.map((i) => ({ ...i, label: i.label.trim() }))
     const cleanReasons = reasons.map((r) => ({ ...r, label: r.label.trim() }))
+    const cleanGates = gates.map((g) => ({ ...g, name: g.name.trim() }))
     try {
       // The default reasons are only written once the admin actually changes them (or already has their own).
       const saveReasons = reasonsChanged || !usingDefaultReasons
-      await updateTenantSettings({ passSettings: settings, checklist, ...(saveReasons ? { rejectionReasons: cleanReasons } : {}) })
+      const saveGates = gatesChanged || !usingDefaultGates
+      await updateTenantSettings({
+        passSettings: settings,
+        checklist,
+        ...(saveReasons ? { rejectionReasons: cleanReasons } : {}),
+        ...(saveGates ? { gates: cleanGates } : {}),
+      })
       setItems(checklist)
       setReasons(cleanReasons)
-      setBaseline({ checklist, settings, reasons: cleanReasons })
+      setGates(cleanGates)
+      setBaseline({ checklist, settings, reasons: cleanReasons, gates: cleanGates })
       await queryClient.invalidateQueries({ queryKey: ['tenant', tenantId] })
       toast.success(t.saved)
     } catch (e) {
@@ -154,6 +171,8 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
       </section>
 
       <RejectionReasonsEditor items={reasons} onChange={setReasons} showErrors={touched} usingDefaults={usingDefaultReasons} />
+
+      <GatesEditor items={gates} onChange={setGates} showErrors={touched} usingDefaults={usingDefaultGates} />
 
       <section aria-label={strings.admin.nav.settings} className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
         <label className="flex min-h-10 items-start gap-3 text-sm">

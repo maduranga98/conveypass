@@ -1,11 +1,15 @@
 import { useParams } from 'react-router-dom'
 import { useSession } from '@/features/auth/useAuth'
-import VehiclePlaceholder from '@/features/auth/VehiclePlaceholder'
+import GateVehicleView from '@/features/gate/GateVehicleView'
 import DriverVehicleGate from './DriverVehicleGate'
 
-/** `/v/:vehicleId`: drivers get the pre-trip flow; every other role a placeholder until its own module exists. */
+/**
+ * `/v/:vehicleId` (behind the login redirect): drivers get the pre-trip flow; security the gate view with Check in and
+ * Deny; admin, officer and supervisor the same gate view read-only (a supervisor only sees what the rules allow).
+ */
 export default function VehicleRoute() {
   const { vehicleId = '' } = useParams()
   const { claims } = useSession()
-  return claims.role === 'driver' ? <DriverVehicleGate vehicleId={vehicleId} /> : <VehiclePlaceholder />
+  if (claims.role === 'driver') return <DriverVehicleGate vehicleId={vehicleId} />
+  return <GateVehicleView key={vehicleId} vehicleId={vehicleId} readOnly={claims.role !== 'security'} />
 }

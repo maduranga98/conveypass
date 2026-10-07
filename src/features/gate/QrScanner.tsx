@@ -1,0 +1,240 @@
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
+import { CameraOff, Flashlight, FlashlightOff, ScanLine, TriangleAlert, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { appBase } from '@/lib/appUrl'
+import { cn } from '@/lib/cn'
+import { strings } from '@/lib/strings'
+import { parseVehicleQr } from '@/lib/vehicleQr'
+
+const t = strings.gate.scanner
+
+/** The same code read again within this window is ignored (the camera sees it many times a second). */
+const REPEAT_MS = 2500
+const MESSAGE_MS = 3000
+
+type Phase = 'starting' | 'scanning' | 'denied' | 'nocamera' | 'failed' | 'insecure'
+
+function classify(e: unknown): Phase {
+  const text = `${(e as { name?: unknown } | null)?.name ?? ''} ${String(e)}`
+  if (/NotAllowed|Permission|denied/i.test(text)) return 'denied'
+  if (/NotFound|Requested device not found|no camera|Overconstrained/i.test(text)) return 'nocamera'
+  return 'failed'
+}
+
+/** Stops every camera track under `el`, whatever state the library is in. */
+function stopTracks(el: HTMLElement | null): void {
+  el?.querySelectorAll('video').forEach((video) => {
+    const stream = video.srcObject
+    if (stream && typeof (stream as MediaStream).getTracks === 'function') (stream as MediaStream).getTracks().forEach((track) => track.stop())
+    video.srcObject = null
+  })
+}
+
+/**
+ * Full-screen in-app scanner (html5-qrcode), back camera preferred. Every read goes through `parseVehicleQr`;
+ * anything that is not ours shows "Not a ConvoyPass QR code" and scanning continues. On a valid code the camera is
+ * stopped first, then `onVehicle` is called. All tracks are stopped on unmount.
+ */
+export function QrScanner({ onVehicle, onClose }: { onVehicle: (vehicleId: string) => void; onClose: () => void }) {
+  const hostRef = useRef<HTMLDivElement>(null)
+  const onVehicleRef = useRef(onVehicle)
+  // The camera API exists only in secure contexts (https or localhost).
+  const [phase, setPhase] = useState<Phase>(() =>
+    window.isSecureContext && typeof navigator.mediaDevices?.getUserMedia === 'function' ? 'starting' : 'insecure',
+  )
+  const insecure = phase === 'insecure'
+  const [message, setMessage] = useState<string | null>(null)
+  const [torch, setTorch] = useState<{ supported: boolean; on: boolean }>({ supported: false, on: false })
+  const torchRef = useRef<{ apply: (on: boolean) => Promise<void> } | null>(null)
+  const [attempt, setAttempt] = useState(0)
+
+  useEffect(() => {
+    onVehicleRef.current = onVehicle
+  })
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  useEffect(() => {
+    const host = hostRef.current
+    if (!host || insecure) return
+    // A fresh element per run, so a quick unmount/remount (StrictMode, retry) never shares one with a stopping scanner.
+    const el = document.createElement('div')
+    el.id = `qr-${Math.random().toString(36).slice(2)}`
+    el.className = 'w-full'
+    host.appendChild(el)
+
+    let disposed = false
+    let done = false
+    let last = { text: '', at: 0 }
+    let clearMsg: ReturnType<typeof setTimeout> | undefined
+    const scanner = new Html5Qrcode(el.id, { verbose: false, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] })
+
+    const stop = async () => {
+      try {
+        if (scanner.isScanning) await scanner.stop()
+      } catch {
+        // already stopped
+      }
+      stopTracks(el)
+      try {
+        scanner.clear()
+      } catch {
+        // nothing rendered
+      }
+    }
+
+    const onRead = (text: string) => {
+      const now = Date.now()
+      if (done || (text === last.text && now - last.at < REPEAT_MS)) return
+      last = { text, at: now }
+      const vehicleId = parseVehicleQr(text, appBase?.url ?? window.location.origin)
+      if (!vehicleId) {
+        setMessage(t.notOurs)
+        clearTimeout(clearMsg)
+        clearMsg = setTimeout(() => setMessage(null), MESSAGE_MS)
+        return
+      }
+      done = true
+      void stop().then(() => onVehicleRef.current(vehicleId))
+    }
+
+    const started = scanner
+      .start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: (w: number, h: number) => {
+            const side = Math.max(160, Math.floor(Math.min(w, h) * 0.7))
+            return { width: side, height: side }
+          },
+        },
+        onRead,
+        () => undefined, // "no code in this frame": not an error
+      )
+      .then(() => {
+        if (disposed) return
+        setPhase('scanning')
+        try {
+          const cap = scanner.getRunningTrackCameraCapabilities().torchFeature()
+          if (cap.isSupported()) {
+            torchRef.current = cap
+            setTorch({ supported: true, on: false })
+          }
+        } catch {
+          // no torch information
+        }
+      })
+      .catch((e: unknown) => {
+        if (!disposed) setPhase(classify(e))
+      })
+
+    return () => {
+      disposed = true
+      clearTimeout(clearMsg)
+      torchRef.current = null
+      // Stop once start has settled (stopping a scanner that is still starting throws), then drop the element.
+      void started.finally(() => stop().finally(() => el.remove()))
+      stopTracks(el)
+    }
+  }, [attempt, insecure])
+
+  const toggleTorch = async () => {
+    const cap = torchRef.current
+    if (!cap) return
+    try {
+      await cap.apply(!torch.on)
+      setTorch((s) => ({ ...s, on: !s.on }))
+    } catch {
+      setTorch({ supported: false, on: false })
+    }
+  }
+
+  const problem =
+    phase === 'denied' ? { title: t.deniedTitle, body: t.deniedBody }
+    : phase === 'nocamera' ? { title: t.deniedTitle, body: t.noCamera }
+    : phase === 'insecure' ? { title: t.deniedTitle, body: t.insecure }
+    : phase === 'failed' ? { title: t.deniedTitle, body: t.failed }
+    : null
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label={t.title} className="fixed inset-0 z-50 flex flex-col bg-black text-white">
+      <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-3">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t.close}
+          className="inline-flex size-12 items-center justify-center rounded-full bg-white/15 focus-visible:outline-2 focus-visible:outline-white"
+        >
+          <X aria-hidden className="size-7" />
+        </button>
+        <p className="text-lg font-bold">{t.title}</p>
+        {torch.supported ? (
+          <button
+            type="button"
+            onClick={() => void toggleTorch()}
+            aria-pressed={torch.on}
+            className="inline-flex h-12 items-center gap-2 rounded-full bg-white/15 px-4 text-sm font-bold focus-visible:outline-2 focus-visible:outline-white"
+          >
+            {torch.on ? <FlashlightOff aria-hidden className="size-5" /> : <Flashlight aria-hidden className="size-5" />}
+            {torch.on ? t.torchOff : t.torchOn}
+          </button>
+        ) : (
+          <span className="size-12" />
+        )}
+      </div>
+
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+        <div ref={hostRef} className={cn('w-full max-w-lg', problem && 'hidden')} />
+        {phase === 'starting' && (
+          <p role="status" className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-lg font-semibold">{t.starting}</p>
+        )}
+        {problem && (
+          <div role="alert" className="mx-6 max-w-sm space-y-4 rounded-2xl bg-white p-6 text-center text-slate-900">
+            <CameraOff aria-hidden className="mx-auto size-12 text-red-700" />
+            <p className="text-xl font-extrabold">{problem.title}</p>
+            <p className="text-base">{problem.body}</p>
+            <div className="flex flex-col gap-2">
+              {phase !== 'insecure' && phase !== 'nocamera' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhase('starting')
+                    setAttempt((n) => n + 1)
+                  }}
+                  className="h-14 rounded-xl bg-slate-900 text-lg font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                >
+                  {t.retry}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onClose}
+                className="h-14 rounded-xl border-2 border-slate-300 text-lg font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+              >
+                {t.close}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="shrink-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        {message ? (
+          <p role="alert" className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-red-700 px-4 text-lg font-extrabold">
+            <TriangleAlert aria-hidden className="size-6 shrink-0" />
+            {message}
+          </p>
+        ) : (
+          <p className="flex min-h-14 items-center justify-center gap-2 text-center text-base font-semibold text-white/90">
+            <ScanLine aria-hidden className="size-6 shrink-0" />
+            {t.hint}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}

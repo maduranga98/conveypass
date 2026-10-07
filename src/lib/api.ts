@@ -4,7 +4,17 @@ import { functions } from './firebase'
 import type { ChecklistItemDef, PassSettings } from './defaultChecklist'
 import type { VehicleType } from './vehicleTypes'
 import type { RejectionReasonDef } from './defaultRejectionReasons'
-import type { BulkItemResult, DecidePassPayload, PassStatus, ResolveResult, SubmitPassPayload } from '@/types/passes'
+import type { GateDef } from './gates'
+import type {
+  BulkItemResult,
+  CheckInPayload,
+  CheckInResult,
+  DecidePassPayload,
+  DenyEntryPayload,
+  PassStatus,
+  ResolveResult,
+  SubmitPassPayload,
+} from '@/types/passes'
 
 export interface CreateUserPayload {
   role: Role
@@ -74,7 +84,7 @@ export const submitPass = call<SubmitPassPayload, { passId: string; status: 'sub
   60_000,
 )
 export const updateTenantSettings = call<
-  { passSettings?: PassSettings; checklist?: ChecklistItemDef[]; rejectionReasons?: RejectionReasonDef[] },
+  { passSettings?: PassSettings; checklist?: ChecklistItemDef[]; rejectionReasons?: RejectionReasonDef[]; gates?: GateDef[] },
   { ok: true }
 >('updateTenantSettings')
 
@@ -91,3 +101,7 @@ export const revokePass = call<
   { passId: string; reasonCode: string; note?: string; expectedAttempt?: number },
   { passId: string; status: 'rejected' }
 >('revokePass', 30_000)
+
+// Module 5: the gate. Reads go straight to Firestore; these are the only writes. Both are idempotent per requestId.
+export const checkIn = call<CheckInPayload, CheckInResult>('checkIn', 20_000)
+export const denyEntry = call<DenyEntryPayload, { eventId: string; at: number; passStatus: PassStatus | null }>('denyEntry', 20_000)

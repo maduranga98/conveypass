@@ -8,6 +8,7 @@ import type {
   Claims,
   ContractorData,
   DriverData,
+  GateEventData,
   PassData,
   StoredFile,
   TenantData,
@@ -50,6 +51,7 @@ export interface World {
   claims: Map<string, Claims>
   tenants: Map<string, TenantData>
   passes: Map<string, PassData>
+  gateEvents: Map<string, GateEventData>
   /** Storage objects by full path. */
   files: Map<string, StoredFile>
   audits: AuditEntry[]
@@ -72,6 +74,7 @@ export function makeWorld(): World {
     claims: new Map(),
     tenants: new Map(),
     passes: new Map(),
+    gateEvents: new Map(),
     files: new Map(),
     audits: [],
     revoked: [],
@@ -207,6 +210,37 @@ export function makeWorld(): World {
         })
         w.audits.push(audit)
         return decision
+      },
+      checkInTx: async ({ passId, plan }) => {
+        // Synchronous from the read to the write, which models transaction atomicity.
+        const pass = w.passes.get(passId)
+        const ctx = pass
+          ? {
+              pass: structuredClone(pass),
+              vehicle: w.vehicles.get(pass.vehicleId) ?? null,
+              contractor: w.contractors.get(pass.contractorId) ?? null,
+              driver: w.users.get(pass.driverId) ?? null,
+            }
+          : null
+        const decision = plan(ctx)
+        if (decision.kind === 'write') {
+          const current = pass as PassData
+          w.passes.set(passId, {
+            ...current,
+            status: 'checked_in',
+            checkIn: structuredClone(decision.checkIn),
+            history: [...(current.history ?? []), structuredClone(decision.entry)],
+          })
+          w.audits.push(decision.audit)
+        }
+        return decision
+      },
+      denyEntryTx: async ({ eventId, event, audit }) => {
+        const existing = w.gateEvents.get(eventId)
+        if (existing) return { created: false, event: structuredClone(existing) }
+        w.gateEvents.set(eventId, structuredClone(event))
+        w.audits.push(audit)
+        return { created: true, event }
       },
       updateTenantSettingsWithAudit: async (id, patch, audit) => {
         w.tenants.set(id, { ...(w.tenants.get(id) as TenantData), ...patch })

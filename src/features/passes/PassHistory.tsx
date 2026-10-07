@@ -4,7 +4,21 @@ import { formatDateTime, toMs } from './passView'
 
 const t = strings.approvals
 
-const VERB = { approve: 'approved', reject: 'rejected', revoke: 'revoked' } as const
+/** The gate check-in: who, when (server time) and where, plus an offline device time marked unverified. */
+export function CheckInBlock({ pass }: { pass: Pick<PassDoc, 'checkIn'> }) {
+  const c = pass.checkIn
+  if (!c) return null
+  const p = strings.admin.passes
+  return (
+    <section aria-labelledby="checkin-h" className="space-y-1 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+      <h3 id="checkin-h" className="font-semibold">{p.checkInTitle}</h3>
+      <p>{p.checkInLine(c.name, formatDateTime(toMs(c.at)), c.gateName)}</p>
+      {c.offlineCapturedAt && <p className="text-xs">{p.checkInOffline(formatDateTime(Date.parse(c.offlineCapturedAt)))}</p>}
+    </section>
+  )
+}
+
+const VERB = { approve: 'approved', reject: 'rejected', revoke: 'revoked', check_in: 'checked in' } as const
 
 /** Every decision ever made on a pass (never trimmed), plus the reasons of earlier rejections. For admins. */
 export function PassHistory({ pass }: { pass: Pick<PassDoc, 'history' | 'rejection' | 'rejectionHistory'> }) {
