@@ -41,7 +41,7 @@ cp .env.example .env.local       # fill VITE_FIREBASE_*; set VITE_USE_EMULATORS=
 cp functions/.env.example functions/.env
 npm --prefix functions run build
 npm run emulators                # auth 9099, firestore 8080, functions 5001, storage 9199, UI 4000
-npm run create-tenant -- --env emulator --tenant-name "Acme" --email admin@example.com --password 'ChangeMe123'
+npm run create-tenant -- --env emulator --tenant-name "Acme" --email admin@example.com   # prints a temporary password once
 # or, for a populated demo tenant (every role, passes in every state with photos, notifications, 30 days of history;
 # prints the logins and what to try):
 npm run seed:demo
@@ -51,15 +51,16 @@ npm run dev                      # http://localhost:5173
 ### First-time setup of a workspace (invite link)
 
 The **Super admin** (the person who runs ConvoyPass) creates company workspaces from the **Super admin console** (`/platform`):
-create the super admin account once (script only), sign in with the Staff tab, then *Workspaces > New workspace*. The admin gets a
+create the super admin account once (script only; see [`docs/superadmin.md`](docs/superadmin.md)), sign in at `/platform/login`, then *Workspaces > New workspace*. The admin gets a
 one-time temporary password (shown once, copy or send by WhatsApp or email) and must choose a new one at first sign-in. Tenant
 admins cannot create or reset other admins; the Super admin does that from the workspace page. For clients who should pick their
 own password, *Invites* makes a one-time link instead.
 
 ```bash
 export APP_BASE_URL=http://localhost:5173      # the public https origin in staging and production
-npm run superadmin:create -- --env emulator --email you@convoypass.test --name "You"   # password (12+ chars) generated and printed once, or pass --password
-npm run dev                                    # sign in at /login (Staff tab) -> /platform/workspaces -> New workspace
+npm run dev:superadmin                         # emulator only: demo super admin with fixed dev credentials (printed)
+# or: npm run superadmin:create -- --env emulator --email you@convoypass.test --name "You"   # password generated, printed once
+npm run dev                                    # sign in at /platform/login -> /platform/workspaces -> New workspace
 ```
 
 Without the console (fallback), the script makes the same invite:
@@ -95,14 +96,16 @@ Web push needs `VITE_FIREBASE_VAPID_KEY` (Firebase console > Cloud Messaging > W
 | `npm run emulators` | auth, firestore, functions, storage |
 | `npm run seed:demo` | demo tenant (emulator only): all roles, passes in every state, notifications, fake push devices, SLA-breaching passes |
 | `npm run sla:check` | run the SLA reminder check once on the emulator |
-| `npm run superadmin:create` / `superadmin:disable` `-- --env … --email …` | the Super admin for the `/platform` console (script only; alias `operator:create|disable`; `prod` needs `--confirm-prod`; `create` needs `--name` and a 12+ character `--password`, or generates one) |
+| `npm run superadmin:create` / `superadmin:disable` `-- --env … --email …` | the Super admin for the `/platform` console (script only; alias `operator:create|disable`; `create` needs `--name`, generates a 20-character password printed once or reads `--password-stdin`; `--repair`, `--reset-password`; never a `--password` argument; see [`docs/superadmin.md`](docs/superadmin.md)) |
+| `npm run superadmin:doctor -- --env … --email … [--fix] [--json]` | check a super admin account (PASS/FAIL, cause and fix per check) |
+| `npm run dev:superadmin` | emulator only: create or repair the demo super admin (fixed dev credentials) |
 | `npm run invite:create` / `invite:list` / `invite:revoke` `-- --env …` | setup invites, fallback to the console (the link is printed once; needs `APP_BASE_URL`; `prod` needs `--confirm-prod`) |
 | `npm run admin:reset -- --env … --email … --link\|--temp-password` | recover a locked-out admin (a reset link, or a one-time temporary password) |
 | `npm run verify:invite-access` | emulator check that no client role can read or write `setupInvites` |
-| `npm run create-tenant -- --env emulator\|staging\|prod` | a tenant and its first admin, chosen by the operator (`prod` needs `--confirm-production`) |
+| `npm run create-tenant -- --env emulator\|staging\|prod` | a tenant and its first admin, chosen by the operator (`prod` needs `--confirm-prod` and the project id typed back; password generated or `--password-stdin`) |
 | `npm run verify-restore` / `drill:restore` | compare document counts after a restore / rehearse export and import on the emulator |
 | `npm run config:csp` | write `firebase.enforce-csp.json` (the enforcing CSP) from `firebase.json` |
-| `npm run seed:emulator` / `seed:prod` | the older single-admin bootstrap |
+| `npm run seed:emulator` / `seed:prod` | the older single-admin bootstrap (never creates a super admin) |
 
 ## Environments
 
@@ -160,7 +163,9 @@ the browser's site settings. Test offline with airplane mode after the gate home
 npm run typecheck && npm run lint && npm test && npm run build && npm run bundle:report -- --budget
 ```
 
+Every script takes `--env emulator|staging|prod` (required, no default), prints a banner naming the project, and for `prod` also needs `--confirm-prod` plus the project id typed back (`--confirm-project <id>` in CI). `--help` works on all of them. Passwords are never arguments.
+
 ## Production bootstrap
 
-See `docs/ops.md` (first deploy of a project, then `npm run create-tenant -- --env prod --confirm-production …`). Deploys go through a version tag; a manual
+See `docs/ops.md` (first deploy of a project, then `npm run superadmin:create -- --env prod --confirm-prod …` and the console (`docs/superadmin.md`)). Deploys go through a version tag; a manual
 `firebase deploy` is described there as a break-glass step.
