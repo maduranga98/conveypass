@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore'
 import { dateKey, DEFAULT_TIMEZONE } from '@/lib/dates'
+import { DEFAULT_REJECTION_REASONS, type RejectionReasonDef } from '@/lib/defaultRejectionReasons'
 import { db } from '@/lib/firebase'
 import type { Tenant, Vehicle, WithId } from '@/types'
 import type { PassDoc } from '@/types/passes'
@@ -56,4 +57,11 @@ export function useMyPasses(tenantId: string, uid: string) {
       return snap.docs.map((d) => ({ ...(d.data() as PassDoc), id: d.id }))
     },
   })
+}
+
+/** The tenant's rejection reasons, or the defaults when it has not set its own (or could not be read). */
+export function useRejectionReasons(tenantId: string): readonly RejectionReasonDef[] {
+  const tenant = useTenant(tenantId)
+  const own = tenant.data?.rejectionReasons
+  return own && own.length > 0 ? own : DEFAULT_REJECTION_REASONS
 }

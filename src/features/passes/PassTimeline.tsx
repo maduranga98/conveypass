@@ -1,7 +1,8 @@
 import { Check } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
-import type { PassStatus } from '@/types/passes'
+import type { PassStatus, PassDoc } from '@/types/passes'
+import { formatTime, toMs } from './passView'
 
 const t = strings.pass.status
 
@@ -11,8 +12,18 @@ const stepsDone = (status: PassStatus): number =>
 
 const STEPS = [t.steps.submitted, t.steps.supervisor, t.steps.officer, t.steps.gate] as const
 
-/** Submitted → Supervisor → Officer → Gate. */
-export function PassTimeline({ status, tone = 'neutral' }: { status: PassStatus; tone?: 'neutral' | 'success' }) {
+type Detail = Pick<PassDoc, 'submittedAt' | 'supervisor' | 'officer'>
+
+/** Who did a step and when: shown under the step label when the pass itself is given. */
+function stepNote(i: number, detail: Detail | undefined): string | null {
+  if (!detail) return null
+  const stamp = i === 1 ? detail.supervisor : i === 2 ? detail.officer : null
+  if (i === 0) return formatTime(toMs(detail.submittedAt))
+  return stamp ? `${stamp.name} · ${formatTime(toMs(stamp.at))}` : null
+}
+
+/** Submitted → Supervisor → Officer → Gate. With `pass`, each done step also shows the name and time. */
+export function PassTimeline({ status, tone = 'neutral', pass }: { status: PassStatus; tone?: 'neutral' | 'success'; pass?: Detail }) {
   const done = stepsDone(status)
   return (
     <ol aria-label={t.timeline} className="flex w-full items-start">
@@ -40,6 +51,9 @@ export function PassTimeline({ status, tone = 'neutral' }: { status: PassStatus;
               {label}
               <span className="sr-only">{complete ? ' (done)' : current ? ' (waiting)' : ''}</span>
             </span>
+            {complete && stepNote(i, pass) && (
+              <span className={cn('max-w-full break-words text-xs', tone === 'success' ? 'text-white/90' : 'text-slate-600')}>{stepNote(i, pass)}</span>
+            )}
           </li>
         )
       })}

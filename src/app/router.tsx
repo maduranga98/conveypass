@@ -6,6 +6,7 @@ import { RequireAuth, RequireRole, RoleHomeRedirect } from '@/features/auth/guar
 import type { Role } from '@/lib/roles'
 import {
   AdminLayout,
+  ApprovalsPage,
   ChangePasswordPage,
   ContractorDetailPage,
   ContractorsPage,
@@ -13,6 +14,7 @@ import {
   DriversPage,
   LoginPage,
   QrLabelsPage,
+  ReviewPage,
   RolePlaceholder,
   SettingsPage,
   SupervisorHome,
@@ -65,6 +67,8 @@ export const router = createBrowserRouter([
             element: lazyEl(<SupervisorLayout />),
             children: [
               { index: true, element: lazyEl(<SupervisorHome />) },
+              { path: 'approvals', element: lazyEl(<ApprovalsPage />) },
+              { path: 'approvals/:passId', element: lazyEl(<ReviewPage />) },
               { path: 'vehicles', element: lazyEl(<VehiclesPage scope="supervisor" />) },
               { path: 'drivers', element: lazyEl(<DriversPage scope="supervisor" />) },
               { path: 'qr', element: lazyEl(<QrLabelsPage scope="supervisor" />) },
