@@ -319,7 +319,7 @@ export const strings = {
       by: (name: string) => `by ${name}`,
       previousRejection: 'Earlier rejection',
       reason: 'Reason',
-      stage: { supervisor: 'Supervisor', officer: 'Officer', revoked: 'Revoked' },
+      stage: { supervisor: 'Supervisor', officer: 'Officer', revoked: 'Revoked', gate: 'Gate' },
     },
     timeline: { title: 'Progress', waiting: 'Waiting' },
     reject: {

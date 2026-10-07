@@ -90,11 +90,15 @@ function checkPass(
   return pass
 }
 
+/** The review decisions handled here. The gate check-in lives in gate.ts. */
+type ReviewStage = Exclude<Stage, 'gate'>
+type ReviewAction = Exclude<Action, 'check_in'>
+
 interface DecisionInput {
   caller: Caller
   actorName: string
-  stage: Stage
-  action: Action
+  stage: ReviewStage
+  action: ReviewAction
   passId: string
   expectedStatus: PassStatus
   expectedAttempt: number | undefined

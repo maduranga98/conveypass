@@ -4,7 +4,7 @@ import { formatDateTime, toMs } from './passView'
 
 const t = strings.approvals
 
-const VERB = { approve: 'approved', reject: 'rejected', revoke: 'revoked' } as const
+const VERB = { approve: 'approved', reject: 'rejected', revoke: 'revoked', check_in: 'checked in' } as const
 
 /** Every decision ever made on a pass (never trimmed), plus the reasons of earlier rejections. For admins. */
 export function PassHistory({ pass }: { pass: Pick<PassDoc, 'history' | 'rejection' | 'rejectionHistory'> }) {

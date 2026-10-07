@@ -54,14 +54,22 @@ const decide = (c: Caller, over: Record<string, unknown> = {}) =>
   decidePass(w.deps, c, { passId: pid(), action: 'approve', expectedStatus: 'submitted', expectedAttempt: 1, ...over })
 
 describe('state machine table', () => {
-  it('has exactly the five agreed moves and admin only on revoke', () => {
+  it('has exactly the six agreed moves, admin only on revoke and security only on check-in', () => {
     expect(TRANSITIONS.map((t) => `${t.from}>${t.to}:${t.action}`)).toEqual([
       'submitted>supervisor_approved:approve',
       'submitted>rejected:reject',
       'supervisor_approved>officer_approved:approve',
       'supervisor_approved>rejected:reject',
       'officer_approved>rejected:revoke',
+      'officer_approved>checked_in:check_in',
     ])
+    expect(TRANSITIONS.filter((t) => t.roles.includes('security')).map((t) => t.action)).toEqual(['check_in'])
+    for (const role of ['admin', 'officer', 'supervisor', 'driver'] as const) {
+      expect(canTransition(role, 'officer_approved', 'check_in', 'gate')).toBe(false)
+    }
+    expect(canTransition('security', 'officer_approved', 'check_in', 'gate')).toBe(true)
+    // Nothing leaves checked_in: no check-out, no revoke.
+    expect(TRANSITIONS.filter((t) => t.from === 'checked_in')).toEqual([])
     expect(TRANSITIONS.filter((t) => t.roles.includes('admin')).map((t) => t.action)).toEqual(['revoke'])
     expect(canTransition('admin', 'submitted', 'approve', 'supervisor')).toBe(false)
     expect(canTransition('officer', 'submitted', 'approve', 'supervisor')).toBe(false)
