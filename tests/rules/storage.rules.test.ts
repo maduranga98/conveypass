@@ -213,6 +213,24 @@ describe('pass evidence: read', () => {
     await assertSucceeds(getBytes(ref(supA2(), evidence(A, 'veh_other', 1, 'gps.jpg'))))
     await assertFails(getBytes(ref(supA2(), evidence(A, 'veh_open', 1, 'gps.jpg'))))
   })
+  it('earlier attempts and other days stay readable by the same people (evidence is never overwritten)', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      for (const [attempt, day] of [[2, DAY], [1, '20260309']] as const) {
+        await uploadBytes(ref(ctx.storage(), evidence(A, 'veh_open', attempt, 'dashcam.jpg', day)), jpeg(), JPEG)
+      }
+    })
+    for (const s of [adminA(), officerA(), supA1(), drvA1()]) {
+      await assertSucceeds(getBytes(ref(s, evidence(A, 'veh_open', 2, 'dashcam.jpg'))))
+      await assertSucceeds(getBytes(ref(s, evidence(A, 'veh_open', 1, 'dashcam.jpg', '20260309'))))
+    }
+    await assertFails(getBytes(ref(supA2(), evidence(A, 'veh_open', 2, 'dashcam.jpg'))))
+    await assertFails(getBytes(ref(supA2(), evidence(A, 'veh_open', 1, 'dashcam.jpg', '20260309'))))
+  })
+  it('approving or rejecting does not open evidence to writes: officers and supervisors cannot upload', async () => {
+    for (const s of [supA1(), officerA(), adminA()]) {
+      await assertFails(uploadBytes(ref(s, evidence(A, 'veh_open', 1, 'extra1.jpg')), jpeg(), JPEG))
+    }
+  })
   it('a driver reads evidence only for vehicles they are assigned to', async () => {
     await assertSucceeds(getBytes(ref(drvA1(), evidence(A, 'veh_open', 1, 'gps.jpg'))))
     await assertFails(getBytes(ref(drvA1(), evidence(A, 'veh_other', 1, 'gps.jpg'))))
