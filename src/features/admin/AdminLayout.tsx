@@ -1,4 +1,4 @@
-import { Building2, ClipboardList, FileBarChart, LayoutDashboard, LogOut, Menu, QrCode, Settings, Truck, UserRound, Users, X } from 'lucide-react'
+import { Building2, ClipboardList, FileBarChart, History, LayoutDashboard, LogOut, Menu, QrCode, Settings, Truck, UserRound, Users, X } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
@@ -16,6 +16,7 @@ const nav = [
   { to: '/admin/drivers', label: strings.admin.nav.drivers, icon: UserRound },
   { to: '/admin/passes', label: strings.admin.nav.passes, icon: ClipboardList },
   { to: '/admin/reports', label: strings.admin.nav.reports, icon: FileBarChart },
+  { to: '/admin/audit', label: strings.audit.nav, icon: History },
   { to: '/admin/qr', label: strings.admin.nav.qr, icon: QrCode },
   { to: '/admin/settings', label: strings.admin.nav.settings, icon: Settings },
 ] as const

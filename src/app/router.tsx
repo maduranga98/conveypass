@@ -7,6 +7,7 @@ import { NotificationsRoot } from '@/features/notifications/NotificationsProvide
 import {
   AdminLayout,
   ApprovalsPage,
+  AuditPage,
   ChangePasswordPage,
   ContractorDetailPage,
   ContractorsPage,
@@ -66,6 +67,7 @@ export const router = createBrowserRouter([
               { path: 'drivers', element: lazyEl(<DriversPage scope="admin" />) },
               { path: 'passes', element: lazyEl(<PassesPage />) },
               { path: 'reports', element: lazyEl(<ReportsPage />) },
+              { path: 'audit', element: lazyEl(<AuditPage />) },
               // Module 5's gate log is now a report.
               { path: 'gate-log', element: <Navigate to="/admin/reports?type=gate_log" replace /> },
               { path: 'qr', element: lazyEl(<QrLabelsPage scope="admin" />) },

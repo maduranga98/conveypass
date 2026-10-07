@@ -12,6 +12,7 @@ export const ContractorsPage = lazy(() => import('@/features/admin/ContractorsPa
 export const ContractorDetailPage = lazy(() => import('@/features/admin/ContractorDetailPage'))
 export const VehiclesPage = lazy(() => import('@/features/vehicles/VehiclesPage'))
 export const DriversPage = lazy(() => import('@/features/drivers/DriversPage'))
+export const AuditPage = lazy(() => import('@/features/admin/audit/AuditPage'))
 export const QrLabelsPage = lazy(() => import('@/features/qr/QrLabelsPage'))
 export const SupervisorLayout = lazy(() => import('@/features/supervisor/SupervisorLayout'))
 export const SupervisorHome = lazy(() => import('@/features/supervisor/SupervisorHome'))
