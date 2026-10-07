@@ -49,7 +49,7 @@ export function fake(over: Partial<PlatformDeps> = {}, opts: { limited?: boolean
         .sort((a, b) => b.createdAtMs - a.createdAtMs)
         .slice(0, limit)
         // A real read returns only invite fields; the fake adds nothing else.
-        .map(({ claimId: _c, ...rest }) => rest),
+        .map((i) => ({ hash: i.hash, createdAtMs: i.createdAtMs, expiresAtMs: i.expiresAtMs, claimedAtMs: i.claimedAtMs, usedAtMs: i.usedAtMs, tenantId: i.tenantId, ...(i.companyHint ? { companyHint: i.companyHint } : {}), ...(i.emailLock ? { emailLock: i.emailLock } : {}) })),
     findInviteHashes: async (prefix) => [...invites.keys()].filter((h) => h.startsWith(prefix)).slice(0, 2),
     revokeInvite: async (hash, nowMs, audit) => {
       const i = invites.get(hash)
