@@ -89,6 +89,7 @@ export default function InvitesPage() {
       <header>
         <h1 className="text-xl font-semibold tracking-tight">{t.title}</h1>
         <p className="mt-1 text-sm text-slate-500">{t.intro}</p>
+        <p className="mt-1 text-sm text-slate-500">{t.alternative}</p>
       </header>
 
       {result && <InviteResultCard result={result} onClose={() => setResult(null)} />}

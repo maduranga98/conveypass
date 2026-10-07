@@ -48,8 +48,9 @@ export default function OverviewPage() {
         </>
       )}
       <div className="flex flex-wrap gap-2">
+        <Link className={linkClass} to="/platform/workspaces">{t.newWorkspace}</Link>
         <Link className={linkClass} to="/platform/invites">{t.newInvite}</Link>
-        <Link className={linkClass} to="/platform/tenants">{t.viewTenants}</Link>
+        <Link className={linkClass} to="/platform/workspaces">{t.viewWorkspaces}</Link>
       </div>
     </div>
   )

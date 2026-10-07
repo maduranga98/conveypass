@@ -17,3 +17,7 @@ export const mailtoUrl = (p: { to?: string | undefined; subject: string; body: s
   const to = p.to ? encodeURIComponent(p.to).replace(/%40/g, '@') : ''
   return `mailto:${to}?subject=${encodeURIComponent(p.subject)}&body=${encodeURIComponent(p.body)}`
 }
+
+/** The hand-over message for a new or reset admin (same text for copy, WhatsApp and email). */
+export const credentialsMessage = (p: { company: string; loginUrl: string; email: string; password: string }): string =>
+  strings.platform.credentials.message(p)

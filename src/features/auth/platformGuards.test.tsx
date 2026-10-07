@@ -24,6 +24,8 @@ const tree = (path: string) => (
       <Route path="/login" element={<p>login page</p>} />
       <Route element={<RequireOperator />}>
         <Route path="/platform/invites" element={<p>operator invites</p>} />
+        <Route path="/platform/workspaces" element={<p>operator workspaces</p>} />
+        <Route path="/platform/workspaces/:id" element={<p>operator workspace</p>} />
         <Route path="/platform" element={<p>operator overview</p>} />
       </Route>
       <Route element={<RequireAuth />}>
@@ -44,7 +46,7 @@ beforeEach(() => { who = { kind: 'none' } })
 describe('/platform is operators only', () => {
   it('gives every workspace role a 403 on every /platform URL', () => {
     for (const role of ['admin', 'officer', 'supervisor', 'driver', 'security'] as const) {
-      for (const path of ['/platform', '/platform/invites']) {
+      for (const path of ['/platform', '/platform/invites', '/platform/workspaces', '/platform/workspaces/ten_aaaaaaaaaa']) {
         who = { kind: 'tenant', role }
         const { unmount } = render(tree(path))
         expect(screen.getByText('403 Forbidden'), `${role} ${path}`).toBeInTheDocument()

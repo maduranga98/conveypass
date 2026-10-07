@@ -10,12 +10,12 @@ const t = strings.platform
 
 const nav = [
   { to: '/platform', label: t.nav.overview, end: true },
+  { to: '/platform/workspaces', label: t.nav.workspaces, end: false },
   { to: '/platform/invites', label: t.nav.invites, end: false },
-  { to: '/platform/tenants', label: t.nav.tenants, end: false },
 ] as const
 
 /**
- * Operator console shell: a top bar with the operator's email and an "Operator console" label so it is never mistaken
+ * Super admin console shell: a top bar with the operator's email and an "Operator console" label so it is never mistaken
  * for a client workspace. No notification bell, no workspace navigation.
  */
 export default function PlatformLayout() {

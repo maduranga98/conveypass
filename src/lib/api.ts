@@ -7,7 +7,7 @@ import type { RejectionReasonDef } from './defaultRejectionReasons'
 import type { GateDef } from './gates'
 import type { ReportRequest, ReportResult, TrendResult } from '@/types/reports'
 import type { SlaSettings } from './defaultSla'
-import type { CreatedInvite, InviteRow, InviteStatus, OperatorOverview, TenantRow } from '@/types/platform'
+import type { CreatedInvite, InviteRow, InviteStatus, OperatorOverview, TenantRow, WorkspaceCredentials, WorkspaceDetail } from '@/types/platform'
 import type {
   BulkItemResult,
   CheckInPayload,
@@ -141,3 +141,11 @@ export const createSetupInvite = call<{ companyHint?: string; lockEmail?: string
 export const listSetupInvites = call<{ status?: InviteStatus; cursor?: string }, { invites: InviteRow[]; nextCursor: string | null }>('listSetupInvites', 30_000)
 export const revokeSetupInvite = call<{ hashPrefix: string }, { ok: true }>('revokeSetupInvite', 30_000)
 export const listTenants = call<{ cursor?: string }, { tenants: TenantRow[]; nextCursor: string | null }>('listTenants', 30_000)
+
+// Module 10: super admin creates workspaces and manages their admins. The temporary password is in these responses only.
+export const createWorkspace = call<{ companyName: string; timezone: string; adminName: string; adminEmail: string }, WorkspaceCredentials>('createWorkspace', 60_000)
+export const addTenantAdmin = call<{ tenantId: string; name: string; email: string }, WorkspaceCredentials>('addTenantAdmin', 60_000)
+export const resetTenantAdminCredential = call<{ tenantId: string; uid: string }, WorkspaceCredentials>('resetTenantAdminCredential', 60_000)
+export const setTenantAdminStatus = call<{ tenantId: string; uid: string; status: 'active' | 'disabled' }, { ok: true }>('setTenantAdminStatus', 30_000)
+export const updateTenantAdmin = call<{ tenantId: string; uid: string; name: string }, { ok: true }>('updateTenantAdmin', 30_000)
+export const getWorkspace = call<{ tenantId: string }, WorkspaceDetail>('getWorkspace', 30_000)

@@ -30,9 +30,37 @@ export interface TenantRow {
   adminEmail: string | null
   userCount: number
   vehicleCount: number
+  adminCount: number
+  activeAdminCount: number
+  /** At least one admin has signed in. */
+  adminSignedIn: boolean
 }
 
 export interface OperatorOverview {
   invites: Record<InviteStatus, number>
   tenants: number
+}
+
+/** Shown once, in the response that created or reset an admin's temporary password. Never cached or stored. */
+export interface WorkspaceCredentials {
+  tenantId: string
+  adminUid: string
+  loginUrl: string
+  tempPassword: string
+}
+
+export interface WorkspaceAdmin {
+  uid: string
+  name: string
+  email: string
+  status: 'active' | 'disabled'
+  mustChangePassword: boolean
+  createdAt: number
+  /** Epoch ms, or null if the admin has never signed in. */
+  lastSignInAt: number | null
+}
+
+export interface WorkspaceDetail {
+  tenant: { tenantId: string; name: string; createdAt: number; timezone: string; userCount: number; vehicleCount: number }
+  admins: WorkspaceAdmin[]
 }
