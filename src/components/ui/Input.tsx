@@ -90,3 +90,22 @@ export function Select({ label, error, hint, optional, className, children, ...r
     </FieldShell>
   )
 }
+
+interface TextareaProps extends Omit<ComponentProps<'textarea'>, 'id'>, FieldProps {}
+
+export function Textarea({ label, error, hint, optional, className, ...rest }: TextareaProps) {
+  const id = useId()
+  const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined
+  return (
+    <FieldShell id={id} label={label} error={error} hint={hint} optional={optional}>
+      <textarea
+        id={id}
+        rows={3}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        className={cn(fieldClass, 'min-h-20 resize-y py-2', error ? 'border-red-400' : 'border-slate-300', className)}
+        {...rest}
+      />
+    </FieldShell>
+  )
+}

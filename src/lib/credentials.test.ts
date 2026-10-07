@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { driverEmail, isValidPassword, isValidPin, normalisePhone } from './credentials'
+import { driverEmail, generatePin, isTrivialPin, isValidPassword, isValidPin, normalisePhone } from './credentials'
 
 describe('normalisePhone', () => {
   it.each([
@@ -44,5 +44,22 @@ describe('generators', () => {
   it('formatPhone groups digits', async () => {
     const { formatPhone } = await import('./credentials')
     expect(formatPhone('94771234567')).toBe('077 123 4567')
+  })
+})
+
+describe('PIN generator', () => {
+  it.each(['000000', '111111', '999999', '123456', '234567', '456789', '654321', '987654', '012345', '543210', '121212', '123123', '909090'])(
+    'treats %s as trivial',
+    (pin) => expect(isTrivialPin(pin)).toBe(true),
+  )
+  it.each(['135792', '482915', '100001', '123457'])('does not flag %s', (pin) =>
+    expect(isTrivialPin(pin)).toBe(false),
+  )
+  it('never generates an invalid or trivial PIN', () => {
+    for (let i = 0; i < 5000; i++) {
+      const pin = generatePin()
+      expect(isValidPin(pin)).toBe(true)
+      expect(isTrivialPin(pin)).toBe(false)
+    }
   })
 })

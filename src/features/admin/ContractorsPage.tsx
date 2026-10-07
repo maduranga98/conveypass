@@ -1,71 +1,63 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { Building2, Pause, Pencil, Play, Plus } from 'lucide-react'
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { toast } from 'sonner'
-import { z } from 'zod'
-import { Badge } from '@/components/ui/Badge'
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
-import { Input } from '@/components/ui/Input'
-import { Modal } from '@/components/ui/Modal'
-import { Spinner } from '@/components/ui/Spinner'
-import { apiErrorMessage } from '@/lib/errors'
-import { db } from '@/lib/firebase'
+import { FilterSelect } from '@/components/ui/FilterSelect'
+import { ListSkeleton } from '@/components/ui/Skeleton'
+import { SearchField } from '@/components/ui/SearchField'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { strings } from '@/lib/strings'
+import { matchesSearch, usePaged } from '@/features/shared/list'
+import { ClearFilters, ShowMore } from '@/features/shared/ListStates'
+import { useContractorList } from '@/features/shared/queries'
 import type { Contractor, WithId } from '@/types'
-import { useSession } from '@/features/auth/useAuth'
-import { useContractors } from './queries'
+import { ContractorFormModal } from './ContractorForm'
+import { ContractorStatusDialog } from './ContractorStatusDialog'
+import { useContractorCounts } from './useContractorCounts'
 
 const t = strings.admin.contractors
 
-const schema = z.object({
-  name: z.string().trim().min(1, t.nameRequired).max(100),
-  contactName: z.string().trim().max(100),
-  phone: z.string().trim().max(30),
-})
-type Values = z.infer<typeof schema>
-
 export default function ContractorsPage() {
-  const queryClient = useQueryClient()
-  const contractors = useContractors()
+  const contractors = useContractorList('admin')
+  const counts = useContractorCounts()
   const [formFor, setFormFor] = useState<WithId<Contractor> | 'new' | null>(null)
   const [toggling, setToggling] = useState<WithId<Contractor> | null>(null)
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('')
 
-  const toggle = useMutation({
-    mutationFn: (c: WithId<Contractor>) =>
-      updateDoc(doc(db, 'contractors', c.id), {
-        status: c.status === 'active' ? 'suspended' : 'active',
-        updatedAt: serverTimestamp(),
-      }),
-    onSuccess: async (_d, c) => {
-      await queryClient.invalidateQueries({ queryKey: ['contractors'] })
-      toast.success(c.status === 'active' ? t.suspended : t.activated)
-      setToggling(null)
-    },
-    onError: (e) => {
-      toast.error(apiErrorMessage(e))
-      setToggling(null)
-    },
-  })
+  const items = useMemo(() => contractors.data ?? [], [contractors.data])
+  const filtered = useMemo(
+    () =>
+      items.filter(
+        (c) =>
+          (!status || c.status === status) &&
+          matchesSearch([c.name, c.contactName ?? '', c.phone ?? '', c.address ?? ''].join(' '), search),
+      ),
+    [items, status, search],
+  )
+  const { visible, hasMore, remaining, showMore } = usePaged(filtered)
 
   const columns: Column<WithId<Contractor>>[] = [
-    { key: 'name', header: t.columns.name, primary: true, cell: (c) => <span className="font-medium text-slate-900">{c.name}</span> },
     {
-      key: 'contact',
-      header: t.columns.contact,
-      cell: (c) => [c.contactName, c.phone].filter(Boolean).join(' · ') || strings.common.none,
+      key: 'name',
+      header: t.columns.name,
+      primary: true,
+      cell: (c) => (
+        <Link
+          to={`/admin/contractors/${c.id}`}
+          className="rounded font-medium text-slate-900 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          {c.name}
+        </Link>
+      ),
     },
-    {
-      key: 'status',
-      header: t.columns.status,
-      cell: (c) => <Badge tone={c.status === 'active' ? 'success' : 'neutral'}>{strings.status[c.status]}</Badge>,
-    },
+    { key: 'contact', header: t.columns.contact, cell: (c) => [c.contactName, c.phone].filter(Boolean).join(' · ') || strings.common.none },
+    { key: 'vehicles', header: t.columns.vehicles, className: 'tabular-nums', cell: (c) => (counts.loading ? strings.common.none : (counts.vehicles.get(c.id) ?? 0)) },
+    { key: 'drivers', header: t.columns.drivers, className: 'tabular-nums', cell: (c) => (counts.loading ? strings.common.none : (counts.drivers.get(c.id) ?? 0)) },
+    { key: 'status', header: t.columns.status, cell: (c) => <StatusBadge status={c.status} /> },
   ]
 
   const actions = (c: WithId<Contractor>) => {
@@ -83,7 +75,7 @@ export default function ContractorsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
         <Button icon={<Plus aria-hidden className="size-4" />} onClick={() => setFormFor('new')}>
@@ -92,98 +84,46 @@ export default function ContractorsPage() {
       </div>
 
       {contractors.isPending ? (
-        <div className="flex justify-center py-16">
-          <Spinner className="size-6" />
-        </div>
+        <ListSkeleton />
       ) : contractors.isError ? (
         <ErrorState onRetry={() => void contractors.refetch()} />
-      ) : contractors.data.length === 0 ? (
-        <EmptyState icon={<Building2 aria-hidden />} title={t.emptyTitle} body={t.emptyBody} />
+      ) : items.length === 0 ? (
+        <EmptyState icon={<Building2 aria-hidden />} title={t.emptyTitle} body={t.emptyBody} action={<Button onClick={() => setFormFor('new')}>{t.create}</Button>} />
       ) : (
-        <DataTable caption={t.title} columns={columns} rows={contractors.data} rowKey={(c) => c.id} actions={actions} />
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <SearchField label={t.searchLabel} placeholder={t.searchPlaceholder} value={search} onChange={(e) => setSearch(e.target.value)} className="basis-full sm:basis-auto" />
+            <FilterSelect label={t.statusFilter} value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="">{strings.list.allStatuses}</option>
+              <option value="active">{strings.status.active}</option>
+              <option value="suspended">{strings.status.suspended}</option>
+            </FilterSelect>
+            <span className="ml-auto text-sm text-slate-500">{strings.list.count(filtered.length, items.length)}</span>
+          </div>
+          {filtered.length === 0 ? (
+            <EmptyState
+              title={strings.list.noMatchTitle}
+              body={strings.list.noMatchBody}
+              action={
+                <ClearFilters
+                  onClick={() => {
+                    setSearch('')
+                    setStatus('')
+                  }}
+                />
+              }
+            />
+          ) : (
+            <>
+              <DataTable caption={t.title} columns={columns} rows={visible} rowKey={(c) => c.id} actions={actions} />
+              {hasMore && <ShowMore remaining={remaining} onClick={showMore} />}
+            </>
+          )}
+        </>
       )}
 
-      <Modal open={formFor !== null} onClose={() => setFormFor(null)} title={formFor === 'new' ? t.create : t.edit}>
-        {formFor && <ContractorForm target={formFor} onClose={() => setFormFor(null)} />}
-      </Modal>
-
-      <ConfirmDialog
-        open={toggling !== null}
-        title={toggling?.status === 'active' ? t.suspendTitle : t.activateTitle}
-        body={toggling ? (toggling.status === 'active' ? t.suspendBody(toggling.name) : t.activateBody(toggling.name)) : ''}
-        confirmLabel={toggling?.status === 'active' ? t.suspend : t.activate}
-        tone={toggling?.status === 'active' ? 'danger' : 'primary'}
-        loading={toggle.isPending}
-        onConfirm={() => toggling && toggle.mutate(toggling)}
-        onCancel={() => setToggling(null)}
-      />
+      <ContractorFormModal target={formFor} onClose={() => setFormFor(null)} />
+      <ContractorStatusDialog contractor={toggling} onClose={() => setToggling(null)} />
     </div>
-  )
-}
-
-function ContractorForm({ target, onClose }: { target: WithId<Contractor> | 'new'; onClose: () => void }) {
-  const { uid, claims } = useSession()
-  const queryClient = useQueryClient()
-  const existing = target === 'new' ? null : target
-  const [formError, setFormError] = useState<string | null>(null)
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<Values>({
-    resolver: zodResolver(schema),
-    defaultValues: { name: existing?.name ?? '', contactName: existing?.contactName ?? '', phone: existing?.phone ?? '' },
-  })
-
-  const submit = async (v: Values) => {
-    setFormError(null)
-    try {
-      if (existing) {
-        await updateDoc(doc(db, 'contractors', existing.id), {
-          name: v.name,
-          contactName: v.contactName || null,
-          phone: v.phone || null,
-          updatedAt: serverTimestamp(),
-        })
-      } else {
-        await addDoc(collection(db, 'contractors'), {
-          tenantId: claims.tenantId,
-          name: v.name,
-          ...(v.contactName ? { contactName: v.contactName } : {}),
-          ...(v.phone ? { phone: v.phone } : {}),
-          status: 'active',
-          createdAt: serverTimestamp(),
-          createdBy: uid,
-          updatedAt: serverTimestamp(),
-        })
-      }
-      await queryClient.invalidateQueries({ queryKey: ['contractors'] })
-      toast.success(existing ? t.updated : t.created)
-      onClose()
-    } catch (e) {
-      setFormError(apiErrorMessage(e))
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit(submit)} className="space-y-4" noValidate>
-      {formError && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700">
-          {formError}
-        </p>
-      )}
-      <Input label={t.name} autoComplete="off" error={errors.name?.message} {...register('name')} />
-      <Input label={t.contactName} optional autoComplete="off" error={errors.contactName?.message} {...register('contactName')} />
-      <Input label={t.phone} optional type="tel" inputMode="tel" autoComplete="off" error={errors.phone?.message} {...register('phone')} />
-      <div className="flex justify-end gap-2 pt-2">
-        <Button variant="secondary" onClick={onClose}>
-          {strings.common.cancel}
-        </Button>
-        <Button type="submit" loading={isSubmitting}>
-          {strings.common.save}
-        </Button>
-      </div>
-    </form>
   )
 }

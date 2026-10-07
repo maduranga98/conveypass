@@ -1,4 +1,4 @@
-import { Building2, LogOut, Menu, Users, X } from 'lucide-react'
+import { Building2, LogOut, Menu, QrCode, Truck, UserRound, Users, X } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
@@ -9,6 +9,9 @@ import { useAuth, useSession } from '@/features/auth/useAuth'
 const nav = [
   { to: '/admin/users', label: strings.admin.nav.users, icon: Users },
   { to: '/admin/contractors', label: strings.admin.nav.contractors, icon: Building2 },
+  { to: '/admin/vehicles', label: strings.admin.nav.vehicles, icon: Truck },
+  { to: '/admin/drivers', label: strings.admin.nav.drivers, icon: UserRound },
+  { to: '/admin/qr', label: strings.admin.nav.qr, icon: QrCode },
 ] as const
 
 function NavItems({ onNavigate }: { onNavigate?: () => void }) {
@@ -52,7 +55,7 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-dvh md:flex">
-      <aside className="hidden w-60 shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4 md:flex">
+      <aside className="hidden w-60 shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4 md:flex print:hidden">
         <div className="space-y-6">
           <p className="px-3 pt-1 text-base font-semibold tracking-tight">{strings.app.name}</p>
           <NavItems />
@@ -60,7 +63,7 @@ export default function AdminLayout() {
         <Account />
       </aside>
 
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white md:hidden">
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white md:hidden print:hidden">
         <div className="flex h-14 items-center justify-between px-4">
           <p className="font-semibold tracking-tight">{strings.app.name}</p>
           <Button
@@ -82,8 +85,8 @@ export default function AdminLayout() {
         )}
       </header>
 
-      <main className="min-w-0 flex-1 px-4 py-6 md:px-10 md:py-10">
-        <div className="mx-auto max-w-5xl">
+      <main className="min-w-0 flex-1 px-4 py-6 md:px-10 md:py-10 print:p-0">
+        <div className="mx-auto max-w-5xl print:max-w-none">
           <Outlet />
         </div>
       </main>

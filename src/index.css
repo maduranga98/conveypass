@@ -16,3 +16,20 @@
     @apply bg-slate-50 text-slate-900 antialiased;
   }
 }
+
+/* Label sheets print on A4 with 10 mm margins; app chrome hides itself with `print:` variants. */
+@page {
+  size: A4;
+  margin: 10mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+}

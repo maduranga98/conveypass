@@ -40,7 +40,25 @@ function randomInt(max: number): number {
   return (buf[0] as number) % max
 }
 
-export const generatePin = (): string => String(randomInt(1_000_000)).padStart(6, '0')
+/** Too guessable to hand out: 000000, 111111, 123456, 654321, 012345, 121212, 123123 ... */
+export function isTrivialPin(pin: string): boolean {
+  if (!/^\d{6}$/.test(pin)) return false
+  const d = [...pin].map(Number) as number[]
+  if (d.every((x) => x === d[0])) return true
+  const step = (d[1] as number) - (d[0] as number)
+  if (Math.abs(step) === 1 && d.every((x, i) => i === 0 || x - (d[i - 1] as number) === step)) return true
+  if (pin.slice(0, 3) === pin.slice(3)) return true // 123123
+  if (pin.slice(0, 2) === pin.slice(2, 4) && pin.slice(2, 4) === pin.slice(4)) return true // 121212
+  return false
+}
+
+/** Random 6-digit PIN that is never trivial. */
+export function generatePin(): string {
+  let pin: string
+  do pin = String(randomInt(1_000_000)).padStart(6, '0')
+  while (isTrivialPin(pin))
+  return pin
+}
 
 // No look-alike characters (0/O, 1/l/I).
 const PASSWORD_ALPHABET = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'

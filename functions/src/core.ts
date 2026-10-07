@@ -13,7 +13,23 @@ import {
   resetCredentialSchema,
   updateUserSchema,
 } from './schemas.js'
-import type { AuditEntry, Caller, Claims, ContractorData, Role, UserData } from './types.js'
+import type {
+  AuditEntry,
+  Caller,
+  Claims,
+  ContractorData,
+  ContractorStatus,
+  DriverData,
+  Role,
+  UserData,
+  VehicleData,
+  VehiclePatch,
+} from './types.js'
+
+/** Thrown by the data port when the plate guard document already exists. */
+export class PlateTakenError extends Error {}
+/** Thrown by the data port when a generated vehicle id is already in use (retry with a new id). */
+export class VehicleIdTakenError extends Error {}
 
 /** Max age of the caller's sign-in for changeOwnPassword. */
 export const RECENT_LOGIN_SECONDS = 5 * 60
@@ -34,22 +50,60 @@ export interface AuthPort {
 export interface DataPort {
   getUser(uid: string): Promise<UserData | null>
   getContractor(id: string): Promise<ContractorData | null>
-  /** Atomically writes the user doc (+ createdAt/createdBy/updatedAt) and the audit entry. */
-  createUserWithAudit(uid: string, data: UserData, actorUid: string, audit: AuditEntry): Promise<void>
-  /** Atomically merges `patch` (+ updatedAt) into the user doc and writes the audit entry. */
-  updateUserWithAudit(uid: string, patch: Partial<UserData>, audit: AuditEntry): Promise<void>
+  getDriver(uid: string): Promise<DriverData | null>
+  getDrivers(uids: string[]): Promise<Map<string, DriverData>>
+  getVehicle(id: string): Promise<VehicleData | null>
+  /** Atomically writes the user doc (+ createdAt/createdBy/updatedAt), the optional `drivers` doc and the audit entry. */
+  createUserWithAudit(
+    uid: string,
+    data: UserData,
+    actorUid: string,
+    audit: AuditEntry,
+    driver?: DriverData,
+  ): Promise<void>
+  /**
+   * Atomically merges `patch` (+ updatedAt) into the user doc and writes the audit entry. `driver.patch` is merged
+   * into the `drivers` doc in the same batch; `driver.backfill` creates it first for drivers that predate Module 2.
+   */
+  updateUserWithAudit(
+    uid: string,
+    patch: Partial<UserData>,
+    audit: AuditEntry,
+    driver?: { patch: Partial<DriverData>; backfill?: DriverData },
+  ): Promise<void>
+  /**
+   * One transaction: reserve `vehiclePlates/{tenantId}_{plateKey}`, create `vehicles/{vehicleId}`, write the audit entry.
+   * Throws PlateTakenError / VehicleIdTakenError.
+   */
+  createVehicleTx(p: { vehicleId: string; vehicle: VehicleData; actorUid: string; audit: AuditEntry }): Promise<void>
+  /**
+   * One transaction: patch the vehicle (+ updatedAt), write the audit entry and, when `plate` is given, move the
+   * plate guard (throws PlateTakenError). The previous plate key is read inside the transaction.
+   */
+  updateVehicleTx(p: {
+    vehicleId: string
+    patch: VehiclePatch
+    plate?: { plateNo: string; plateKey: string }
+    audit: AuditEntry
+  }): Promise<void>
+  setContractorStatusWithAudit(contractorId: string, status: ContractorStatus, audit: AuditEntry): Promise<void>
+  writeAudit(audit: AuditEntry): Promise<void>
+  /** Auth uids of every `users` doc of this contractor. */
+  listUserIdsByContractor(tenantId: string, contractorId: string): Promise<string[]>
 }
 
 export interface Deps {
   auth: AuthPort
   data: DataPort
+  /** `veh_` + 10 random chars. */
+  newVehicleId: () => string
   /** Seconds since epoch. */
   now: () => number
 }
 
 // ---- Helpers -------------------------------------------------------------------------------
 
-function parse<T extends z.ZodType>(schema: T, raw: unknown): z.infer<T> {
+export function parse<T extends z.ZodType>(schema: T, raw: unknown): z.infer<T> {
   const result = schema.safeParse(raw)
   if (!result.success) throw fail('invalid-argument', 'invalid-input', 'Invalid request')
   return result.data
@@ -60,15 +114,23 @@ const authErrorCode = (e: unknown): string | undefined =>
 
 
 /** The token is only a hint; the caller must also exist, be active, and match the token's role/tenant. */
-async function requireActiveCaller(deps: Deps, caller: Caller): Promise<UserData> {
+export async function requireActiveCaller(deps: Deps, caller: Caller): Promise<UserData> {
   const doc = await deps.data.getUser(caller.uid)
   if (
     !doc ||
     doc.status !== 'active' ||
     doc.tenantId !== caller.tenantId ||
-    doc.role !== caller.role
+    doc.role !== caller.role ||
+    doc.contractorId !== caller.contractorId
   ) {
     throw fail('permission-denied', 'caller-not-active', 'Caller is not an active member of this tenant')
+  }
+  // Tokens outlive a contractor suspension by up to an hour, so contractor users are re-checked on every call.
+  if (caller.contractorId !== null) {
+    const contractor = await deps.data.getContractor(caller.contractorId)
+    if (!contractor || contractor.tenantId !== caller.tenantId || contractor.status !== 'active') {
+      throw fail('permission-denied', 'caller-not-active', 'Your contractor is not active')
+    }
   }
   return doc
 }
@@ -108,7 +170,7 @@ function assertCredential(role: Role, value: string): void {
   }
 }
 
-async function requireActiveContractor(deps: Deps, caller: Caller, contractorId: string): Promise<void> {
+export async function requireActiveContractor(deps: Deps, caller: Caller, contractorId: string): Promise<void> {
   const contractor = await deps.data.getContractor(contractorId)
   if (!contractor) throw fail('failed-precondition', 'contractor-invalid', 'Contractor not found')
   if (contractor.tenantId !== caller.tenantId) {
@@ -119,17 +181,18 @@ async function requireActiveContractor(deps: Deps, caller: Caller, contractorId:
   }
 }
 
-const audit = (
+export const audit = (
   caller: Caller,
   action: string,
   targetId: string,
   meta: AuditEntry['meta'] = {},
+  targetType: AuditEntry['targetType'] = 'user',
 ): AuditEntry => ({
   tenantId: caller.tenantId,
   action,
   actorUid: caller.uid,
   actorRole: caller.role,
-  targetType: 'user',
+  targetType,
   targetId,
   meta,
 })
@@ -155,6 +218,9 @@ export async function createUser(deps: Deps, caller: Caller, raw: unknown): Prom
   }
 
   assertCredential(input.role, input.password)
+  if (input.licenseNo !== undefined && input.role !== 'driver') {
+    throw fail('invalid-argument', 'invalid-input', 'Only drivers have a licence number')
+  }
 
   let authEmail: string
   let docEmail: string | null = null
@@ -195,6 +261,17 @@ export async function createUser(deps: Deps, caller: Caller, raw: unknown): Prom
     const claims: Claims = { role: input.role, tenantId: caller.tenantId }
     if (contractorId) claims.contractorId = contractorId
     await deps.auth.setCustomUserClaims(uid, claims)
+    const driver: DriverData | undefined =
+      input.role === 'driver' && contractorId && docPhone
+        ? {
+            tenantId: caller.tenantId,
+            contractorId,
+            name: input.name,
+            phone: docPhone,
+            status: 'active',
+            ...(input.licenseNo ? { licenseNo: input.licenseNo } : {}),
+          }
+        : undefined
     await deps.data.createUserWithAudit(
       uid,
       {
@@ -209,6 +286,7 @@ export async function createUser(deps: Deps, caller: Caller, raw: unknown): Prom
       },
       caller.uid,
       audit(caller, 'user.create', uid, { role: input.role, contractorId }),
+      driver,
     )
   } catch {
     // Compensation: never leave an Auth user without a users doc.
@@ -234,8 +312,14 @@ export async function updateUser(deps: Deps, caller: Caller, raw: unknown): Prom
   const authPatch: { email?: string; displayName?: string; disabled?: boolean } = {}
   const meta: AuditEntry['meta'] = {}
 
+  const driverPatch: Partial<DriverData> = {}
+  if ((input.licenseNo !== undefined || input.photoPath !== undefined) && target.role !== 'driver') {
+    throw fail('invalid-argument', 'invalid-input', 'Only drivers have a licence number or photo')
+  }
+
   if (input.name !== undefined && input.name !== target.name) {
     patch.name = input.name
+    driverPatch.name = input.name
     authPatch.displayName = input.name
     meta.name = true
   }
@@ -249,6 +333,7 @@ export async function updateUser(deps: Deps, caller: Caller, raw: unknown): Prom
     if (!phone) throw fail('invalid-argument', 'invalid-input', 'Invalid phone number')
     if (phone !== target.phone) {
       patch.phone = phone
+      driverPatch.phone = phone
       authPatch.email = driverEmail(phone) // the synthetic email is the driver's login identity
       previousAuthEmail = target.phone ? driverEmail(target.phone) : null
       meta.phone = true
@@ -258,11 +343,30 @@ export async function updateUser(deps: Deps, caller: Caller, raw: unknown): Prom
   let statusAction: string | null = null
   if (input.status !== undefined && input.status !== target.status) {
     patch.status = input.status
+    driverPatch.status = input.status
     authPatch.disabled = input.status === 'disabled'
     statusAction = input.status === 'disabled' ? 'user.disable' : 'user.enable'
   }
 
-  if (Object.keys(patch).length === 0) return { ok: true }
+  const driverDoc = target.role === 'driver' ? await deps.data.getDriver(input.uid) : null
+
+  if (input.licenseNo !== undefined && (input.licenseNo ?? null) !== (driverDoc?.licenseNo ?? null)) {
+    driverPatch.licenseNo = input.licenseNo
+    meta.licenseNo = true
+  }
+  if (input.photoPath !== undefined) {
+    // Only the canonical path of this driver's own photo is accepted.
+    const expected = `tenants/${target.tenantId}/contractors/${target.contractorId ?? ''}/drivers/${input.uid}.jpg`
+    if (!target.contractorId || input.photoPath !== expected) {
+      throw fail('invalid-argument', 'photo-path-invalid', 'Invalid photo path')
+    }
+    if (input.photoPath !== driverDoc?.photoPath) {
+      driverPatch.photoPath = input.photoPath
+      meta.photo = true
+    }
+  }
+
+  if (Object.keys(patch).length === 0 && Object.keys(driverPatch).length === 0) return { ok: true }
 
   try {
     if (Object.keys(authPatch).length > 0) await deps.auth.updateUser(input.uid, authPatch)
@@ -276,10 +380,22 @@ export async function updateUser(deps: Deps, caller: Caller, raw: unknown): Prom
   if (patch.status === 'disabled') await deps.auth.revokeRefreshTokens(input.uid)
 
   try {
+    // Drivers that predate Module 2 have no `drivers` doc yet: create it from the user doc on first edit.
+    const backfill: DriverData | undefined =
+      target.role === 'driver' && !driverDoc && target.contractorId && (patch.phone ?? target.phone)
+        ? {
+            tenantId: target.tenantId,
+            contractorId: target.contractorId,
+            name: patch.name ?? target.name,
+            phone: (patch.phone ?? target.phone) as string,
+            status: patch.status ?? target.status,
+          }
+        : undefined
     await deps.data.updateUserWithAudit(
       input.uid,
       patch,
       audit(caller, statusAction ?? 'user.update', input.uid, meta),
+      target.role === 'driver' ? { patch: driverPatch, ...(backfill ? { backfill } : {}) } : undefined,
     )
   } catch {
     if (previousAuthEmail) await deps.auth.updateUser(input.uid, { email: previousAuthEmail }).catch(() => undefined)

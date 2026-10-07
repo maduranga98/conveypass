@@ -13,6 +13,11 @@ export type Reason =
   | 'self-status'
   | 'self-reset'
   | 'recent-login-required'
+  | 'plate-exists'
+  | 'vehicle-not-found'
+  | 'driver-invalid'
+  | 'contractor-not-found'
+  | 'photo-path-invalid'
   | 'internal'
 
 /** Typed error: `code` is the gRPC-style code, `details.reason` is a stable key the client maps to a string. */
