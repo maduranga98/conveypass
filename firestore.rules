@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Deny by default. Roles/tenant come ONLY from custom claims (set by Cloud Functions).
-// `users`, `tenants`, `auditLog`, `vehicles`, `drivers`, `vehiclePlates`, `passes` and `gateEvents` are never client-writable
+// `operators`, `platformAuditLog`, `setupInvites` (no client access at all), `users`, `tenants`, `auditLog`, `vehicles`, `drivers`, `vehiclePlates`, `passes` and `gateEvents` are never client-writable
 // (`notifications` accept one client write: `readAt` on your own); `users/*/devices` and `rateLimits` are closed;
 // Cloud Functions use the Admin SDK. `contractors` accept admin writes to descriptive fields only.
 service cloud.firestore {
@@ -29,8 +29,10 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
+      // Own profile: only for tenant accounts. A platform operator (no tenantId, Module 9) has no `users` doc and no
+      // tenant data access of any kind, so even their own uid is not a path in.
       allow read: if signedIn() && (
-        request.auth.uid == uid
+        (request.auth.uid == uid && tenantId() != null)
         || (role() == 'admin' && sameTenant(resource.data))
         || (role() == 'supervisor'
             && sameTenant(resource.data)
@@ -151,6 +153,16 @@ service cloud.firestore {
     // Setup invites (Module 8): `setupInvites/{sha256hex(code)}`. Cloud Functions and operator scripts only; no client
     // can read, list, create, update or delete one (not even an admin), so a hash can never be probed from a browser.
     match /setupInvites/{id} {
+      allow read, write: if false;
+    }
+
+    // Platform operators (Module 9): `operators/{uid}` and `platformAuditLog/{id}` are Cloud Functions / operator scripts
+    // only. An operator token (role 'platform', platformAdmin, NO tenantId) matches no tenant rule above, and no client,
+    // tenant admins included, can read or write these two collections.
+    match /operators/{id} {
+      allow read, write: if false;
+    }
+    match /platformAuditLog/{id} {
       allow read, write: if false;
     }
 
