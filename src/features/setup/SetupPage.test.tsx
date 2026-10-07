@@ -92,6 +92,17 @@ describe('SetupPage: the invite code', () => {
     expect(screen.getByText('Ask your ConvoyPass contact for a new link.')).toBeInTheDocument()
     expect(screen.queryByLabelText('Company name')).toBeNull()
   })
+  it('picks up a new link pasted into an open /setup tab (a fragment change, no reload)', async () => {
+    openWith('')
+    renderPage()
+    expect(await screen.findByText('This setup link is invalid or has expired.')).toBeInTheDocument()
+    expect(validate).not.toHaveBeenCalled()
+    openWith(`#code=${CODE}`)
+    window.dispatchEvent(new HashChangeEvent('hashchange'))
+    expect(await screen.findByLabelText('Company name')).toBeInTheDocument()
+    expect(validate).toHaveBeenCalledWith({ code: CODE })
+    expect(window.location.hash).toBe('')
+  })
   it('shows the same message when the check itself fails', async () => {
     validate.mockRejectedValue(new Error('offline'))
     renderPage()

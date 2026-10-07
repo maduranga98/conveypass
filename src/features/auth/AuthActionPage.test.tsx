@@ -9,7 +9,10 @@ const confirmReset = vi.hoisted(() => vi.fn())
 const applyCode = vi.hoisted(() => vi.fn())
 const reload = vi.hoisted(() => vi.fn(async () => undefined))
 const getIdToken = vi.hoisted(() => vi.fn(async () => 't'))
-const authMock = vi.hoisted(() => ({ currentUser: null as null | { reload: () => Promise<void>; getIdToken: (f: boolean) => Promise<string> } }))
+const authMock = vi.hoisted(() => ({
+  currentUser: null as null | { reload: () => Promise<void>; getIdToken: (f: boolean) => Promise<string> },
+  authStateReady: async () => undefined,
+}))
 
 vi.mock('@/lib/firebase', () => ({ auth: authMock }))
 vi.mock('firebase/auth', () => ({

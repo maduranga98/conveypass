@@ -98,15 +98,32 @@ export function callable<T>(
 }
 
 /**
+ * The address a per-IP limit counts. A client can put anything at the START of `X-Forwarded-For`, but the proxy in front
+ * of the function appends the address it actually saw at the END, so the last entry is the one that cannot be forged.
+ * (Behind an extra load balancer that entry would be the balancer: every caller then shares one bucket, which only makes
+ * the limit stricter.) Falls back to Express's `ip`, then the socket.
+ */
+export function clientIpOf(req: { headers?: Record<string, string | string[] | undefined>; ip?: string | undefined; socket?: { remoteAddress?: string | undefined } | undefined } | undefined): string | undefined {
+  const xff = req?.headers?.['x-forwarded-for']
+  const raw = Array.isArray(xff) ? xff.join(',') : xff
+  const last = raw
+    ?.split(',')
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .at(-1)
+  return last || req?.ip || req?.socket?.remoteAddress || undefined
+}
+
+/**
  * Unauthenticated callables (workspace setup): no caller, a per-IP rate limit instead, the same one-line log
  * (`fn`, `outcome`, `reason`; never the payload). App Check still applies through the global `enforceAppCheck`.
- * The IP comes from Express (`rawRequest.ip`, behind Google's proxy); only its hash is stored.
+ * The IP is `clientIpOf` (the proxy-appended end of X-Forwarded-For); only its hash is stored.
  */
 export function publicCallable<T>(name: keyof typeof IP_RATE_LIMITS, run: (data: unknown) => Promise<T>) {
   return onCall(async (request) => {
     const ctx = { fn: name }
     try {
-      await enforceIpRateLimit(firestoreRateLimitPort(), request.rawRequest?.ip, name)
+      await enforceIpRateLimit(firestoreRateLimitPort(), clientIpOf(request.rawRequest), name)
       const result = await run(request.data)
       logInfo(ctx, 'ok')
       return result

@@ -48,6 +48,21 @@ npm run seed:demo
 npm run dev                      # http://localhost:5173
 ```
 
+### First-time setup of a workspace (invite link)
+
+New clients are onboarded with a one-time link, not a script run on their behalf:
+
+```bash
+export APP_BASE_URL=http://localhost:5173      # the public https origin in staging and production
+npm run invite:create -- --env emulator --company "Acme" --lock-email admin@acme.test   # prints /setup#code=... once
+# open the link: create the workspace and the first admin (signs in, lands on /admin/dashboard with a checklist)
+```
+
+The link creates exactly one tenant and one admin and then stops working; invalid, expired and used links show the same
+message. Lost password: *Forgot password?* on the login page (staff, by email), or `npm run admin:reset` for an admin.
+Drivers (phone + PIN) are reset by their supervisor. `docs/ops.md` has the full runbook ("Onboarding a new client",
+"Admin locked out") and the Firebase console settings for the emails.
+
 Set `VITE_APP_BASE_URL` in `.env.local` (e.g. `http://localhost:5173`): vehicle QR codes encode `${VITE_APP_BASE_URL}/v/<vehicleId>`. A localhost value shows a red "Dev link: do not print" banner on QR screens; use the production URL (and optionally `VITE_PRODUCTION_HOST`) before printing real labels.
 
 Emulators need Java 21+. `seed:demo` also needs `VITE_FIREBASE_STORAGE_BUCKET` in `.env`/`.env.local` (or `FIREBASE_STORAGE_BUCKET`) to match the bucket the app uses, and `FIREBASE_PROJECT_ID` when the emulators run under a `demo-` project.
@@ -68,8 +83,10 @@ Web push needs `VITE_FIREBASE_VAPID_KEY` (Firebase console > Cloud Messaging > W
 | `npm run emulators` | auth, firestore, functions, storage |
 | `npm run seed:demo` | demo tenant (emulator only): all roles, passes in every state, notifications, fake push devices, SLA-breaching passes |
 | `npm run sla:check` | run the SLA reminder check once on the emulator |
-| `npm run create-tenant -- --env emulator\|staging\|prod` | a tenant and its first admin (`prod` needs `--confirm-production`) |
-| `npm run reset-admin -- --env …` | temporary password for an admin, forces a change at next login |
+| `npm run invite:create` / `invite:list` / `invite:revoke` `-- --env …` | setup invites (the link is printed once; needs `APP_BASE_URL`; `prod` needs `--confirm-prod`) |
+| `npm run admin:reset -- --env … --email … --link\|--temp-password` | recover a locked-out admin (a reset link, or a one-time temporary password) |
+| `npm run verify:invite-access` | emulator check that no client role can read or write `setupInvites` |
+| `npm run create-tenant -- --env emulator\|staging\|prod` | a tenant and its first admin, chosen by the operator (`prod` needs `--confirm-production`) |
 | `npm run verify-restore` / `drill:restore` | compare document counts after a restore / rehearse export and import on the emulator |
 | `npm run config:csp` | write `firebase.enforce-csp.json` (the enforcing CSP) from `firebase.json` |
 | `npm run seed:emulator` / `seed:prod` | the older single-admin bootstrap |

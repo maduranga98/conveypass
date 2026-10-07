@@ -323,3 +323,14 @@ describe('IP rate limits', () => {
     expect(ipKey(undefined)).toBe(ipKey('  '))
   })
 })
+
+describe('clientIpOf', () => {
+  it('uses the proxy-appended end of X-Forwarded-For, so a spoofed first entry cannot dodge the limit', async () => {
+    const { clientIpOf } = await import('./runtime.js')
+    expect(clientIpOf({ headers: { 'x-forwarded-for': '1.2.3.4, 5.6.7.8, 203.0.113.9' }, ip: '1.2.3.4' })).toBe('203.0.113.9')
+    expect(clientIpOf({ headers: { 'x-forwarded-for': ['9.9.9.9', ' 203.0.113.9 '] } })).toBe('203.0.113.9')
+    expect(clientIpOf({ headers: {}, ip: '198.51.100.1' })).toBe('198.51.100.1')
+    expect(clientIpOf({ headers: {}, socket: { remoteAddress: '127.0.0.1' } })).toBe('127.0.0.1')
+    expect(clientIpOf(undefined)).toBeUndefined()
+  })
+})

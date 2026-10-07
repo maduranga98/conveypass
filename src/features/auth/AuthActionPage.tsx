@@ -150,6 +150,7 @@ function VerifyEmail({ code }: { code: string }) {
       }
       // Signed in here too: pick up the new flag so the banner is gone when they go back.
       try {
+        await auth.authStateReady() // a fresh page load restores the signed-in user asynchronously
         await auth.currentUser?.reload()
         await auth.currentUser?.getIdToken(true)
       } catch {

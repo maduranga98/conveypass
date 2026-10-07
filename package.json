@@ -25,6 +25,7 @@
     "invite:create": "tsx scripts/invites.ts create",
     "invite:list": "tsx scripts/invites.ts list",
     "invite:revoke": "tsx scripts/invites.ts revoke",
+    "verify:invite-access": "tsx scripts/verify-invite-access.ts",
     "test:e2e": "firebase emulators:exec --only auth,firestore,functions,storage --project demo-conveypass-e2e \"npm --prefix functions run build && playwright test\"",
     "verify-restore": "tsx scripts/verify-restore.ts",
     "drill:restore": "tsx scripts/restore-drill.ts",

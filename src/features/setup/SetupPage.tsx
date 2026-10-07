@@ -60,20 +60,36 @@ export default function SetupPage() {
   const started = useRef(false)
   const [finishing, setFinishing] = useState(false)
 
+  const latest = useRef(0)
+
   useEffect(() => {
+    const validate = (code: string) => {
+      const mine = ++latest.current
+      setPhase({ kind: 'validating' })
+      validateSetupInvite({ code })
+        .then((r) => ({ kind: r.valid ? 'form' : 'invalid', ...(r.companyHint ? { companyHint: r.companyHint } : {}), ...(r.emailLock ? { emailLock: r.emailLock } : {}) }) as Phase)
+        // An unreachable server is not proof the link is bad, but the page cannot continue either way.
+        .catch((): Phase => ({ kind: 'invalid' }))
+        .then((next) => {
+          if (mine === latest.current) setPhase(next) // an older check never overwrites a newer link
+        })
+    }
     const found = takeCodeFromLocation()
     if (found) codeRef.current = found
-    if (started.current) return
-    started.current = true
-    const code = codeRef.current
-    if (!code) {
-      setPhase({ kind: 'invalid' })
-      return
+    if (!started.current) {
+      started.current = true
+      if (codeRef.current) validate(codeRef.current)
+      else setPhase({ kind: 'invalid' })
     }
-    validateSetupInvite({ code })
-      .then((r) => setPhase(r.valid ? { kind: 'form', ...(r.companyHint ? { companyHint: r.companyHint } : {}), ...(r.emailLock ? { emailLock: r.emailLock } : {}) } : { kind: 'invalid' }))
-      // An unreachable server is not proof the link is bad, but the page cannot continue either way.
-      .catch(() => setPhase({ kind: 'invalid' }))
+    // A new link pasted into the address bar of an open /setup tab only changes the fragment: no reload happens.
+    const onHashChange = () => {
+      const next = takeCodeFromLocation()
+      if (!next) return
+      codeRef.current = next
+      validate(next)
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
   if (status === 'loading' || phase.kind === 'validating') return <PageSpinner />

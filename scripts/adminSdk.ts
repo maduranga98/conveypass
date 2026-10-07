@@ -44,6 +44,7 @@ export function connect(target: Target): { auth: ReturnType<typeof getAuth>; db:
     delete process.env.FIREBASE_AUTH_EMULATOR_HOST
     delete process.env.FIRESTORE_EMULATOR_HOST
   }
-  initializeApp({ projectId: target.projectId ?? readJson<Firebaserc>('.firebaserc').projects?.default ?? 'demo-conveypass' })
+  // The emulator project id may be pinned with FIREBASE_PROJECT_ID (the e2e run uses its own project).
+  initializeApp({ projectId: target.projectId ?? process.env.FIREBASE_PROJECT_ID ?? readJson<Firebaserc>('.firebaserc').projects?.default ?? 'demo-conveypass' })
   return { auth: getAuth(), db: getFirestore() }
 }
