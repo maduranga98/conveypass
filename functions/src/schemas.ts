@@ -240,3 +240,24 @@ export const completeSetupSchema = z.object({
   timezone: z.string().trim().max(64).optional(),
 })
 export type CompleteSetupInput = z.infer<typeof completeSetupSchema>
+
+// ---- Module 9: operator console --------------------------------------------------------------
+
+export const INVITE_PREFIX_PATTERN = /^[0-9a-f]{8}$/
+const pageCursor = z.string().regex(/^\d{1,15}$/)
+
+export const createSetupInviteSchema = z.object({
+  companyHint: z.string().trim().max(80).optional(),
+  lockEmail: z.string().trim().toLowerCase().email().max(254).optional(),
+  expiresInDays: z.number().int().min(1).max(30).default(7),
+})
+export type CreateSetupInviteInput = z.infer<typeof createSetupInviteSchema>
+
+export const listSetupInvitesSchema = z.object({
+  status: z.enum(['unused', 'claimed', 'used', 'expired']).optional(),
+  cursor: pageCursor.optional(),
+})
+
+export const revokeSetupInviteSchema = z.object({ hashPrefix: z.string().trim().toLowerCase().regex(INVITE_PREFIX_PATTERN) })
+
+export const listTenantsSchema = z.object({ cursor: pageCursor.optional() })

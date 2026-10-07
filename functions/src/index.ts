@@ -11,7 +11,11 @@ import * as gate from './gate.js'
 import * as passes from './passes.js'
 import * as reportsApi from './reportsApi.js'
 import { devicePort } from './notifyPorts.js'
-import { callable, publicCallable } from './runtime.js'
+import { operatorCallable, callable, publicCallable } from './runtime.js'
+import { APP_BASE_URL, IN_EMULATOR } from './config.js'
+import { createPlatformApi } from './platform/platform.js'
+import { platformPort } from './platform/platformPort.js'
+import { enforceRateLimit, firestoreRateLimitPort } from './rateLimit.js'
 import { newTenantId } from './tenants/tenantDefaults.js'
 import * as setup from './setup.js'
 import { newClaimId, setupPort } from './setupPort.js'
@@ -73,6 +77,23 @@ const setupDeps = (): setup.SetupDeps => ({
 })
 export const validateSetupInvite = publicCallable('validateSetupInvite', (data) => setup.validateSetupInvite(setupDeps(), data))
 export const completeSetup = publicCallable('completeSetup', (data) => setup.completeSetup(setupDeps(), data))
+
+// Module 9: operator console. Operators have claims { role: 'platform', platformAdmin: true } and no tenant;
+// every call goes through requireOperator (verified email, active operators/{uid}, fresh sign-in for mutations).
+const platformApi = () =>
+  createPlatformApi({
+    port: platformPort(),
+    now: () => Date.now(),
+    rateLimit: (uid, fn) => enforceRateLimit(firestoreRateLimitPort(), uid, fn),
+    appBaseUrl: APP_BASE_URL,
+    inEmulator: IN_EMULATOR,
+  })
+export const getOperatorProfile = operatorCallable('getOperatorProfile', (a) => platformApi().getOperatorProfile(a))
+export const getOperatorOverview = operatorCallable('getOperatorOverview', (a) => platformApi().getOperatorOverview(a))
+export const createSetupInvite = operatorCallable('createSetupInvite', (a, d) => platformApi().createSetupInvite(a, d))
+export const listSetupInvites = operatorCallable('listSetupInvites', (a, d) => platformApi().listSetupInvites(a, d))
+export const revokeSetupInvite = operatorCallable('revokeSetupInvite', (a, d) => platformApi().revokeSetupInvite(a, d))
+export const listTenants = operatorCallable('listTenants', (a, d) => platformApi().listTenants(a, d))
 
 // Browsers report crashes here: signed-in users only, rate limited per user, scrubbed and truncated, logs only.
 export const reportClientError = callable('reportClientError', clientErrors.reportClientError, { rateLimit: true })

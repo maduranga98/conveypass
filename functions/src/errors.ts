@@ -60,6 +60,10 @@ export type Reason =
   | 'password-is-email'
   | 'timezone-invalid'
   | 'device-invalid'
+  | 'reauth-required'
+  | 'invite-not-found'
+  | 'invite-not-revocable'
+  | 'config-missing'
   | 'internal'
 
 /** Typed error: `code` is the gRPC-style code, `details.reason` is a stable key the client maps to a string. */
