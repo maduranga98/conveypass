@@ -11,16 +11,25 @@ import { resetCredential } from '@/lib/api'
 import { formatPhone, generatePassword, generatePin, isValidPassword, isValidPin } from '@/lib/credentials'
 import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
-import type { UserDoc, WithId } from '@/types'
+import type { Role } from '@/lib/roles'
 import { CredentialsReveal } from './CredentialsReveal'
 
 const t = strings.admin.reset
+
+/** The few fields needed to reset a credential: a `users` doc fits, and so does a driver profile. */
+export interface ResetTarget {
+  id: string
+  role: Role
+  name: string
+  phone: string | null
+  email: string | null
+}
 
 interface Revealed {
   secret: string
 }
 
-export function ResetCredentialModal({ user, onClose }: { user: WithId<UserDoc> | null; onClose: () => void }) {
+export function ResetCredentialModal({ user, onClose }: { user: ResetTarget | null; onClose: () => void }) {
   const [revealed, setRevealed] = useState<Revealed | null>(null)
   const close = () => {
     setRevealed(null)
@@ -51,7 +60,7 @@ function ResetForm({
   onReset,
   onCancel,
 }: {
-  user: WithId<UserDoc>
+  user: ResetTarget
   onReset: (secret: string) => void
   onCancel: () => void
 }) {

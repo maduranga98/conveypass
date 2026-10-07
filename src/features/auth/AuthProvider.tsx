@@ -1,10 +1,10 @@
 import { onAuthStateChanged, signOut as fbSignOut } from 'firebase/auth'
-import { doc, onSnapshot } from 'firebase/firestore'
+import { doc, getDoc, onSnapshot } from 'firebase/firestore'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { auth, db } from '@/lib/firebase'
 import { queryClient } from '@/lib/queryClient'
 import { strings } from '@/lib/strings'
-import type { UserDoc } from '@/types'
+import type { Contractor, UserDoc } from '@/types'
 import { parseClaims } from './claims'
 import { AuthContext, type AuthContextValue, type Session } from './useAuth'
 
@@ -25,11 +25,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let unsubProfile: (() => void) | null = null
+    let unsubContractor: (() => void) | null = null
 
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       const gen = ++generation.current
       unsubProfile?.()
       unsubProfile = null
+      unsubContractor?.()
+      unsubContractor = null
 
       if (!user) {
         queryClient.clear() // never leak one account's cached data into the next session
@@ -44,6 +47,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!claims) {
           await endSession(strings.authErrors.accountMissing)
           return
+        }
+
+        // Contractor users are locked out while their contractor is suspended: checked before the app renders,
+        // then watched so a suspension while signed in ends the session too.
+        if (claims.contractorId) {
+          const contractorRef = doc(db, 'contractors', claims.contractorId)
+          const first = await getDoc(contractorRef)
+          if (gen !== generation.current) return
+          const contractor = first.data() as Contractor | undefined
+          if (!contractor) {
+            await endSession(strings.authErrors.accountMissing)
+            return
+          }
+          if (contractor.status === 'suspended') {
+            await endSession(strings.authErrors.contractorSuspended)
+            return
+          }
+          unsubContractor = onSnapshot(contractorRef, (snap) => {
+            if (gen === generation.current && (snap.data() as Contractor | undefined)?.status === 'suspended') {
+              void endSession(strings.authErrors.contractorSuspended)
+            }
+          })
         }
 
         unsubProfile = onSnapshot(
@@ -85,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       unsubAuth()
       unsubProfile?.()
+      unsubContractor?.()
     }
   }, [endSession])
 

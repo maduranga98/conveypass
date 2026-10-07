@@ -22,6 +22,7 @@ export const strings = {
     all: 'All',
     optional: 'optional',
     actions: 'Actions',
+    status: 'Status',
     none: '—',
     openMenu: 'Open menu',
     closeMenu: 'Close menu',
@@ -83,6 +84,7 @@ export const strings = {
     generic: 'Could not sign in. Please try again.',
     accountDisabled: 'Your account has been disabled. Contact your administrator.',
     accountMissing: 'Your account is not set up. Contact your administrator.',
+    contractorSuspended: 'Your company account is suspended. Contact your administrator.',
     sessionEnded: 'Your session ended. Please sign in again.',
     recentLoginRequired: 'Please sign in again, then change your password.',
   },
@@ -126,6 +128,7 @@ export const strings = {
     noMatchTitle: 'Nothing matches',
     noMatchBody: 'Try a different search or clear the filters.',
     clearFilters: 'Clear filters',
+    showMore: (n: number) => `Show more (${n})`,
   },
 
   vehicles: {
@@ -141,6 +144,7 @@ export const strings = {
     form: {
       plate: 'Plate number',
       plateHint: 'e.g. WP LJ-4821, NP KA 1234, CAB-1234',
+      saveAs: 'Will be saved as',
       type: 'Vehicle type',
       typePlaceholder: 'Select a type',
       makeModel: 'Make and model',
@@ -242,6 +246,7 @@ export const strings = {
       photoFailed: 'Could not use that photo. Try another one.',
       nameRequired: 'Enter a name',
       contractorRequired: 'Select a contractor',
+      pinTrivial: 'Choose a PIN that is harder to guess',
       submit: 'Create driver',
       created: 'Driver created',
       updated: 'Driver updated',

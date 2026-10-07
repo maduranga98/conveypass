@@ -7,17 +7,23 @@ import type { Role } from '@/lib/roles'
 import {
   AdminLayout,
   ChangePasswordPage,
+  ContractorDetailPage,
   ContractorsPage,
+  DriversPage,
   LoginPage,
+  QrLabelsPage,
   RolePlaceholder,
+  SupervisorHome,
+  SupervisorLayout,
   UsersPage,
   VehiclePlaceholder,
+  VehiclesPage,
 } from './lazyPages'
 
 
 const lazyEl = (node: ReactNode) => <Suspense fallback={<PageSpinner />}>{node}</Suspense>
 
-const placeholderRoute = (role: Exclude<Role, 'admin'>) => ({
+const placeholderRoute = (role: Exclude<Role, 'admin' | 'supervisor'>) => ({
   element: <RequireRole roles={[role]} />,
   children: [{ path: `/${role}`, element: lazyEl(<RolePlaceholder />) }],
 })
@@ -40,12 +46,30 @@ export const router = createBrowserRouter([
               { index: true, element: <Navigate to="users" replace /> },
               { path: 'users', element: lazyEl(<UsersPage />) },
               { path: 'contractors', element: lazyEl(<ContractorsPage />) },
+              { path: 'contractors/:contractorId', element: lazyEl(<ContractorDetailPage />) },
+              { path: 'vehicles', element: lazyEl(<VehiclesPage scope="admin" />) },
+              { path: 'drivers', element: lazyEl(<DriversPage scope="admin" />) },
+              { path: 'qr', element: lazyEl(<QrLabelsPage scope="admin" />) },
+            ],
+          },
+        ],
+      },
+      {
+        element: <RequireRole roles={['supervisor']} />,
+        children: [
+          {
+            path: '/supervisor',
+            element: lazyEl(<SupervisorLayout />),
+            children: [
+              { index: true, element: lazyEl(<SupervisorHome />) },
+              { path: 'vehicles', element: lazyEl(<VehiclesPage scope="supervisor" />) },
+              { path: 'drivers', element: lazyEl(<DriversPage scope="supervisor" />) },
+              { path: 'qr', element: lazyEl(<QrLabelsPage scope="supervisor" />) },
             ],
           },
         ],
       },
       placeholderRoute('officer'),
-      placeholderRoute('supervisor'),
       placeholderRoute('driver'),
       placeholderRoute('security'),
     ],
