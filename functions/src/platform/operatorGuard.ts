@@ -12,6 +12,8 @@ export interface OperatorRecord {
   name: string
   email: string
   status: 'active' | 'disabled'
+  /** Set by `superadmin:create` with a generated password and by `--reset-password`; cleared by `changeOwnPassword`. */
+  mustChangePassword?: boolean
 }
 
 export interface OperatorPort {
@@ -28,6 +30,7 @@ export interface OperatorCaller {
   uid: string
   name: string
   email: string
+  mustChangePassword: boolean
 }
 
 const forbidden = () => fail('permission-denied', 'forbidden', 'Not allowed')
@@ -51,5 +54,5 @@ export async function requireOperator(
       throw fail('unauthenticated', 'reauth-required', 'Please sign in again to continue')
     }
   }
-  return { uid: auth.uid, name: operator.name, email: operator.email }
+  return { uid: auth.uid, name: operator.name, email: operator.email, mustChangePassword: operator.mustChangePassword === true }
 }

@@ -12,6 +12,8 @@ export interface Fake {
   port: PlatformPort
   invites: Map<string, InviteRecord & { claimId?: string | null }>
   operators: Map<string, OperatorRecord>
+  /** Passwords set through `setOperatorPassword` (uid -> password). */
+  passwords: Map<string, string>
   tenants: Map<string, TenantRow & { secret?: string }>
   audits: PlatformAuditEntry[]
   clock: { t: number }
@@ -30,6 +32,7 @@ export function fake(over: Partial<PlatformDeps> = {}, opts: { limited?: boolean
   const operators: Fake['operators'] = new Map([[OP_UID, { name: 'Olive Operator', email: 'olive@convoypass.test', status: 'active' }]])
   const tenants: Fake['tenants'] = new Map()
   const audits: PlatformAuditEntry[] = []
+  const passwords = new Map<string, string>()
   const clock = { t: T0 }
   const windows = new Map<string, WindowState>()
   const rl: RateLimitPort = {
@@ -68,6 +71,11 @@ export function fake(over: Partial<PlatformDeps> = {}, opts: { limited?: boolean
         .slice(0, limit),
     inviteTimes: async () => [...invites.values()],
     tenantCount: async () => tenants.size,
+    setOperatorPassword: async (uid, password, audit) => {
+      passwords.set(uid, password)
+      operators.set(uid, { ...operators.get(uid)!, mustChangePassword: false })
+      audits.push(audit)
+    },
   }
   const deps: PlatformDeps = {
     port,
@@ -77,7 +85,7 @@ export function fake(over: Partial<PlatformDeps> = {}, opts: { limited?: boolean
     inEmulator: false,
     ...over,
   }
-  return { port, invites, operators, tenants, audits, clock, deps, api: createPlatformApi(deps) }
+  return { port, invites, operators, passwords, tenants, audits, clock, deps, api: createPlatformApi(deps) }
 }
 
 export const addTenant = (f: Fake, n: number, over: Partial<TenantRow> = {}) => {

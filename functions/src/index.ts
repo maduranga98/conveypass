@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase-admin/app'
 import { setGlobalOptions } from 'firebase-functions/v2'
-import { onRequest } from 'firebase-functions/v2/https'
+import { onCall, onRequest } from 'firebase-functions/v2/https'
 import { ENFORCE_APP_CHECK, REGION } from './config.js'
 import * as approvals from './approvals.js'
 import * as clientErrors from './clientErrors.js'
@@ -11,7 +11,7 @@ import * as gate from './gate.js'
 import * as passes from './passes.js'
 import * as reportsApi from './reportsApi.js'
 import { devicePort } from './notifyPorts.js'
-import { operatorCallable, callable, publicCallable } from './runtime.js'
+import { operatorCallable, callable, publicCallable, runOperatorCall } from './runtime.js'
 import { APP_BASE_URL, IN_EMULATOR } from './config.js'
 import { createPlatformApi } from './platform/platform.js'
 import { platformPort } from './platform/platformPort.js'
@@ -34,7 +34,17 @@ setGlobalOptions({ region: REGION, maxInstances: 10, enforceAppCheck: ENFORCE_AP
 export const createUser = callable('createUser', core.createUser, { rateLimit: true })
 export const updateUser = callable('updateUser', core.updateUser)
 export const resetCredential = callable('resetCredential', core.resetCredential, { rateLimit: true })
-export const changeOwnPassword = callable('changeOwnPassword', core.changeOwnPassword)
+// One callable for everyone's own password. A super admin (platform claims, no tenant) goes to the platform API (verified
+// email, active operators profile, sign-in within 5 minutes, audit in platformAuditLog); everyone else takes the unchanged
+// workspace path.
+const changeTenantOwnPassword = callable('changeOwnPassword', core.changeOwnPassword)
+export const changeOwnPassword = onCall((request) => {
+  const token = request.auth?.token as Record<string, unknown> | undefined
+  if (request.auth && token && (token.role === 'platform' || token.platformAdmin === true)) {
+    return runOperatorCall('changeOwnPassword', { uid: request.auth.uid, token }, request.data, (a, d) => platformApi().changeOwnPassword(a, d))
+  }
+  return changeTenantOwnPassword.run(request)
+})
 
 export const createVehicle = callable('createVehicle', vehicles.createVehicle)
 export const updateVehicle = callable('updateVehicle', vehicles.updateVehicle)

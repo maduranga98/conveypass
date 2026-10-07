@@ -31,6 +31,7 @@ export const platformPort = (): PlatformPort => {
         name: typeof d.name === 'string' ? d.name : '',
         email: typeof d.email === 'string' ? d.email : '',
         status: d.status === 'active' ? 'active' : 'disabled',
+        mustChangePassword: d.mustChangePassword === true,
       }
     },
 
@@ -133,6 +134,14 @@ export const platformPort = (): PlatformPort => {
     inviteTimes: async () => {
       const snap = await db.collection('setupInvites').select('expiresAt', 'claimedAt', 'usedAt').limit(OVERVIEW_CAP).get()
       return snap.docs.map((d) => timesOf(d.data()))
+    },
+
+    setOperatorPassword: async (uid, password, audit) => {
+      await getAuth().updateUser(uid, { password })
+      const batch = db.batch()
+      batch.update(db.doc(`operators/${uid}`), { mustChangePassword: false, passwordChangedAt: FieldValue.serverTimestamp() })
+      batch.create(auditRef(), stamp(audit))
+      await batch.commit()
     },
 
     tenantCount: async () => (await db.collection('tenants').count().get()).data().count,

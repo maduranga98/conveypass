@@ -82,8 +82,53 @@ describe('every operator call is guarded', () => {
     g.clock.t += 61_000
     expect(await g.api.getOperatorOverview(opToken({}, g.clock.t))).toBeTruthy()
   })
-  it('getOperatorProfile returns name and email only', async () => {
-    expect(await f.api.getOperatorProfile(opToken())).toEqual({ name: 'Olive Operator', email: 'olive@convoypass.test' })
+  it('getOperatorProfile returns name, email and whether a password change is pending', async () => {
+    expect(await f.api.getOperatorProfile(opToken())).toEqual({ name: 'Olive Operator', email: 'olive@convoypass.test', mustChangePassword: false })
+    f.operators.set(OP_UID, { ...f.operators.get(OP_UID)!, mustChangePassword: true })
+    expect(await f.api.getOperatorProfile(opToken())).toMatchObject({ mustChangePassword: true })
+  })
+})
+
+describe('changeOwnPassword (super admin)', () => {
+  const NEW = 'Correct-Horse-Battery-9'
+  const reasonOf = async (p: Promise<unknown>) => (await failure(p))?.details?.reason
+
+  it('sets the password, clears mustChangePassword, audits without the password and returns only ok', async () => {
+    const f = fake()
+    f.operators.set(OP_UID, { ...f.operators.get(OP_UID)!, mustChangePassword: true })
+    expect(await f.api.changeOwnPassword(opToken(), { newPassword: NEW })).toEqual({ ok: true })
+    expect(f.passwords.get(OP_UID)).toBe(NEW)
+    expect(f.operators.get(OP_UID)!.mustChangePassword).toBe(false)
+    expect(f.audits).toEqual([{ actorUid: OP_UID, action: 'operator.passwordChanged', targetRef: OP_UID, meta: {} }])
+    expect(JSON.stringify(f.audits)).not.toContain(NEW)
+  })
+  it('needs a sign-in from the last 5 minutes (a reauth-grade 15 minutes is not enough)', async () => {
+    const f = fake()
+    const sixMin = opToken({ auth_time: T0 / 1000 - 6 * 60 })
+    expect(await reasonOf(f.api.changeOwnPassword(sixMin, { newPassword: NEW }))).toBe('recent-login-required')
+    expect(f.passwords.size).toBe(0)
+    expect(await f.api.changeOwnPassword(opToken({ auth_time: T0 / 1000 - 4 * 60 }), { newPassword: NEW })).toEqual({ ok: true })
+  })
+  it('refuses short, common and email-equal passwords', async () => {
+    const f = fake()
+    for (const newPassword of ['Short-1', '1234567890123', 'olive@convoypass.test', 'OLIVE@convoypass.test']) {
+      expect(await reasonOf(f.api.changeOwnPassword(opToken(), { newPassword })), newPassword).toBe('invalid-input')
+    }
+    expect(f.passwords.size).toBe(0)
+  })
+  it('goes through the operator guard: a tenant admin, a disabled operator and a signed-out caller are refused', async () => {
+    const f = fake()
+    const admin = { uid: 'a1', token: { role: 'admin', tenantId: 'T1', email_verified: true, auth_time: T0 / 1000 } }
+    expect((await failure(f.api.changeOwnPassword(admin, { newPassword: NEW })))?.code).toBe('permission-denied')
+    expect((await failure(f.api.changeOwnPassword(undefined, { newPassword: NEW })))?.code).toBe('unauthenticated')
+    f.operators.set(OP_UID, { ...f.operators.get(OP_UID)!, status: 'disabled' })
+    expect((await failure(f.api.changeOwnPassword(opToken(), { newPassword: NEW })))?.code).toBe('permission-denied')
+    expect(f.passwords.size).toBe(0)
+  })
+  it('is rate limited with the other operator calls', async () => {
+    const g = fake({}, { limited: true })
+    for (let i = 0; i < 30; i++) await failure(g.api.changeOwnPassword(opToken(), { newPassword: 'x' }))
+    expect((await failure(g.api.changeOwnPassword(opToken(), { newPassword: NEW })))?.code).toBe('resource-exhausted')
   })
 })
 
