@@ -3,8 +3,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 
 const getDownloadURL = vi.fn()
-vi.mock('firebase/storage', () => ({ getDownloadURL: (...a: unknown[]) => getDownloadURL(...a), ref: (_s: unknown, p: string) => p }))
-vi.mock('@/lib/firebase', () => ({ storage: {} }))
+vi.mock('firebase/storage', () => ({ getStorage: () => ({}), getDownloadURL: (...a: unknown[]) => getDownloadURL(...a), ref: (_s: unknown, p: string) => p }))
+vi.mock('@/lib/firebase', () => ({ app: {} }))
 
 import { EvidenceThumb } from '@/features/passes/EvidenceThumb'
 import { RetentionEditor } from './RetentionEditor'

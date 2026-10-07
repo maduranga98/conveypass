@@ -4,8 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import { EvidenceViewer } from './EvidenceViewer'
 
-vi.mock('@/lib/firebase', () => ({ storage: {} }))
-vi.mock('firebase/storage', () => ({ ref: (_s: unknown, path: string) => path, getDownloadURL: async (path: string) => `https://photos.test/${path}` }))
+vi.mock('@/lib/firebase', () => ({ app: {} }))
+vi.mock('firebase/storage', () => ({ getStorage: () => ({}), ref: (_s: unknown, path: string) => path, getDownloadURL: async (path: string) => `https://photos.test/${path}` }))
 
 const items = [
   { key: 'gps', label: 'GPS device', path: 'a/gps.jpg' },

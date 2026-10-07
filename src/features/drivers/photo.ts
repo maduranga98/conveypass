@@ -1,6 +1,5 @@
 import imageCompression from 'browser-image-compression'
-import { ref, uploadBytes } from 'firebase/storage'
-import { storage } from '@/lib/firebase'
+import { uploadPhoto } from '@/lib/storage'
 
 export const PHOTO_MAX_BYTES = 150 * 1024
 const PHOTO_EDGE_PX = 400
@@ -23,5 +22,5 @@ export async function compressPhoto(file: File): Promise<Blob> {
 }
 
 export async function uploadDriverPhoto(path: string, photo: Blob): Promise<void> {
-  await uploadBytes(ref(storage, path), photo, { contentType: 'image/jpeg', cacheControl: 'private, max-age=3600' })
+  await uploadPhoto(path, photo)
 }

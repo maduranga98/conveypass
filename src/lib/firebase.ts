@@ -7,7 +7,6 @@ import {
   memoryLruGarbageCollector,
 } from 'firebase/firestore'
 import { connectFunctionsEmulator, getFunctions } from 'firebase/functions'
-import { connectStorageEmulator, getStorage } from 'firebase/storage'
 import { initAppCheck } from './appCheck'
 
 /** Must match FUNCTIONS_REGION in functions/.env */
@@ -33,12 +32,10 @@ export const db = initializeFirestore(app, {
   localCache: memoryLocalCache({ garbageCollector: memoryLruGarbageCollector({ cacheSizeBytes: 40 * 1024 * 1024 }) }),
 })
 export const functions = getFunctions(app, FUNCTIONS_REGION)
-export const storage = getStorage(app)
 
 // Ports match firebase.json.
 if (import.meta.env.VITE_USE_EMULATORS === 'true') {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
   connectFirestoreEmulator(db, '127.0.0.1', 8080)
   connectFunctionsEmulator(functions, '127.0.0.1', 5001)
-  connectStorageEmulator(storage, '127.0.0.1', 9199)
 }

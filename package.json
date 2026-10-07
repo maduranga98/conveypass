@@ -24,7 +24,8 @@
     "test:e2e": "firebase emulators:exec --only auth,firestore,functions,storage --project demo-conveypass-e2e \"npm --prefix functions run build && playwright test\"",
     "verify-restore": "tsx scripts/verify-restore.ts",
     "drill:restore": "tsx scripts/restore-drill.ts",
-    "sla:check": "tsx functions/src/cli/runSlaCheck.ts"
+    "sla:check": "tsx functions/src/cli/runSlaCheck.ts",
+    "bundle:report": "tsx scripts/bundle-report.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

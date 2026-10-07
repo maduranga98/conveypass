@@ -54,5 +54,8 @@ jobs:
       - name: "Build the web app (no secrets needed: public config is injected at deploy time)"
         run: npm run build
 
+      - name: "Bundle budget (gzipped first load of the driver and security routes; heavy libraries must stay lazy)"
+        run: npm run bundle:report -- --budget
+
       - name: Build the functions
         run: npm --prefix functions run build

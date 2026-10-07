@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { getDownloadURL, ref } from 'firebase/storage'
-import { storage } from '@/lib/firebase'
+import { downloadUrl } from '@/lib/storage'
 
 /**
  * Download URL for a stored evidence path. Cached for a long time: evidence is never overwritten (each attempt has
@@ -13,6 +12,6 @@ export function useEvidenceUrl(path: string | null | undefined) {
     staleTime: 6 * 60 * 60_000,
     gcTime: 12 * 60 * 60_000,
     retry: 1,
-    queryFn: () => getDownloadURL(ref(storage, path as string)),
+    queryFn: () => downloadUrl(path as string),
   })
 }

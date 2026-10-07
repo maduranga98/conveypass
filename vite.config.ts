@@ -40,7 +40,13 @@ export default defineConfig({
       },
     }),
   ],
+  // dist/.vite/manifest.json feeds scripts/bundle-report.ts (initial JS per route).
+  build: { manifest: true },
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // Pipeline-only regex engine inside the Firestore SDK; see the stub for why it is safe to drop.
+      re2js: fileURLToPath(new URL('./src/lib/stubs/re2js.ts', import.meta.url)),
+    },
   },
 })

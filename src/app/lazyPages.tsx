@@ -1,4 +1,5 @@
 import { lazy } from 'react'
+import { loadStorage } from '@/lib/storage'
 
 export const LoginPage = lazy(() => import('@/features/auth/LoginPage'))
 export const PrivacyPage = lazy(() => import('@/features/auth/PrivacyPage'))
@@ -32,6 +33,8 @@ const gateChunks = {
 }
 const withGate = <T,>(load: () => Promise<T>) => () => {
   for (const chunk of Object.values(gateChunks)) void chunk().catch(() => undefined)
+  // Driver photos come from Storage: load its SDK now too, so the gate still shows photos after the connection drops.
+  void loadStorage().catch(() => undefined)
   return load()
 }
 export const SecurityLayout = lazy(withGate(gateChunks.layout))
