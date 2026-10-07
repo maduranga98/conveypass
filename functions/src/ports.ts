@@ -10,7 +10,7 @@ import {
   type StoragePort,
 } from './core.js'
 import { planSubmit } from './passRules.js'
-import type { ContractorData, DriverData, PassData, TenantData, UserData, VehicleData } from './types.js'
+import type { ContractorData, DriverData, GateEventData, PassData, TenantData, UserData, VehicleData } from './types.js'
 
 const ts = (ms: number): Timestamp => Timestamp.fromMillis(ms)
 
@@ -20,6 +20,36 @@ const millis = (v: unknown): number | null =>
     ? (v.toMillis() as number)
     : null
 
+/** Stored gate event -> GateEventData with `at` in milliseconds. */
+const toGateEvent = (raw: Record<string, unknown>): GateEventData =>
+  ({ ...raw, at: millis(raw.at) ?? 0 }) as unknown as GateEventData
+
+/** Reads what a pass decision depends on, inside the transaction. `null` when the pass does not exist. */
+async function readDecisionContext(
+  db: FirebaseFirestore.Firestore,
+  tx: FirebaseFirestore.Transaction,
+  ref: FirebaseFirestore.DocumentReference,
+): Promise<{ ctx: DecisionContext | null; history: unknown[] }> {
+  const snap = await tx.get(ref)
+  if (!snap.exists) return { ctx: null, history: [] }
+  const raw = snap.data() as Record<string, unknown>
+  const pass = toPass(raw)
+  const [vehicle, contractor, driver] = await tx.getAll(
+    db.doc(`vehicles/${pass.vehicleId}`),
+    db.doc(`contractors/${pass.contractorId}`),
+    db.doc(`users/${pass.driverId}`),
+  )
+  return {
+    ctx: {
+      pass,
+      vehicle: vehicle?.exists ? (vehicle.data() as VehicleData) : null,
+      contractor: contractor?.exists ? (contractor.data() as ContractorData) : null,
+      driver: driver?.exists ? (driver.data() as UserData) : null,
+    },
+    history: Array.isArray(raw.history) ? (raw.history as unknown[]) : [],
+  }
+}
+
 /** Stored pass -> PassData with every timestamp as milliseconds. */
 function toPass(raw: Record<string, unknown>): PassData {
   const data = raw as unknown as PassData & {
@@ -28,8 +58,9 @@ function toPass(raw: Record<string, unknown>): PassData {
     rejection?: { at: unknown }
     rejectionHistory?: { at: unknown }[]
     history?: { at: unknown }[]
+    checkIn?: { at: unknown }
   }
-  const { supervisor, officer, rejection, rejectionHistory, history, ...rest } = data
+  const { supervisor, officer, rejection, rejectionHistory, history, checkIn, ...rest } = data
   return {
     ...rest,
     submittedAt: millis(raw.submittedAt),
@@ -40,6 +71,7 @@ function toPass(raw: Record<string, unknown>): PassData {
       ? { rejectionHistory: rejectionHistory.map((h) => ({ ...h, at: millis(h.at) ?? 0 })) }
       : {}),
     ...(history ? { history: history.map((h) => ({ ...h, at: millis(h.at) ?? 0 })) } : {}),
+    ...(checkIn ? { checkIn: { ...checkIn, at: millis(checkIn.at) ?? 0 } } : {}),
   } as PassData
 }
 
@@ -229,25 +261,7 @@ export const dataPort = (): DataPort => {
     decidePassTx: async ({ passId, plan }) => {
       const ref = db.doc(`passes/${passId}`)
       return db.runTransaction(async (tx) => {
-        const snap = await tx.get(ref)
-        let ctx: DecisionContext | null = null
-        let existingHistory: unknown[] = []
-        if (snap.exists) {
-          const raw = snap.data() as Record<string, unknown>
-          const pass = toPass(raw)
-          existingHistory = Array.isArray(raw.history) ? (raw.history as unknown[]) : []
-          const [vehicle, contractor, driver] = await tx.getAll(
-            db.doc(`vehicles/${pass.vehicleId}`),
-            db.doc(`contractors/${pass.contractorId}`),
-            db.doc(`users/${pass.driverId}`),
-          )
-          ctx = {
-            pass,
-            vehicle: vehicle?.exists ? (vehicle.data() as VehicleData) : null,
-            contractor: contractor?.exists ? (contractor.data() as ContractorData) : null,
-            driver: driver?.exists ? (driver.data() as UserData) : null,
-          }
-        }
+        const { ctx, history: existingHistory } = await readDecisionContext(db, tx, ref)
         const decision = plan(ctx)
         const { update, audit } = decision
         const stamp = (s: { uid: string; name: string; at: number }) => ({ ...s, at: ts(s.at) })
@@ -261,6 +275,32 @@ export const dataPort = (): DataPort => {
         })
         tx.create(db.collection('auditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
         return decision
+      })
+    },
+    checkInTx: async ({ passId, plan }) => {
+      const ref = db.doc(`passes/${passId}`)
+      return db.runTransaction(async (tx) => {
+        const { ctx, history } = await readDecisionContext(db, tx, ref)
+        const decision = plan(ctx)
+        if (decision.kind === 'replay') return decision
+        tx.update(ref, {
+          status: 'checked_in',
+          updatedAt: FieldValue.serverTimestamp(),
+          checkIn: { ...decision.checkIn, at: ts(decision.checkIn.at) },
+          history: [...history, { ...decision.entry, at: ts(decision.entry.at) }],
+        })
+        tx.create(db.collection('auditLog').doc(), { ...decision.audit, createdAt: FieldValue.serverTimestamp() })
+        return decision
+      })
+    },
+    denyEntryTx: async ({ eventId, event, audit }) => {
+      const ref = db.doc(`gateEvents/${eventId}`)
+      return db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref)
+        if (snap.exists) return { created: false, event: toGateEvent(snap.data() as Record<string, unknown>) }
+        tx.create(ref, { ...event, at: ts(event.at) })
+        tx.create(db.collection('auditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
+        return { created: true, event }
       })
     },
     updateTenantSettingsWithAudit: async (tenantId, patch, audit) => {

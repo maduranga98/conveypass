@@ -4,6 +4,7 @@ import { setGlobalOptions } from 'firebase-functions/v2'
 import { REGION } from './config.js'
 import * as approvals from './approvals.js'
 import * as core from './core.js'
+import * as gate from './gate.js'
 import { fail } from './errors.js'
 import { newVehicleId } from './ids.js'
 import * as passes from './passes.js'
@@ -83,3 +84,7 @@ export const bulkApprove = onCall({ timeoutSeconds: 120 }, (request) =>
   approvals.bulkApprove(deps(), callerFrom(request), request.data),
 )
 export const revokePass = onCall((request) => approvals.revokePass(deps(), callerFrom(request), request.data))
+
+// Module 5: the gate. Security reads directly from Firestore; these are its only writes.
+export const checkIn = onCall((request) => gate.checkIn(deps(), callerFrom(request), request.data))
+export const denyEntry = onCall((request) => gate.denyEntry(deps(), callerFrom(request), request.data))

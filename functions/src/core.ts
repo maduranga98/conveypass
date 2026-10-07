@@ -35,6 +35,9 @@ import type {
   PassStatus,
   Rejection,
   RejectionReasonDef,
+  CheckInStamp,
+  GateDef,
+  GateEventData,
 } from './types.js'
 
 /** Thrown by the data port when the plate guard document already exists. */
@@ -86,6 +89,14 @@ export interface DecisionPlan {
   update: PassDecisionUpdate
   audit: AuditEntry
 }
+
+/**
+ * What a check-in does: `replay` returns the stored check-in unchanged (same requestId, nothing is written);
+ * `write` sets status `checked_in` and the `checkIn` block, appends `entry` to `history` and writes the audit entry.
+ */
+export type CheckInPlan =
+  | { kind: 'replay'; checkIn: CheckInStamp }
+  | { kind: 'write'; checkIn: CheckInStamp; entry: HistoryEntry; audit: AuditEntry }
 
 export interface DataPort {
   getUser(uid: string): Promise<UserData | null>
@@ -143,10 +154,26 @@ export interface DataPort {
    * because the loser's re-read sees the winner's status.
    */
   decidePassTx(p: { passId: string; plan: (ctx: DecisionContext | null) => DecisionPlan }): Promise<DecisionPlan>
+  /**
+   * One transaction: re-reads the pass, vehicle, contractor and the driver's `users` doc, hands them to `plan` (pure;
+   * throws HttpsError to refuse) and applies the plan. Two concurrent check-ins cannot both write: the loser's
+   * re-read sees `checked_in`.
+   */
+  checkInTx(p: { passId: string; plan: (ctx: DecisionContext | null) => CheckInPlan }): Promise<CheckInPlan>
+  /**
+   * One transaction on `gateEvents/{eventId}`: creates it (+ audit) when it does not exist; otherwise writes nothing
+   * and returns the stored event (`created: false`), which makes a retried denial idempotent.
+   */
+  denyEntryTx(p: { eventId: string; event: GateEventData; audit: AuditEntry }): Promise<{ created: boolean; event: GateEventData }>
   /** Merges the given settings into `tenants/{tenantId}` (+ audit) in one batch. */
   updateTenantSettingsWithAudit(
     tenantId: string,
-    patch: { passSettings?: PassSettings; checklist?: ChecklistItemDef[]; rejectionReasons?: RejectionReasonDef[] },
+    patch: {
+      passSettings?: PassSettings
+      checklist?: ChecklistItemDef[]
+      rejectionReasons?: RejectionReasonDef[]
+      gates?: GateDef[]
+    },
     audit: AuditEntry,
   ): Promise<void>
   /** Auth uids of every `users` doc of this contractor. */

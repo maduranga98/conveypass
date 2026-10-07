@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { ROLES } from './types.js'
 import { VEHICLE_TYPES } from './vehicleTypes.js'
+import { GATE_ID_PATTERN, GATE_NAME_MAX, GATE_NAME_MIN, MAX_GATES, MIN_GATES } from './gates.js'
+import { MAX_DENY_NOTE } from './denyReasons.js'
 
 const name = z.string().trim().min(1).max(100)
 
@@ -181,7 +183,36 @@ export const updateTenantSettingsSchema = z
       .min(2)
       .max(10)
       .optional(),
+    gates: z
+      .array(z.object({ id: z.string().regex(GATE_ID_PATTERN), name: z.string().trim().min(GATE_NAME_MIN).max(GATE_NAME_MAX) }))
+      .min(MIN_GATES)
+      .max(MAX_GATES)
+      .optional(),
   })
-  .refine((v) => v.passSettings !== undefined || v.checklist !== undefined || v.rejectionReasons !== undefined, {
-    message: 'Nothing to update',
-  })
+  .refine(
+    (v) => v.passSettings !== undefined || v.checklist !== undefined || v.rejectionReasons !== undefined || v.gates !== undefined,
+    { message: 'Nothing to update' },
+  )
+
+// ---- Module 5: the gate ----------------------------------------------------------------------
+
+/** Client UUID that makes a gate call idempotent. */
+const requestId = z.uuid()
+const gateId = z.string().min(1).max(40)
+
+export const checkInSchema = z.object({
+  passId,
+  expectedAttempt: z.number().int().min(1).max(MAX_ATTEMPTS),
+  gateId,
+  requestId,
+  /** Device time of a check-in captured offline. Bounded in core, never trusted beyond that. */
+  offlineCapturedAt: isoString.optional(),
+})
+
+export const denyEntrySchema = z.object({
+  vehicleId,
+  reasonCode,
+  note: z.string().trim().max(MAX_DENY_NOTE).optional(),
+  gateId,
+  requestId,
+})
