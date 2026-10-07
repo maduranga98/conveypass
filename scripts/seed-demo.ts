@@ -12,6 +12,10 @@
  * checked in, pending, rejected, no pass, and approved passes blocked by a suspended vehicle, driver or contractor),
  * two passes from yesterday that are now expired, and one denied entry in the gate log. Evidence and driver photos are
  * copied from scripts/fixtures into the Storage emulator. Then it prints the logins and the URLs to test.
+ * Module 6 adds 30 days of deterministic history for the reports and the dashboard trend (about 40 passes a day over
+ * the demo contractors, a second officer, a larger fleet, ~12% first-attempt rejections, denials and offline
+ * check-ins; see scripts/demoHistory.ts). `--seed=N` (or DEMO_SEED=N) picks the random seed; the same seed always gives
+ * the same data, so report numbers are repeatable. History passes carry evidence paths but no photo files.
  * Re-running needs a clean emulator (the script stops if the tenant already exists).
  */
 import { initializeApp } from 'firebase-admin/app'
@@ -24,6 +28,7 @@ import { dateKey } from '../src/lib/dates.ts'
 import { DEFAULT_CHECKLIST, DEFAULT_PASS_SETTINGS } from '../src/lib/defaultChecklist.ts'
 import { DEFAULT_REJECTION_REASONS } from '../src/lib/defaultRejectionReasons.ts'
 import { normalisePlate } from '../src/lib/plate.ts'
+import { generateHistory, rng, type FleetVehicle, type HistoryPass } from './demoHistory.ts'
 
 const die = (msg: string): never => {
   console.error(`seed:demo: ${msg}`)
@@ -62,6 +67,11 @@ const projectId = process.env.FIREBASE_PROJECT_ID ?? firebaserc.projects?.defaul
 const TENANT = 'demo'
 const PASSWORD = { admin: 'DemoAdmin123', supervisor: 'DemoSuper123', officer: 'DemoOfficer123', security: 'DemoGate123' }
 const GATES = [{ id: 'main', name: 'Main Gate' }, { id: 'north', name: 'North Gate' }]
+/** Same seed, same history. `npm run seed:demo -- --seed=7` or DEMO_SEED=7. */
+const SEED = Number(process.argv.find((a) => a.startsWith('--seed='))?.slice(7) ?? process.env.DEMO_SEED ?? 20260310)
+if (!Number.isInteger(SEED)) die('the seed must be an integer')
+const HISTORY_DAYS = 30
+const HISTORY_PER_DAY = 40
 const SECURITY = { email: 'security@demo.convoypass.test', name: 'Nimal Jayawardena' }
 
 /** The bucket the web app uses (VITE_FIREBASE_STORAGE_BUCKET in .env), so the emulator serves it under that name. */
@@ -134,7 +144,8 @@ interface DemoPass {
 }
 const demoPasses: readonly DemoPass[] = [
   { plate: 'WP LJ-4821', driver: 'd1', state: 'submitted', daysAgo: 0, no: ['dashcam_lens'], minutes: 6 }, // has issues
-  { plate: 'WP CBA-5521', driver: 'd2', state: 'submitted', daysAgo: 0, minutes: 12 },
+  // Waiting far longer than the 30 minute target: shows in the dashboard's attention panel until it is approved.
+  { plate: 'WP CBA-5521', driver: 'd2', state: 'submitted', daysAgo: 0, minutes: 55 },
   { plate: 'NP LC-3030', driver: 'd1', state: 'submitted', daysAgo: 0, minutes: 3 },
   { plate: 'NP KA 1234', driver: 'd2', state: 'rejected_supervisor', daysAgo: 0, no: ['dashcam_lens'], minutes: 40 },
   { plate: '250-1234', driver: 'd3', state: 'supervisor_approved', daysAgo: 0, minutes: 25 },
@@ -202,6 +213,7 @@ async function main(): Promise<void> {
 
   await user({ email: 'admin@demo.convoypass.test', password: PASSWORD.admin, name: 'Demo Admin', role: 'admin', contractorId: null })
   const officerUid = await user({ email: 'officer@demo.convoypass.test', password: PASSWORD.officer, name: 'Olivia Officer', role: 'officer', contractorId: null })
+  const officer2Uid = await user({ email: 'officer2@demo.convoypass.test', password: PASSWORD.officer, name: 'Tariq Officer', role: 'officer', contractorId: null })
   const securityUid = await user({ email: SECURITY.email, password: PASSWORD.security, name: SECURITY.name, role: 'security', contractorId: null })
 
   const contractorIds = new Map<string, string>()
@@ -255,6 +267,22 @@ async function main(): Promise<void> {
       status: 'status' in v ? v.status : 'active', createdAt: ts, createdBy: 'seed-demo', updatedAt: ts,
     })
     audit('seed.demo.vehicle', 'vehicle', id)
+  }
+
+  // History fleet: enough vehicles for about 40 passes a day (one pass per vehicle per day). Ids come from the seed.
+  const idRng = rng(SEED)
+  const historyFleet: FleetVehicle[] = []
+  for (let i = 0; i < 56; i++) {
+    const key = i % 2 === 0 ? 'lanka' : 'ceylon'
+    const plate = normalisePlate(`${key === 'lanka' ? 'WP' : 'SP'} HX-${1001 + i}`) ?? die('bad history plate')
+    const id = `veh_${Array.from({ length: 10 }, () => ID_CHARS[Math.floor(idRng() * ID_CHARS.length)]).join('')}`
+    const assigned = key === 'lanka' ? ['d1', 'd2'] : ['d3', 'd4']
+    batch.create(db.doc(`vehiclePlates/${TENANT}_${plate.plateKey}`), { vehicleId: id })
+    batch.create(db.doc(`vehicles/${id}`), {
+      tenantId: TENANT, contractorId: cid(key), plateNo: plate.plateNo, plateKey: plate.plateKey, type: ['Tipper', 'Lorry', 'Flatbed', 'Cement Bulker'][i % 4] as string,
+      assignedDriverIds: assigned.map((k) => driverIds.get(k) as string), status: 'active', createdAt: ts, createdBy: 'seed-demo', updatedAt: ts,
+    })
+    historyFleet.push({ vehicleId: id, contractorKey: key, plateNo: plate.plateNo, vehicleType: ['Tipper', 'Lorry', 'Flatbed', 'Cement Bulker'][i % 4] as string, driverIds: assigned.map((k) => driverIds.get(k) as string) })
   }
 
   // ---- passes ----
@@ -345,6 +373,57 @@ async function main(): Promise<void> {
 
   await batch.commit()
 
+  // ---- 30 days of history (written through a bulk writer: ~1,300 passes) ----
+  const endDay = `${yesterday.slice(0, 4)}-${yesterday.slice(4, 6)}-${yesterday.slice(6, 8)}`
+  const demoFleet: FleetVehicle[] = vehicles
+    .filter((v) => !('status' in v) && contractors.find((c) => c.key === v.contractor)?.status === 'active')
+    .map((v) => ({
+      vehicleId: vehicleIds.get(v.plate) as string,
+      contractorKey: v.contractor,
+      plateNo: normalisePlate(v.plate)?.plateNo ?? v.plate,
+      vehicleType: v.type,
+      driverIds: v.drivers.filter((k) => drivers.find((d) => d.key === k)?.status === 'active').map((k) => driverIds.get(k) as string),
+    }))
+    .filter((v) => v.driverIds.length > 0)
+  const history = generateHistory({
+    seed: SEED,
+    endDay,
+    days: HISTORY_DAYS,
+    timezone: TIMEZONE,
+    perDay: HISTORY_PER_DAY,
+    tenantId: TENANT,
+    vehicles: [...demoFleet, ...historyFleet],
+    driverNames: Object.fromEntries(drivers.map((d) => [driverIds.get(d.key) as string, d.name])),
+    contractors: Object.fromEntries(
+      supervisors.filter((s) => contractors.find((c) => c.key === s.contractor)?.status === 'active').map((s) => [s.contractor, { id: cid(s.contractor), supervisors: [people.supervisor(s.contractor)] }]),
+    ),
+    officers: [people.officer, { uid: officer2Uid, name: 'Tariq Officer' }],
+    guards: [people.security],
+    gates: GATES,
+    checklist: DEFAULT_CHECKLIST,
+    reasons: DEFAULT_REJECTION_REASONS,
+    taken: new Set(demoPasses.map((p) => `${vehicleIds.get(p.plate)}_${p.daysAgo === 0 ? today : yesterday}`)),
+  })
+  const T = (ms: number): Timestamp => Timestamp.fromMillis(ms)
+  const stamp = <S extends { at: number }>(s: S) => ({ ...s, at: T(s.at) })
+  const writer = db.bulkWriter()
+  for (const { id, data: d } of history.passes) {
+    const doc: Record<string, unknown> = {
+      ...d, submittedAt: T(d.submittedAt), updatedAt: T(d.updatedAt),
+      history: d.history.map(stamp),
+    }
+    if (d.supervisor) doc.supervisor = stamp(d.supervisor)
+    if (d.officer) doc.officer = stamp(d.officer)
+    if (d.rejection) doc.rejection = stamp(d.rejection)
+    if (d.rejectionHistory) doc.rejectionHistory = d.rejectionHistory.map(stamp)
+    if (d.checkIn) doc.checkIn = stamp(d.checkIn)
+    void writer.create(db.doc(`passes/${id}`), doc)
+  }
+  for (const { id, data: e } of history.events) void writer.create(db.doc(`gateEvents/${id}`), { ...e, at: T(e.at) })
+  await writer.close()
+  const byStatus = (s: HistoryPass['data']['status']) => history.passes.filter((p) => p.data.status === s).length
+  console.log(`seed:demo: history seed ${SEED}: ${history.passes.length} passes over ${HISTORY_DAYS} days (${byStatus('checked_in')} checked in, ${byStatus('rejected')} rejected), ${history.events.length} denied entries`)
+
   const bucketName = process.env.FIREBASE_STORAGE_BUCKET ?? envFile().VITE_FIREBASE_STORAGE_BUCKET ?? `${projectId}.appspot.com`
   const bucket = getStorage().bucket(bucketName)
   for (const u of uploads) await bucket.file(u.path).save(readFileSync(u.file), { contentType: 'image/jpeg', resumable: false })
@@ -353,6 +432,7 @@ async function main(): Promise<void> {
   console.log('  Staff (email / password)')
   console.log(`    admin       admin@demo.convoypass.test            ${PASSWORD.admin}`)
   console.log(`    officer     officer@demo.convoypass.test          ${PASSWORD.officer}`)
+  console.log(`    officer     officer2@demo.convoypass.test         ${PASSWORD.officer}   (Tariq; also approves in the history)`)
   for (const s of supervisors) {
     const c = contractors.find((x) => x.key === s.contractor)
     console.log(`    supervisor  ${s.email.padEnd(42)}${PASSWORD.supervisor}   (${c?.name})`)
@@ -397,7 +477,10 @@ async function main(): Promise<void> {
   ]
   console.log(`  The gate (sign in as ${SECURITY.email} / ${PASSWORD.security}, pick a gate, then open):`)
   for (const [what, plate] of gate) console.log(`    ${url(plate).padEnd(20)} ${plate.padEnd(12)} ${what}`)
-  console.log('  Admin, officer and supervisors can open the same URLs read only. /admin/gate-log shows the check-in and a denial.\n')
+  console.log('  Admin, officer and supervisors can open the same URLs read only. /admin/gate-log redirects to the gate log report.\n')
+  console.log('  Module 6 (admin or officer): /admin/dashboard (or /officer/overview) shows today live: WP CBA-5521 has waited past the 30 minute')
+  console.log('  target, so it is in the attention panel until a supervisor approves it. /admin/reports (or /officer/reports) runs every')
+  console.log(`  report over the 30 days of history (seed ${SEED}); the gate log is /admin/reports?type=gate_log.\n`)
 }
 
 main().catch((e: unknown) => {
