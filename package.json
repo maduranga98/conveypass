@@ -22,6 +22,8 @@
     "create-tenant": "tsx scripts/create-tenant.ts",
     "reset-admin": "tsx scripts/reset-admin.ts",
     "admin:reset": "tsx scripts/reset-admin.ts",
+    "operator:create": "tsx scripts/create-operator.ts",
+    "operator:disable": "tsx scripts/disable-operator.ts",
     "invite:create": "tsx scripts/invites.ts create",
     "invite:list": "tsx scripts/invites.ts list",
     "invite:revoke": "tsx scripts/invites.ts revoke",

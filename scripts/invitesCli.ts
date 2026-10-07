@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util'
 import {
   generateInviteCode, hashInviteCode, INVITE_DEFAULT_DAYS, INVITE_MAX_DAYS, INVITE_MIN_DAYS, inviteLink, inviteStatus,
 } from '../functions/src/tenants/inviteCode.ts'
+import { platformAudit, type PlatformAuditEntry } from '../functions/src/platform/platformAudit.ts'
 import { resolveTarget, type Firebaserc } from './envTarget.ts'
 
 export interface StoredInvite {
@@ -18,9 +19,10 @@ export interface StoredInvite {
 }
 
 export interface InviteStore {
-  create(hash: string, invite: StoredInvite): Promise<void>
+  /** The invite and its `platformAuditLog` entry are written together (one batch), so there is never one without the other. */
+  create(hash: string, invite: StoredInvite, audit: PlatformAuditEntry): Promise<void>
   list(): Promise<{ hash: string; invite: StoredInvite }[]>
-  delete(hash: string): Promise<void>
+  delete(hash: string, audit: PlatformAuditEntry): Promise<void>
 }
 
 export interface CliIo {
@@ -102,7 +104,9 @@ export async function runInvitesCli(argv: string[], io: CliIo): Promise<number> 
         claimedAtMs: null,
         usedAtMs: null,
         tenantId: null,
-      })
+      }, platformAudit('script', 'invite.created', hashInviteCode(code).slice(0, 8), {
+        expiresInDays: opts.expiresDays, locked: Boolean(opts.lockEmail), hasCompanyHint: Boolean(opts.company), source: 'script', env: target.env,
+      }))
       io.out(`invites: created (${target.env}), expires in ${opts.expiresDays} day(s)${opts.lockEmail ? `, locked to ${opts.lockEmail}` : ''}`)
       io.out('')
       io.out(`  ${inviteLink(base, code)}`)
@@ -135,7 +139,7 @@ export async function runInvitesCli(argv: string[], io: CliIo): Promise<number> 
     if (matches.length > 1) throw new UsageError('that prefix matches more than one invite: use more characters')
     const { hash, invite } = matches[0]!
     if (invite.usedAtMs !== null) throw new UsageError('that invite was already used (it created a tenant): it is kept as a record and cannot be deleted')
-    await io.store.delete(hash)
+    await io.store.delete(hash, platformAudit('script', 'invite.revoked', hash.slice(0, 8), { source: 'script', env: target.env }))
     io.out(`invites: revoked ${hash.slice(0, 8)}`)
     return 0
   } catch (e) {

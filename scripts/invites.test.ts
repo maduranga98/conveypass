@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { hashInviteCode, INVITE_CODE_PATTERN } from '../functions/src/tenants/inviteCode.ts'
+import type { PlatformAuditEntry } from '../functions/src/platform/platformAudit.ts'
 import { runInvitesCli, type CliIo, type InviteStore, type StoredInvite } from './invitesCli.ts'
 
 const NOW = 1_800_000_000_000
@@ -7,14 +8,15 @@ const RC = { projects: { default: 'demo', staging: 'conveypass-staging-1', prod:
 
 function setup(over: Partial<CliIo> = {}) {
   const docs = new Map<string, StoredInvite>()
+  const audits: PlatformAuditEntry[] = []
   const lines: string[] = []
   const store: InviteStore = {
-    create: async (h, i) => { if (docs.has(h)) throw new Error('exists'); docs.set(h, i) },
+    create: async (h, i, a) => { if (docs.has(h)) throw new Error('exists'); docs.set(h, i); audits.push(a) },
     list: async () => [...docs.entries()].map(([hash, invite]) => ({ hash, invite })),
-    delete: async (h) => void docs.delete(h),
+    delete: async (h, a) => { docs.delete(h); audits.push(a) },
   }
   const io: CliIo = { store, now: () => NOW, out: (l) => lines.push(l), appBaseUrl: 'https://app.convoypass.com', firebaserc: RC, ...over }
-  return { docs, lines, io, text: () => lines.join('\n') }
+  return { docs, audits, lines, io, text: () => lines.join('\n') }
 }
 const linkOf = (text: string) => /https?:\/\/\S+\/setup#code=\S+/.exec(text)?.[0] ?? ''
 
@@ -36,6 +38,9 @@ describe('invites create', () => {
     expect(invite).toMatchObject({ companyHint: 'Acme Quarry', emailLock: 'ops@acme.test', claimedAtMs: null, usedAtMs: null, tenantId: null })
     expect(invite.expiresAtMs - invite.createdAtMs).toBe(7 * 86_400_000) // default 7 days
     expect(t.text()).toMatch(/secure channel/i)
+    // The operator audit trail (Module 9) records the script as the actor, with the prefix only.
+    expect(t.audits).toEqual([{ actorUid: 'script', action: 'invite.created', targetRef: hashInviteCode(code).slice(0, 8), meta: { expiresInDays: 7, locked: true, hasCompanyHint: true, source: 'script', env: 'emulator' } }])
+    expect(JSON.stringify(t.audits)).not.toContain(code)
   })
   it('enforces 1-30 whole days', async () => {
     for (const days of ['0', '31', '1.5', 'abc', '-3']) {
@@ -103,7 +108,9 @@ describe('invites list and revoke', () => {
     seed(t)
     expect(await runInvitesCli(['revoke', '--env', 'emulator', '11111111'], t.io)).toBe(0)
     expect(t.docs.has('1'.repeat(64))).toBe(false)
+    expect(t.audits).toEqual([{ actorUid: 'script', action: 'invite.revoked', targetRef: '11111111', meta: { source: 'script', env: 'emulator' } }])
     expect(await runInvitesCli(['revoke', '--env', 'emulator', '33333333'], t.io)).toBe(1)
+    expect(t.audits).toHaveLength(1) // a refused revoke is not audited as a revoke
     expect(t.docs.has('3'.repeat(64))).toBe(true)
     expect(t.text()).toMatch(/already used/)
   })

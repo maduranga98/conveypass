@@ -8,7 +8,7 @@
  * Needs APP_BASE_URL (the public origin, e.g. https://app.convoypass.com; read from the environment or `.env`).
  * Staging and production use Application Default Credentials. The link is printed once; only its hash is stored.
  */
-import { Timestamp } from 'firebase-admin/firestore'
+import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { confirmedProd, connect, loadDotEnv, readJson, targetFrom } from './adminSdk.ts'
 import type { Firebaserc } from './envTarget.ts'
 import { runInvitesCli, type InviteStore, type StoredInvite } from './invitesCli.ts'
@@ -23,14 +23,17 @@ const lazyStore = (): InviteStore => {
   const col = db.collection('setupInvites')
   const ms = (v: unknown): number | null => (v instanceof Timestamp ? v.toMillis() : null)
   return {
-    create: async (hash, i) => {
-      await col.doc(hash).create({
+    create: async (hash, i, audit) => {
+      const batch = db.batch()
+      batch.create(col.doc(hash), {
         createdAt: Timestamp.fromMillis(i.createdAtMs),
         expiresAt: Timestamp.fromMillis(i.expiresAtMs),
         ...(i.companyHint ? { companyHint: i.companyHint } : {}),
         ...(i.emailLock ? { emailLock: i.emailLock } : {}),
         claimedAt: null, claimId: null, usedAt: null, tenantId: null,
       })
+      batch.create(db.collection('platformAuditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
+      await batch.commit()
     },
     list: async () =>
       (await col.get()).docs.map((d): { hash: string; invite: StoredInvite } => {
@@ -45,15 +48,20 @@ const lazyStore = (): InviteStore => {
           },
         }
       }),
-    delete: async (hash) => void (await col.doc(hash).delete()),
+    delete: async (hash, audit) => {
+      const batch = db.batch()
+      batch.delete(col.doc(hash))
+      batch.create(db.collection('platformAuditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
+      await batch.commit()
+    },
   }
 }
 
 let cached: InviteStore | undefined
 const store: InviteStore = {
-  create: (h, i) => (cached ??= lazyStore()).create(h, i),
+  create: (h, i, a) => (cached ??= lazyStore()).create(h, i, a),
   list: () => (cached ??= lazyStore()).list(),
-  delete: (h) => (cached ??= lazyStore()).delete(h),
+  delete: (h, a) => (cached ??= lazyStore()).delete(h, a),
 }
 
 runInvitesCli(argv, {
