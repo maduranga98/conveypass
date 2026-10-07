@@ -1,12 +1,14 @@
-import { LogOut } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { KeyRound, LogOut } from 'lucide-react'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
 import { useAuth } from '@/features/auth/useAuth'
+import { changePasswordUrl } from './redirect'
 import { usePrivateMeta } from './usePrivateMeta'
 
 const t = strings.platform
+const topBar = strings.platformAuth.topBar
 
 const nav = [
   { to: '/platform', label: t.nav.overview, end: true },
@@ -21,6 +23,7 @@ const nav = [
 export default function PlatformLayout() {
   usePrivateMeta()
   const { operator, signOut } = useAuth()
+  const location = useLocation()
   return (
     <div className="min-h-dvh bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
@@ -42,8 +45,15 @@ export default function PlatformLayout() {
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <span className="max-w-48 truncate text-sm text-slate-600 sm:max-w-none">{operator?.email}</span>
+            <Link
+              to={changePasswordUrl(location.pathname + location.search)}
+              className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-accent pointer-coarse:h-11"
+            >
+              <KeyRound aria-hidden className="size-4" />
+              {topBar.changePassword}
+            </Link>
             <Button variant="ghost" size="sm" icon={<LogOut aria-hidden className="size-4" />} onClick={() => void signOut()}>
-              {strings.common.signOut}
+              {topBar.signOut}
             </Button>
           </div>
         </div>

@@ -4,7 +4,7 @@
 // Only works on users that are admins in Firestore. Writes an `admin.recovery` audit entry (method and env, no secrets).
 import { randomInt } from 'node:crypto'
 import { parseArgs } from 'node:util'
-import { resolveTarget, type Firebaserc } from './envTarget.ts'
+import { COMMON_OPTIONS, resolveTarget, type Firebaserc } from './lib/env.ts'
 
 export interface AdminResetIo {
   auth: {
@@ -46,9 +46,7 @@ export async function runAdminReset(argv: string[], io: AdminResetIo): Promise<n
     const { values } = parseArgs({
       args: argv,
       options: {
-        env: { type: 'string' },
-        'confirm-prod': { type: 'boolean', default: false },
-        'confirm-production': { type: 'boolean', default: false },
+        ...COMMON_OPTIONS,
         email: { type: 'string' },
         link: { type: 'boolean', default: false },
         'temp-password': { type: 'boolean', default: false },

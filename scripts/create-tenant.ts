@@ -1,118 +1,110 @@
 /**
  * Creates a tenant and its first admin, in the emulator, staging or production.
  *
- *   npm run create-tenant -- --env emulator --tenant-name "Acme Quarry" --email admin@acme.test --password '...'
- *   npm run create-tenant -- --env staging  --tenant-name "Acme Quarry" --email ...
- *   npm run create-tenant -- --env prod --confirm-production --tenant-name "Acme Quarry" --email ...
+ *   npm run create-tenant -- --env emulator --tenant-name "Acme Quarry" --email admin@acme.test
+ *   npm run create-tenant -- --env staging  --tenant-name "Acme Quarry" --email ... [--name "Admin"] [--timezone Asia/Colombo]
+ *   pass show acme-admin | npm run create-tenant -- --env prod --confirm-prod --tenant-name "Acme Quarry" --email ... --password-stdin
  *
- * Credentials come from --email / --password or CREATE_TENANT_ADMIN_EMAIL / CREATE_TENANT_ADMIN_PASSWORD (never
- * hard-coded). Staging and production use Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS or
- * `gcloud auth application-default login`) and the project in `.firebaserc` (alias `staging` / `prod`).
- * The admin must change the password at first login (unless --keep-password).
+ * The admin password is generated and printed once, or piped in with --password-stdin (never an argument). Environment
+ * handling (banner, prod confirmation, credentials): scripts/lib/env.ts. The admin must change the password at first login
+ * (unless --keep-password).
  */
-import { initializeApp } from 'firebase-admin/app'
-import { getAuth } from 'firebase-admin/auth'
-import { FieldValue, getFirestore } from 'firebase-admin/firestore'
-import { readFileSync } from 'node:fs'
+import { FieldValue } from 'firebase-admin/firestore'
 import { parseArgs } from 'node:util'
 import { newTenantId, provisionTenant } from '../functions/src/tenants/tenantDefaults.ts'
-import { loopback, resolveTarget, type Firebaserc, type Target } from './envTarget.ts'
+import { COMMON_OPTIONS, connect, main } from './lib/env.ts'
+import { assertPassword, generatePassword, readPasswordFromStdin, WHY_NO_PASSWORD_FLAG } from './lib/secrets.ts'
 
-const { values } = parseArgs({
-  options: {
-    env: { type: 'string' },
-    'confirm-production': { type: 'boolean', default: false },
-    email: { type: 'string' },
-    password: { type: 'string' },
-    name: { type: 'string' },
-    'tenant-name': { type: 'string' },
-    'tenant-id': { type: 'string' },
-    timezone: { type: 'string' },
-    'keep-password': { type: 'boolean', default: false },
+const HELP = `
+Create a workspace (tenant) and its first admin.
+
+  npm run create-tenant -- --env <env> --tenant-name "Acme Quarry" --email admin@acme.test
+         [--name "Admin"] [--timezone Asia/Colombo] [--tenant-id acme] [--keep-password] [--password-stdin]
+
+  --env <emulator|staging|prod>   required; prod also needs --confirm-prod and the project id typed back
+                                  (or --confirm-project <id> in CI)
+  --password-stdin                read the admin password from stdin (10+ characters); otherwise one is generated
+                                  and printed once. There is no --password argument.
+  --help                          this text
+
+Prefer the invite link or the Super admin console for real clients; this is the operator fallback.
+`
+
+const OPTIONS = {
+  ...COMMON_OPTIONS,
+  email: { type: 'string' },
+  password: { type: 'string' },
+  'password-stdin': { type: 'boolean', default: false },
+  name: { type: 'string' },
+  'tenant-name': { type: 'string' },
+  'tenant-id': { type: 'string' },
+  timezone: { type: 'string' },
+  'keep-password': { type: 'boolean', default: false },
+} as const
+
+main({
+  name: 'create-tenant',
+  help: HELP,
+  action: (argv) => `create a workspace and its first admin (${argv.includes('--password-stdin') ? 'password from stdin' : 'password generated, printed once'})`,
+  run: async (argv, target) => {
+    const { values } = parseArgs({ args: argv, options: OPTIONS })
+    const fail = (msg: string): number => {
+      console.error(`create-tenant: ${msg}`)
+      return 1
+    }
+    if (values.password !== undefined) return fail(WHY_NO_PASSWORD_FLAG)
+    const email = (values.email ?? process.env.CREATE_TENANT_ADMIN_EMAIL ?? '').trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('admin email required (--email or CREATE_TENANT_ADMIN_EMAIL)')
+    const tenantName = values['tenant-name']?.trim()
+    if (!tenantName) return fail('--tenant-name is required')
+    const timezone = values.timezone ?? 'Asia/Colombo'
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: timezone })
+    } catch {
+      return fail(`unknown timezone "${timezone}" (use an IANA name such as Asia/Colombo)`)
+    }
+
+    let password: string
+    let generated: boolean
+    try {
+      const supplied = values['password-stdin'] ? await readPasswordFromStdin() : process.env.CREATE_TENANT_ADMIN_PASSWORD
+      generated = !supplied
+      password = supplied || generatePassword(20)
+      assertPassword(password, email, 10)
+    } catch (e) {
+      return fail(e instanceof Error ? e.message : String(e))
+    }
+
+    const { auth, db } = connect(target)
+    // Default: `ten_` + 10 random chars, like tenants made by the setup link. --tenant-id still pins a readable id.
+    const tenantId = values['tenant-id'] ?? newTenantId()
+    if ((await db.doc(`tenants/${tenantId}`).get()).exists) return fail(`tenant "${tenantId}" already exists (use --tenant-id for another)`)
+    if (await auth.getUserByEmail(email).catch(() => null)) return fail(`an Auth user with ${email} already exists`)
+
+    const adminName = values.name ?? 'Admin'
+    const user = await auth.createUser({ email, password, displayName: adminName })
+    try {
+      await auth.setCustomUserClaims(user.uid, { role: 'admin', tenantId })
+      const batch = db.batch()
+      // Defaults, the admin doc and the audit entries come from provisionTenant: the same code the setup link runs.
+      provisionTenant(db, batch, {
+        tenantId, tenantName, timezone,
+        admin: { uid: user.uid, name: adminName, email, mustChangePassword: !values['keep-password'], createdBy: 'create-tenant' },
+        actor: { uid: 'create-tenant', role: 'system' }, meta: { env: target.env }, createdAt: FieldValue.serverTimestamp(),
+      })
+      await batch.commit()
+    } catch (e) {
+      await auth.deleteUser(user.uid).catch(() => undefined)
+      throw e
+    }
+    console.log(`create-tenant: ${target.env} ready. tenant="${tenantId}" admin=${email} uid=${user.uid}`)
+    if (generated) {
+      console.log('')
+      console.log(`  temporary password: ${password}`)
+      console.log('')
+      console.log('Shown ONCE. Store it in a password manager and hand it over securely.')
+    }
+    if (!values['keep-password']) console.log('create-tenant: the admin must change the password at first login')
+    return 0
   },
-})
-
-const die = (msg: string): never => {
-  console.error(`create-tenant: ${msg}`)
-  process.exit(1)
-}
-const readJson = <T,>(path: string): T | Record<string, never> => {
-  try {
-    return JSON.parse(readFileSync(path, 'utf8')) as T
-  } catch {
-    return {}
-  }
-}
-
-const target = ((): Target => {
-  try {
-    return resolveTarget({
-    env: values.env,
-    confirmProduction: values['confirm-production'],
-    firebaserc: readJson<Firebaserc>('.firebaserc'),
-    projectOverride: process.env.FIREBASE_PROJECT_ID,
-  })
-  } catch (e) {
-    return die(e instanceof Error ? e.message : String(e))
-  }
-})()
-
-const email = (values.email ?? process.env.CREATE_TENANT_ADMIN_EMAIL ?? '').trim().toLowerCase()
-const password = values.password ?? process.env.CREATE_TENANT_ADMIN_PASSWORD ?? ''
-if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) die('admin email required (--email or CREATE_TENANT_ADMIN_EMAIL)')
-if (password.length < 8) die('admin password (min 8 chars) required (--password or CREATE_TENANT_ADMIN_PASSWORD)')
-const timezone = values.timezone ?? 'Asia/Colombo'
-try {
-  new Intl.DateTimeFormat('en-US', { timeZone: timezone })
-} catch {
-  die(`unknown timezone "${timezone}" (use an IANA name such as Asia/Colombo)`)
-}
-
-const firebaseJson = readJson<{ emulators?: Record<string, { port?: number }> }>('firebase.json')
-if (target.env === 'emulator') {
-  process.env.FIREBASE_AUTH_EMULATOR_HOST ??= `127.0.0.1:${firebaseJson.emulators?.auth?.port ?? 9099}`
-  process.env.FIRESTORE_EMULATOR_HOST ??= `127.0.0.1:${firebaseJson.emulators?.firestore?.port ?? 8080}`
-  if (!loopback(process.env.FIREBASE_AUTH_EMULATOR_HOST) || !loopback(process.env.FIRESTORE_EMULATOR_HOST)) die('emulator hosts must be loopback addresses')
-} else {
-  // A real project: make sure no leftover emulator variable redirects the writes.
-  delete process.env.FIREBASE_AUTH_EMULATOR_HOST
-  delete process.env.FIRESTORE_EMULATOR_HOST
-}
-
-initializeApp({ projectId: target.projectId ?? (readJson<Firebaserc>('.firebaserc').projects?.default ?? 'demo-conveypass') })
-const auth = getAuth()
-const db = getFirestore()
-
-async function main(): Promise<void> {
-  const tenantName = values['tenant-name']?.trim()
-  if (!tenantName) die('--tenant-name is required')
-  // Default: `ten_` + 10 random chars, like tenants made by the setup link. --tenant-id still pins a readable id.
-  const tenantId = values['tenant-id'] ?? newTenantId()
-
-  if ((await db.doc(`tenants/${tenantId}`).get()).exists) die(`tenant "${tenantId}" already exists (use --tenant-id for another)`)
-  if (await auth.getUserByEmail(email).catch(() => null)) die(`an Auth user with ${email} already exists`)
-
-  const adminName = values.name ?? 'Admin'
-  const user = await auth.createUser({ email, password, displayName: adminName })
-  try {
-    await auth.setCustomUserClaims(user.uid, { role: 'admin', tenantId })
-    const batch = db.batch()
-    // Defaults, the admin doc and the audit entries come from provisionTenant: the same code the setup link runs.
-    provisionTenant(db, batch, {
-      tenantId, tenantName: tenantName as string, timezone,
-      admin: { uid: user.uid, name: adminName, email, mustChangePassword: !values['keep-password'], createdBy: 'create-tenant' },
-      actor: { uid: 'create-tenant', role: 'system' }, meta: { env: target.env }, createdAt: FieldValue.serverTimestamp(),
-    })
-    await batch.commit()
-  } catch (e) {
-    await auth.deleteUser(user.uid).catch(() => undefined)
-    throw e
-  }
-  console.log(`create-tenant: ${target.env} ready. tenant="${tenantId}" admin=${email} uid=${user.uid}`)
-  if (!values['keep-password']) console.log('create-tenant: the admin must change the password at first login')
-}
-
-main().catch((e: unknown) => {
-  console.error('create-tenant failed:', e instanceof Error ? e.message : e)
-  process.exit(1)
 })

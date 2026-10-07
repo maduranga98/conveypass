@@ -26,7 +26,9 @@ import {
   OperatorOverviewPage,
   OperatorWorkspaceDetailPage,
   OperatorWorkspacesPage,
+  PlatformChangePasswordPage,
   PlatformLayout,
+  PlatformLoginPage,
   PassesPage,
   PrivacyPage,
   QrLabelsPage,
@@ -56,10 +58,13 @@ export const router = createBrowserRouter([
   { path: '/auth/action', element: lazyEl(<AuthActionPage />) },
   // `/` sends everyone home (workspace users by role, operators to /platform); it handles auth itself.
   { path: '/', element: <RoleHomeRedirect /> },
+  // Module 11: the Super admin sign-in. Public, lazy, noindex; not linked from any workspace screen.
+  { path: '/platform/login', element: lazyEl(<PlatformLoginPage />) },
   {
     // Platform operator console (Module 9): operators only, no tenant, no notifications or workspace navigation.
     element: <RequireOperator />,
     children: [
+      { path: '/platform/change-password', element: lazyEl(<PlatformChangePasswordPage />) },
       {
         path: '/platform',
         element: lazyEl(<PlatformLayout />),

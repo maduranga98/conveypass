@@ -20,6 +20,7 @@ import type { WorkspaceAdmin } from '@/types/platform'
 import { CredentialsCard, type CredentialsView } from './CredentialsCard'
 import { ReauthCancelled } from './reauth'
 import { useReauthRetry } from './useReauthRetry'
+import { useSensitiveState } from './sensitive'
 import { WORKSPACES_KEY } from './queryKeys'
 
 const t = strings.platform.detail
@@ -106,6 +107,7 @@ export default function WorkspaceDetailPage() {
 
   // The temporary password exists only in this state: dropped on "I've shared it" or when the page is left.
   const [creds, setCreds] = useState<{ title: string; view: CredentialsView } | null>(null)
+  useSensitiveState(() => setCreds(null))
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<WorkspaceAdmin | null>(null)
   const [resetting, setResetting] = useState<WorkspaceAdmin | null>(null)

@@ -98,6 +98,17 @@ async function tenantByName(name: string): Promise<Record<string, unknown>> {
   return { id: docs[0]!.id, ...data }
 }
 
+/** Breaks a super admin on purpose (doctor / repair tests): drop the claims, delete the operators profile, or unverify the email. */
+async function breakOperator(email: string, what: string): Promise<string> {
+  const u = await auth.getUserByEmail(email)
+  if (what === 'claims') await auth.setCustomUserClaims(u.uid, {})
+  else if (what === 'tenant-claim') await auth.setCustomUserClaims(u.uid, { role: 'platform', platformAdmin: true, tenantId: TENANT })
+  else if (what === 'profile') await db.doc(`operators/${u.uid}`).delete()
+  else if (what === 'email') await auth.updateUser(u.uid, { emailVerified: false })
+  else throw new Error(`unknown break ${what}`)
+  return what
+}
+
 const [command, raw] = process.argv.slice(2)
 const args = JSON.parse(raw ?? '{}') as Record<string, string>
 const run = async (): Promise<unknown> => {
@@ -110,6 +121,8 @@ const run = async (): Promise<unknown> => {
       return expireInvite(args.hashPrefix ?? '')
     case 'tenantByName':
       return tenantByName(args.name ?? '')
+    case 'breakOperator':
+      return breakOperator(args.email ?? '', args.what ?? '')
     case 'notificationsFor':
       return notificationsFor(args.uid ?? '')
     default:

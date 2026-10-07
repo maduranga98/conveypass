@@ -7,7 +7,7 @@ import { WrongPassword } from './reauth'
 
 const t = strings.platform.reauth
 
-export function ReauthDialog({ open, onConfirm, onCancel }: { open: boolean; onConfirm: (password: string) => Promise<void>; onCancel: () => void }) {
+export function ReauthDialog({ open, onConfirm, onCancel, onSignInPage }: { open: boolean; onConfirm: (password: string) => Promise<void>; onCancel: () => void; onSignInPage?: () => void }) {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,6 +37,11 @@ export function ReauthDialog({ open, onConfirm, onCancel }: { open: boolean; onC
         <p className="text-sm text-slate-600">{t.body}</p>
         <Input label={t.password} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</p>}
+        {onSignInPage && (
+          <button type="button" onClick={onSignInPage} className="inline-flex min-h-11 items-center text-sm text-slate-700 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-accent">
+            {strings.platformAuth.reauthGoToSignIn}
+          </button>
+        )}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={cancel} disabled={busy}>{strings.common.cancel}</Button>
           <Button type="submit" loading={busy} disabled={password.length === 0}>{t.confirm}</Button>

@@ -3,13 +3,13 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Role } from '@/lib/roles'
 
-type Who = { kind: 'operator' } | { kind: 'tenant'; role: Role } | { kind: 'none' } | { kind: 'loading' }
+type Who = { kind: 'operator'; mustChange?: boolean } | { kind: 'tenant'; role: Role } | { kind: 'none' } | { kind: 'loading' }
 let who: Who = { kind: 'none' }
 
 vi.mock('./useAuth', () => ({
   useAuth: () => ({
     status: who.kind === 'loading' ? 'loading' : who.kind === 'none' ? 'signedOut' : 'signedIn',
-    operator: who.kind === 'operator' ? { uid: 'op1', name: 'Olive', email: 'olive@convoypass.test' } : null,
+    operator: who.kind === 'operator' ? { uid: 'op1', name: 'Olive', email: 'olive@convoypass.test', mustChangePassword: who.mustChange === true } : null,
     session: who.kind === 'tenant' ? { claims: { role: who.role, tenantId: 'T1' }, profile: { mustChangePassword: false } } : null,
   }),
 }))
@@ -22,7 +22,9 @@ const tree = (path: string) => (
     <Routes>
       <Route path="/" element={<RoleHomeRedirect />} />
       <Route path="/login" element={<p>login page</p>} />
+      <Route path="/platform/login" element={<p>super admin sign-in</p>} />
       <Route element={<RequireOperator />}>
+        <Route path="/platform/change-password" element={<p>change password page</p>} />
         <Route path="/platform/invites" element={<p>operator invites</p>} />
         <Route path="/platform/workspaces" element={<p>operator workspaces</p>} />
         <Route path="/platform/workspaces/:id" element={<p>operator workspace</p>} />
@@ -54,14 +56,27 @@ describe('/platform is operators only', () => {
       }
     }
   })
-  it('lets an operator in, and sends a visitor to the login page', () => {
+  it('lets an operator in, and sends a visitor to the Super admin sign-in (never the workspace login)', () => {
     who = { kind: 'operator' }
     const a = render(tree('/platform/invites'))
     expect(screen.getByText('operator invites')).toBeInTheDocument()
     a.unmount()
     who = { kind: 'none' }
     render(tree('/platform'))
-    expect(screen.getByText('login page')).toBeInTheDocument()
+    expect(screen.getByText('super admin sign-in')).toBeInTheDocument()
+    expect(screen.queryByText('login page')).toBeNull()
+  })
+  it('holds an operator with a temporary password on the change page until it is changed', () => {
+    who = { kind: 'operator', mustChange: true }
+    const a = render(tree('/platform/workspaces'))
+    expect(screen.getByText('change password page')).toBeInTheDocument()
+    expect(screen.queryByText('operator workspaces')).toBeNull()
+    a.unmount()
+    render(tree('/platform'))
+    expect(screen.getByText('change password page')).toBeInTheDocument()
+    who = { kind: 'operator', mustChange: false }
+    render(tree('/platform/change-password'))
+    expect(screen.getAllByText('change password page').length).toBeGreaterThan(0)
   })
 })
 

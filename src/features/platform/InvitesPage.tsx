@@ -19,6 +19,7 @@ import { formatExpiry } from './share'
 import { NewInviteForm, type NewInviteValues } from './NewInviteForm'
 import { ReauthCancelled } from './reauth'
 import { useReauthRetry } from './useReauthRetry'
+import { useSensitiveState } from './sensitive'
 
 const t = strings.platform.invites
 const KEY = ['platform', 'invites'] as const
@@ -31,6 +32,7 @@ export default function InvitesPage() {
   // The invite code exists ONLY in this state: not in a query or mutation cache, not in storage. Closing the card or
   // leaving the page (unmount) drops it.
   const [result, setResult] = useState<InviteResult | null>(null)
+  useSensitiveState(() => setResult(null))
   const [filter, setFilter] = useState<InviteStatus | ''>('')
   const [revoking, setRevoking] = useState<InviteRow | null>(null)
   const [revokeBusy, setRevokeBusy] = useState(false)

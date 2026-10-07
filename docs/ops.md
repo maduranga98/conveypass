@@ -103,11 +103,12 @@ is `/platform` ("Super admin console"). Internally the account is still called a
   `operators/{uid}` (name, email, createdAt, `status`); no `users` doc.
 - Every tenant rule and Storage rule needs a `tenantId`, so a super admin is denied all workspace data (passes, vehicles,
   drivers, photos, gate events, notifications). The console shows workspace names, admins and **counts** only.
-- **One or two accounts, on company mailboxes** (not personal ones), each with a **strong, unique password** (12+ characters,
-  a password manager). **Enable MFA through Identity Platform before onboarding the first paying client** (Firebase console >
+- **One or two accounts, on company mailboxes** (not personal ones), each with a **strong, unique password** (14+ characters,
+  a password manager). Full runbook (bootstrap, doctor, recovery, MFA, checklist): **`docs/superadmin.md`**. **Enable MFA through Identity Platform before onboarding the first paying client** (Firebase console >
   Authentication > Sign-in method > Multi-factor authentication): this account can create workspaces and admins.
 - Mutating calls (create or reset anything, disable, revoke) need a sign-in from the last 15 minutes; the console asks for the
-  password again and retries once. Reads work with an older login. Every call needs a verified email (the script verifies it) and
+  password again and retries once (or hands over to `/platform/login`, which returns to the same page). Changing the own
+  password needs 5 minutes. A temporary password forces `/platform/change-password`; 30 idle minutes sign the account out. Reads work with an older login. Every call needs a verified email (the script verifies it) and
   an `active` `operators/{uid}`, and is rate limited (30 a minute per function).
 - Every action is written to `platformAuditLog` (actor, action, hash prefix or tenant id; never a code, a password or a full
   hash) **and**, for anything touching a workspace's admins, to that tenant's own `auditLog` (actor role `superadmin`, name
@@ -115,21 +116,25 @@ is `/platform` ("Super admin console"). Internally the account is still called a
   write `actorUid: 'script'`. No client can read `platformAuditLog`: use the Firebase console.
 
 ```sh
-npm run superadmin:create -- --env staging --email olive@convoypass.com --name "Olive"        # password generated, printed once
-npm run superadmin:create -- --env prod --confirm-prod --email olive@convoypass.com --name "Olive" --password '<12+ characters>'
-npm run superadmin:disable -- --env prod --confirm-prod --email olive@convoypass.com           # disables, revokes tokens, marks the doc
+npm run superadmin:create -- --env staging --email olive@convoypass.com --name "Olive"          # password generated, printed once
+npm run superadmin:create -- --env prod --confirm-prod --email olive@convoypass.com --name "Olive"   # also asks you to type the project id
+npm run superadmin:doctor -- --env prod --confirm-prod --email olive@convoypass.com [--fix]
+npm run superadmin:disable -- --env prod --confirm-prod --email olive@convoypass.com            # disables, revokes tokens, marks the doc
 ```
 
-`superadmin:create` refuses a password under 12 characters, one equal to the email or on the common list, and an email that
-already has any account (a tenant user included); it never turns an existing account into a super admin.
+Every script needs `--env` (no default); production also needs the project id typed back, or `--confirm-project <id>` in CI.
+There is no `--password` argument: the password is generated (20 characters, printed once) or piped in with `--password-stdin`
+(14+ characters, not common, not the email). An existing account is never touched without `--repair` or `--reset-password`, and an
+email that belongs to a tenant user is refused. After writing, the script reads the account back and prints a PASS/FAIL table.
 
-**Locked-out super admin.** Use *Forgot password?* on the login page (the mailbox is verified, so the reset email works) or reset
-the password in the Firebase console (Authentication > Users). If the mailbox is lost: `npm run superadmin:disable` for the old
-account, then `superadmin:create` with a new mailbox (the old email stays taken, so use a different address).
+**Locked-out super admin.** `npm run superadmin:create -- --env prod --confirm-prod --email … --reset-password` prints a new
+temporary password once and signs every session out; `superadmin:doctor --fix` (or `--repair`) fixes broken claims or profile.
+Lost your machine: run the same commands from Google Cloud Shell. Compromise: `superadmin:disable`, review `platformAuditLog`, create
+a new account on a different mailbox. Details: `docs/superadmin.md`.
 
 ### Onboarding a new client
 
-**Normal route: Super admin console > New workspace.** Sign in at the login page (Staff tab) with the super admin account; you
+**Normal route: Super admin console > New workspace.** Sign in at `/platform/login` with the super admin account; you
 land on `/platform`.
 
 1. **Workspaces > New workspace.** Company name, timezone (search; default Asia/Colombo), admin name and admin email. The server
@@ -169,8 +174,8 @@ be deleted. If setup fails halfway (for example the email already has an account
 Operator fallback (no link; you choose the email and a temporary password, and the admin must change it at first login):
 
 ```sh
-npm run create-tenant -- --env staging --tenant-name "Acme Quarry" --email admin@acme.example --password '<temporary password>' [--timezone Asia/Colombo] [--tenant-id acme]
-npm run create-tenant -- --env prod --confirm-production --tenant-name "Acme Quarry" --email admin@acme.example   # password from CREATE_TENANT_ADMIN_PASSWORD
+npm run create-tenant -- --env staging --tenant-name "Acme Quarry" --email admin@acme.example [--timezone Asia/Colombo] [--tenant-id acme]   # temporary password generated, printed once
+pass show acme-admin | npm run create-tenant -- --env prod --confirm-prod --confirm-project <prod-project-id> --tenant-name "Acme Quarry" --email admin@acme.example --password-stdin
 ```
 
 Without `--tenant-id` the tenant id is `ten_` + 10 random characters.
@@ -228,7 +233,7 @@ Open the app's own page with the code from there: `http://localhost:5173/auth/ac
 `...?mode=verifyEmail&oobCode=<code>`. (The printed `oobLink` goes to the emulator's built-in action page instead; both finish
 the same reset.) `npm run admin:reset -- --env emulator --email ... --link` prints a link the same way.
 
-`npm run verify:invite-access` (emulators running) proves with a raw Admin SDK call and every client role that nobody can read or
+`npm run verify:invite-access` (emulators running; under `firebase emulators:exec` set `FIREBASE_PROJECT_ID` to the `--project` you gave it) proves with a raw Admin SDK call and every client role that nobody can read or
 write `setupInvites`.
 
 ## Backups and restore

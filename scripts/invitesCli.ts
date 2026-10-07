@@ -6,7 +6,7 @@ import {
   generateInviteCode, hashInviteCode, INVITE_DEFAULT_DAYS, INVITE_MAX_DAYS, INVITE_MIN_DAYS, inviteLink, inviteStatus,
 } from '../functions/src/tenants/inviteCode.ts'
 import { platformAudit, type PlatformAuditEntry } from '../functions/src/platform/platformAudit.ts'
-import { resolveTarget, type Firebaserc } from './envTarget.ts'
+import { COMMON_OPTIONS, resolveTarget, type Firebaserc } from './lib/env.ts'
 
 export interface StoredInvite {
   createdAtMs: number
@@ -74,9 +74,7 @@ export async function runInvitesCli(argv: string[], io: CliIo): Promise<number> 
       args: rest,
       allowPositionals: true,
       options: {
-        env: { type: 'string' },
-        'confirm-prod': { type: 'boolean', default: false },
-        'confirm-production': { type: 'boolean', default: false },
+        ...COMMON_OPTIONS,
         company: { type: 'string' },
         'lock-email': { type: 'string' },
         'expires-days': { type: 'string' },

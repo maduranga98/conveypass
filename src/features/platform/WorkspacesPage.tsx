@@ -20,6 +20,7 @@ import { NewWorkspaceForm, type NewWorkspaceValues } from './NewWorkspaceForm'
 import { WORKSPACES_KEY } from './queryKeys'
 import { ReauthCancelled } from './reauth'
 import { useReauthRetry } from './useReauthRetry'
+import { useSensitiveState } from './sensitive'
 
 const t = strings.platform.workspaces
 
@@ -31,6 +32,7 @@ export default function WorkspacesPage() {
   const [creating, setCreating] = useState(false)
   // The temporary password exists only in this state: dropped on "I've shared it" or when the page is left.
   const [creds, setCreds] = useState<CredentialsView | null>(null)
+  useSensitiveState(() => setCreds(null))
 
   const q = useInfiniteQuery({
     queryKey: WORKSPACES_KEY,

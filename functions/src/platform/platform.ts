@@ -3,10 +3,11 @@
 //   listTenants / getOperatorOverview                          counts and names only, never tenant business data
 //   getOperatorProfile                                         the operator's own `operators/{uid}` (clients cannot read it)
 // The code exists in exactly one place: the `createSetupInvite` response. It is never stored, logged or audited.
+import { isCommonPassword } from '../auth/commonPasswords.js'
 import { parse } from '../core.js'
 import { fail } from '../errors.js'
 import {
-  createSetupInviteSchema, listSetupInvitesSchema, listTenantsSchema, revokeSetupInviteSchema,
+  changeOwnPasswordSchema, createSetupInviteSchema, listSetupInvitesSchema, listTenantsSchema, revokeSetupInviteSchema,
 } from '../schemas.js'
 import {
   generateInviteCode, hashInviteCode, inviteLink, inviteStatus, type InviteStatus, type InviteTimes,
@@ -15,6 +16,10 @@ import { requireOperator, type AuthLike, type OperatorCaller, type OperatorPort 
 import { hashPrefixOf, platformAudit, type PlatformAuditEntry } from './platformAudit.js'
 
 export const PAGE_SIZE = 25
+/** A super admin chooses 14+ characters (the sign-in page mirrors this; `superadmin:create` enforces it for stdin passwords). */
+export const OPERATOR_PASSWORD_MIN_LENGTH = 14
+/** `changeOwnPassword` for a super admin needs a sign-in this recent (the same 5 minutes as for workspace users). */
+export const OPERATOR_PASSWORD_REAUTH_SECONDS = 5 * 60
 const SCAN_BATCH = 100
 const MAX_SCAN_BATCHES = 5
 const DAY_MS = 86_400_000
@@ -66,6 +71,8 @@ export interface PlatformPort extends OperatorPort {
   listTenants(p: { beforeMs: number | null; limit: number }): Promise<TenantRow[]>
   inviteTimes(): Promise<InviteTimes[]>
   tenantCount(): Promise<number>
+  /** Sets the operator's Auth password, then clears `operators.mustChangePassword` and writes the audit entry (never the password). */
+  setOperatorPassword(uid: string, password: string, audit: PlatformAuditEntry): Promise<void>
 }
 
 export interface PlatformDeps {
@@ -144,7 +151,33 @@ export function createPlatformApi(deps: PlatformDeps) {
 
   return {
     getOperatorProfile: (auth: AuthLike | undefined) =>
-      guarded(auth, 'getOperatorProfile', false, async (op) => ({ name: op.name, email: op.email })),
+      guarded(auth, 'getOperatorProfile', false, async (op) => ({ name: op.name, email: op.email, mustChangePassword: op.mustChangePassword })),
+
+    /**
+     * The super admin's own password (the `changeOwnPassword` callable routes platform tokens here). Same guard as every
+     * operator call, plus a sign-in from the last 5 minutes; the new password is never logged, audited or returned.
+     */
+    async changeOwnPassword(auth: AuthLike | undefined, raw: unknown) {
+      return guarded(auth, 'changeOwnPassword', false, async (op) => {
+        const { newPassword } = parse(changeOwnPasswordSchema, raw ?? {})
+        const authTime = typeof auth?.token.auth_time === 'number' ? auth.token.auth_time : 0
+        if (Math.floor(deps.now() / 1000) - authTime > OPERATOR_PASSWORD_REAUTH_SECONDS) {
+          throw fail('failed-precondition', 'recent-login-required', 'Please sign in again to change your password')
+        }
+        if (newPassword.length < OPERATOR_PASSWORD_MIN_LENGTH) {
+          throw fail('invalid-argument', 'invalid-input', `Password must be at least ${OPERATOR_PASSWORD_MIN_LENGTH} characters`)
+        }
+        if (newPassword.toLowerCase() === op.email.toLowerCase() || isCommonPassword(newPassword)) {
+          throw fail('invalid-argument', 'invalid-input', 'Choose a password that is not your email address or a common one')
+        }
+        try {
+          await deps.port.setOperatorPassword(op.uid, newPassword, platformAudit(op.uid, 'operator.passwordChanged', op.uid, {}))
+        } catch {
+          throw fail('internal', 'internal', 'Could not change the password')
+        }
+        return { ok: true as const }
+      })
+    },
 
     async createSetupInvite(auth: AuthLike | undefined, raw: unknown) {
       return guarded(auth, 'createSetupInvite', true, async (op) => {

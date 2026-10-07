@@ -12,6 +12,8 @@ export interface OperatorSession {
   uid: string
   name: string
   email: string
+  /** A temporary password is in use: the console sends the operator to /platform/change-password first. */
+  mustChangePassword: boolean
 }
 
 export interface AuthContextValue {
@@ -26,6 +28,8 @@ export interface AuthContextValue {
   signOut: () => Promise<void>
   /** Force-refresh the ID token and re-read claims (`getIdToken(true)`). */
   refreshClaims: () => Promise<void>
+  /** Operators: re-read `getOperatorProfile` (after the forced password change). */
+  refreshOperator: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
