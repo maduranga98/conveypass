@@ -132,6 +132,8 @@ export default function AuditPage() {
 
   const names = useMemo(() => new Map((users.data ?? []).map((u) => [u.id, u.name])), [users.data])
   const actorName = (uid: string): string => (uid === 'system' ? t.system : (names.get(uid) ?? t.unknownUser))
+  // The platform super admin is not a user of this tenant: the entry carries the display name.
+  const actorLabel = (e: AuditEntry): string => (e.actorRole === 'superadmin' ? (e.actorName ?? t.superAdmin) : actorName(e.actorUid))
 
   const key = ['audit', claims.tenantId, tz, applied] as const
   const pages = useInfiniteQuery({
@@ -167,7 +169,8 @@ export default function AuditPage() {
     setExporting(true)
     try {
       const { entries, capped } = await fetchAuditForExport(claims.tenantId, applied, tz)
-      downloadAuditCsv(entries, applied, actorName, tz)
+      const supers = new Map(entries.filter((e) => e.actorRole === 'superadmin').map((e) => [e.actorUid, e.actorName ?? t.superAdmin]))
+      downloadAuditCsv(entries, applied, (uid) => supers.get(uid) ?? actorName(uid), tz)
       toast.success(capped ? `${t.exported(entries.length)} ${t.exportNote}` : t.exported(entries.length))
     } catch {
       toast.error(strings.common.somethingWrong)
@@ -219,8 +222,8 @@ export default function AuditPage() {
                   <tr key={e.id}>
                     <td className="whitespace-nowrap px-4 py-3 tabular-nums text-slate-700">{formatInZone(e.createdAt, tz)}</td>
                     <td className="px-4 py-3">
-                      <span className="font-medium text-slate-900">{actorName(e.actorUid)}</span>
-                      <span className="block text-xs text-slate-600">{strings.roles[e.actorRole as keyof typeof strings.roles] ?? e.actorRole}</span>
+                      <span className="font-medium text-slate-900">{actorLabel(e)}</span>
+                      <span className="block text-xs text-slate-600">{e.actorRole === 'superadmin' ? t.superAdminRole : (strings.roles[e.actorRole as keyof typeof strings.roles] ?? e.actorRole)}</span>
                     </td>
                     <td className="px-4 py-3 text-slate-800">{actionLabel(e.action)}</td>
                     <td className="px-4 py-3 text-slate-700">
@@ -250,7 +253,7 @@ export default function AuditPage() {
         </>
       )}
 
-      {open && <Detail entry={open} tz={tz} actor={actorName(open.actorUid)} onClose={() => setOpen(null)} />}
+      {open && <Detail entry={open} tz={tz} actor={actorLabel(open)} onClose={() => setOpen(null)} />}
     </div>
   )
 }

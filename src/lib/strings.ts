@@ -119,6 +119,8 @@ export const strings = {
     noMeta: 'No extra details.',
     system: 'System',
     unknownUser: 'Unknown user',
+    superAdmin: 'ConvoyPass Super Admin',
+    superAdminRole: 'Super admin',
     targets: { user: 'User', vehicle: 'Vehicle', contractor: 'Contractor', tenant: 'Settings', pass: 'Pass', gateEvent: 'Gate event', notification: 'Notification' },
     actions: {
       'user.create': 'User created',
@@ -1296,6 +1298,11 @@ export const strings = {
       newReason: 'New reason',
     },
     settings: {
+      adminsTitle: 'Admins',
+      adminsHint: 'Read only. Admin accounts are managed by ConvoyPass.',
+      adminsNote: 'To add or reset an admin, contact your ConvoyPass administrator.',
+      adminsEmpty: 'No admins found.',
+      adminsLoadFailed: 'Could not load the admins.',
       title: 'Pass settings',
       intro: 'Drivers see these changes the next time they open a vehicle.',
       checklistTitle: 'Pre-trip checklist',
@@ -1332,6 +1339,8 @@ export const strings = {
       emptyBody: 'Try changing the filters, or create a user.',
       columns: { name: 'Name', role: 'Role', login: 'Email / phone', contractor: 'Contractor', status: 'Status' },
       mustChange: 'Must change password',
+      managedBy: 'Managed by ConvoyPass',
+      adminNote: 'To add or reset an admin, contact your ConvoyPass administrator.',
       count: (n: number) => `${n} ${n === 1 ? 'user' : 'users'}`,
     },
     createUser: {

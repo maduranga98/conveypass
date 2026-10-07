@@ -29,6 +29,7 @@ import { RejectionReasonsEditor } from './RejectionReasonsEditor'
 import { GatesEditor } from './GatesEditor'
 import { RetentionEditor } from './RetentionEditor'
 import { SlaEditor } from './SlaEditor'
+import { AdminsCard } from './AdminsCard'
 
 const t = strings.admin.settings
 const MAX_ITEMS = 12
@@ -265,6 +266,7 @@ export default function SettingsPage() {
       ) : (
         <SettingsForm tenant={tenant.data} tenantId={claims.tenantId} />
       )}
+      <AdminsCard />
     </div>
   )
 }

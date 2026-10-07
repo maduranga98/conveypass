@@ -11,6 +11,9 @@ export const ROLE_HOME: Record<Role, string> = {
   security: '/security',
 }
 
+/** Roles a tenant admin may create. Admins are created by the platform super admin only (Module 10). */
+export const CREATABLE_ROLES: readonly Role[] = ROLES.filter((r) => r !== 'admin')
+
 export const STAFF_ROLES: readonly Role[] = ['admin', 'officer', 'supervisor', 'security']
 
 /** Platform operators (Module 9) are not a tenant role: they have no tenant and live under /platform only. */
