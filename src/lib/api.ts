@@ -135,7 +135,7 @@ export const completeSetup = call<
 
 // Module 9: platform operator console. Operators only (claims { role: 'platform', platformAdmin: true }, no tenant).
 // `createSetupInvite` returns the invite code ONCE: the page holds it in component state only (never a query cache).
-export const getOperatorProfile = call<Record<string, never>, { name: string; email: string }>('getOperatorProfile', 20_000)
+export const getOperatorProfile = call<Record<string, never>, { name: string; email: string; mustChangePassword: boolean }>('getOperatorProfile', 20_000)
 export const getOperatorOverview = call<Record<string, never>, OperatorOverview>('getOperatorOverview', 20_000)
 export const createSetupInvite = call<{ companyHint?: string; lockEmail?: string; expiresInDays: number }, CreatedInvite>('createSetupInvite', 30_000)
 export const listSetupInvites = call<{ status?: InviteStatus; cursor?: string }, { invites: InviteRow[]; nextCursor: string | null }>('listSetupInvites', 30_000)

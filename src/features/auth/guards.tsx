@@ -2,6 +2,8 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { OPERATOR_HOME, ROLE_HOME, type Role } from '@/lib/roles'
 import { ForbiddenPage } from './ErrorPages'
+import { IdleGuard } from '@/features/platform/IdleGuard'
+import { changePasswordUrl as operatorChangePasswordUrl, PLATFORM_CHANGE_PASSWORD, peekLoginReason, platformLoginUrl } from '@/features/platform/redirect'
 import { changePasswordUrl, loginUrl } from './redirect'
 import { useAuth } from './useAuth'
 
@@ -42,14 +44,25 @@ export function RoleHomeRedirect() {
 }
 
 /**
- * UI-level gate for /platform/*: only a platform operator gets in; a workspace user gets a 403 and a visitor goes to
- * /login. The functions re-check everything (claims, verified email, active operators doc) on every call.
+ * UI-level gate for /platform/* (except the public /platform/login): only a platform operator gets in; a workspace user
+ * gets a 403 and a visitor goes to the Super admin sign-in page (never to the workspace login). An operator with a
+ * temporary password is held on /platform/change-password until it is changed. The functions re-check everything
+ * (claims, verified email, active operators doc) on every call. Operators also get the 30 minute idle timeout.
  */
 export function RequireOperator() {
   const { status, operator, session } = useAuth()
   const location = useLocation()
+  const here = location.pathname + location.search
   if (status === 'loading') return <PageSpinner />
-  if (!operator && !session) return <Navigate to={loginUrl(location.pathname + location.search)} replace />
+  if (!operator && !session) return <Navigate to={platformLoginUrl(here, peekLoginReason())} replace />
   if (!operator) return <ForbiddenPage />
-  return <Outlet />
+  if (operator.mustChangePassword && location.pathname !== PLATFORM_CHANGE_PASSWORD) {
+    return <Navigate to={operatorChangePasswordUrl(here)} replace />
+  }
+  return (
+    <>
+      <IdleGuard />
+      <Outlet />
+    </>
+  )
 }

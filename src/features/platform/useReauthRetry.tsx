@@ -1,7 +1,9 @@
 // When the server answers `reauth-required`, ask for the password, then send the same request again ONCE.
 import { useCallback, useRef, useState, type ReactNode } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { apiErrorReason } from '@/lib/errors'
 import { ReauthDialog } from './ReauthDialog'
+import { platformLoginUrl } from './redirect'
 import { ReauthCancelled, reauthenticate } from './reauth'
 
 /**
@@ -10,6 +12,8 @@ import { ReauthCancelled, reauthenticate } from './reauth'
  */
 export function useReauthRetry(): { run: <T>(fn: () => Promise<T>) => Promise<T>; dialog: ReactNode } {
   const [open, setOpen] = useState(false)
+  const navigate = useNavigate()
+  const location = useLocation()
   const waiter = useRef<{ resolve: () => void; reject: (e: Error) => void } | null>(null)
 
   const ask = () =>
@@ -41,6 +45,13 @@ export function useReauthRetry(): { run: <T>(fn: () => Promise<T>) => Promise<T>
         setOpen(false)
         waiter.current?.reject(new ReauthCancelled())
         waiter.current = null
+      }}
+      // Module 11: the same stale-login refusal can also be settled on the Super admin sign-in page, which returns here.
+      onSignInPage={() => {
+        setOpen(false)
+        waiter.current?.reject(new ReauthCancelled())
+        waiter.current = null
+        navigate(platformLoginUrl(location.pathname + location.search, 'reauth'))
       }}
     />
   )

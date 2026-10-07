@@ -8,6 +8,7 @@ import { strings } from '@/lib/strings'
 import type { Contractor, UserDoc } from '@/types'
 import { getOperatorProfile } from '@/lib/api'
 import { apiErrorReason } from '@/lib/errors'
+import { clearSensitiveState } from '@/features/platform/sensitive'
 import { isOperatorToken, parseClaims } from './claims'
 import { AuthContext, type AuthContextValue, type OperatorSession, type Session } from './useAuth'
 
@@ -40,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!user) {
         queryClient.clear() // never leak one account's cached data into the next session
+        clearSensitiveState() // one-time credential cards, invite codes: gone with the session
         setState((s) => ({ status: 'signedOut', session: null, operator: null, notice: s.notice }))
         return
       }
@@ -144,6 +146,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState((s) => (s.session ? { ...s, session: { ...s.session, claims } } : s))
   }, [endSession])
 
+  const refreshOperator = useCallback(async () => {
+    const user = auth.currentUser
+    if (!user) return
+    try {
+      const profile = await getOperatorProfile({})
+      setState((s) => (s.operator ? { ...s, operator: { uid: user.uid, ...profile } } : s))
+    } catch {
+      await endSession(strings.authErrors.sessionEnded)
+    }
+  }, [endSession])
+
   const value = useMemo<AuthContextValue>(
     () => ({
       ...state,
@@ -151,12 +164,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut: async () => {
         // This device must stop receiving this account's alerts (best effort, never blocks sign-out).
         const uid = auth.currentUser?.uid
-        if (uid) await releaseDeviceOnSignOut(uid)
+        if (uid && !state.operator) await releaseDeviceOnSignOut(uid) // super admins register no device
         await fbSignOut(auth)
       },
       refreshClaims,
+      refreshOperator,
     }),
-    [state, refreshClaims],
+    [state, refreshClaims, refreshOperator],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

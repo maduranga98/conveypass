@@ -31,7 +31,7 @@ beforeEach(() => { vi.clearAllMocks(); state.listener = null })
 
 describe('AuthProvider: platform operator', () => {
   it('signs an operator in from getOperatorProfile: no tenant session, no users doc read', async () => {
-    getProfile.mockResolvedValue({ name: 'Olive', email: 'olive@convoypass.test' })
+    getProfile.mockResolvedValue({ name: 'Olive', email: 'olive@convoypass.test', mustChangePassword: false })
     mount()
     state.listener?.(user(OP))
     await waitFor(() => expect(screen.getByTestId('p').textContent).toBe('signedIn|no-tenant|olive@convoypass.test|no-notice'))
@@ -49,5 +49,20 @@ describe('AuthProvider: platform operator', () => {
     state.listener?.(user({ ...OP, tenantId: 'T1' }))
     await waitFor(() => expect(state.signOut).toHaveBeenCalled())
     expect(getProfile).not.toHaveBeenCalled()
+  })
+  it('exposes a pending password change, and drops one-time secrets when the session ends', async () => {
+    const { useSensitiveState } = await import('@/features/platform/sensitive')
+    const cleared = vi.fn()
+    const Secret = () => {
+      useSensitiveState(cleared)
+      return null
+    }
+    getProfile.mockResolvedValue({ name: 'Olive', email: 'olive@convoypass.test', mustChangePassword: true })
+    const Pending = () => <p data-testid="m">{String(useAuth().operator?.mustChangePassword)}</p>
+    render(<AuthProvider><Probe /><Pending /><Secret /></AuthProvider>)
+    state.listener?.(user(OP))
+    await waitFor(() => expect(screen.getByTestId('m').textContent).toBe('true'))
+    state.listener?.(null)
+    await waitFor(() => expect(cleared).toHaveBeenCalled())
   })
 })
