@@ -1,6 +1,11 @@
 import { initializeApp } from 'firebase/app'
 import { connectAuthEmulator, getAuth } from 'firebase/auth'
-import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
+import {
+  connectFirestoreEmulator,
+  initializeFirestore,
+  memoryLocalCache,
+  memoryLruGarbageCollector,
+} from 'firebase/firestore'
 import { connectFunctionsEmulator, getFunctions } from 'firebase/functions'
 import { connectStorageEmulator, getStorage } from 'firebase/storage'
 
@@ -17,7 +22,12 @@ const app = initializeApp({
 })
 
 export const auth = getAuth(app)
-export const db = getFirestore(app)
+// In-memory cache with LRU eviction: documents read earlier in the session (the gate's vehicles, drivers and today's
+// passes) stay available while the connection drops, but nothing is written to disk, so one account's data never
+// outlives the page for the next person on a shared phone.
+export const db = initializeFirestore(app, {
+  localCache: memoryLocalCache({ garbageCollector: memoryLruGarbageCollector({ cacheSizeBytes: 40 * 1024 * 1024 }) }),
+})
 export const functions = getFunctions(app, FUNCTIONS_REGION)
 export const storage = getStorage(app)
 
