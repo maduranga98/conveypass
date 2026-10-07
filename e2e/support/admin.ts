@@ -76,7 +76,7 @@ async function writePass(status = 'submitted', vehicleId = VEHICLE, plateNo = PL
 }
 
 const notificationsFor = async (uid: string): Promise<{ id: string; read: boolean }[]> =>
-  (await db.collection('notifications').where('recipientUid', '==', uid).get()).docs.map((d) => ({ id: d.id, read: (d.data() as { readAt: unknown }).readAt !== null }))
+  (await db.collection('notifications').where('recipientUid', '==', uid).get()).docs.map((d: { id: string; data: () => unknown }) => ({ id: d.id, read: (d.data() as { readAt: unknown }).readAt !== null }))
 
 const [command, raw] = process.argv.slice(2)
 const args = JSON.parse(raw ?? '{}') as Record<string, string>
