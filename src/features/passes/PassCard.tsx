@@ -90,7 +90,7 @@ export function PassCard({ pass, now, contractorName, mode = 'open', selected = 
           ))}
         </div>
 
-        <div className="flex min-h-7 flex-wrap items-center gap-2">
+        <div className={cn('flex flex-wrap items-center gap-2', (issues > 0 || (selecting && !canPick)) && 'min-h-7')}>
           {issues > 0 && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-red-700 px-3 py-1 text-sm font-bold text-white">
               <TriangleAlert aria-hidden className="size-4" />

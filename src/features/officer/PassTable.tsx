@@ -123,7 +123,7 @@ export function PassTable({ rows, now, today, contractorName, openId, onOpen, se
                 {showStatus && <td className="px-3 py-2"><PassStatusBadge status={displayStatus(p, today)} /></td>}
                 <td className="px-3 py-2">
                   {issues > 0 ? (
-                    <span className="inline-flex items-center rounded-full bg-red-700 px-2.5 py-0.5 text-xs font-bold text-white">{c.card.issues(issues)}</span>
+                    <span className="inline-flex items-center whitespace-nowrap rounded-full bg-red-700 px-2.5 py-0.5 text-xs font-bold text-white">{c.card.issues(issues)}</span>
                   ) : (
                     <Check aria-label={t.noIssues} className="size-4 text-emerald-700" />
                   )}

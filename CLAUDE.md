@@ -2,14 +2,14 @@
 
 Multi-tenant PWA for approving gate passes for third-party contractor vehicles.
 Flow: Driver pre-trip form -> Supervisor approves -> Officer approves -> Security checks in.
-**Modules 1 (users, roles, auth), 2 (contractors, vehicles, driver profiles, vehicle QR) and 3 (driver scan + pre-trip form, creates `submitted` passes) are built.** Approvals/rejections, notifications, the security view of `/v/:vehicleId`, gate check-in, reports and document-expiry alerts come later.
+**Modules 1 (users, roles, auth), 2 (contractors, vehicles, driver profiles, vehicle QR), 3 (driver scan + pre-trip form, creates `submitted` passes) and 4 (supervisor and officer approvals, rejections, revoke) are built.** Notifications, the security view of `/v/:vehicleId`, gate check-in, reports and document-expiry alerts come later.
 
 ## Stack
 Vite + React 19 + TypeScript (strict, `noUncheckedIndexedAccess`) + Tailwind v4, react-router-dom v7, TanStack Query, react-hook-form + zod, sonner, lucide-react.
 Firebase modular SDK: Auth, Firestore, Cloud Functions v2 (Node 22, `functions/`), Hosting, emulators. Path alias `@/` -> `src/`.
 
 ## Layout
-`src/app` (router, providers) · `src/lib` (firebase, strings, credentials, plate, appUrl, vehicleTypes, errors, api) · `src/features/{auth,admin,vehicles,drivers,qr,supervisor,passes,shared}` · `src/components/ui` · `src/types` · `functions/src` · `scripts/{seed,seed-demo}.ts` · `tests/rules`.
+`src/app` (router, providers) · `src/lib` (firebase, strings, credentials, plate, appUrl, vehicleTypes, errors, api) · `src/features/{auth,admin,vehicles,drivers,qr,supervisor,officer,passes,shared}` · `src/components/ui` · `src/types` · `functions/src` · `scripts/{seed,seed-demo}.ts` · `tests/rules`.
 
 ## Rules of the road
 - **Roles**: `admin | officer | supervisor | driver | security`. Homes: `/admin /officer /supervisor /driver /security`.
@@ -28,6 +28,24 @@ Firebase modular SDK: Auth, Firestore, Cloud Functions v2 (Node 22, `functions/`
 - **Lists**: loaded once per scope (`admin` = tenant, `supervisor` = own contractor; supervisors cannot query `contractors` tenant-wide, rules allow only their own doc), max 1000 docs ordered by plateKey/name, filtered client-side, invalidated after mutations. The same feature components serve both scopes via a `scope` prop. Queries must include the same `where` clauses the rules require.
 - **QR**: `VITE_APP_BASE_URL` is required for QR screens (`QrGate`); a localhost/private/non-production host (pin the real domain with `VITE_PRODUCTION_HOST`) shows the red "Dev link: do not print" banner. `qrcode.react`, level `Q`; PNG download is 1024 px via canvas. Label sheets print A4 with 10 mm margins (large 90 mm 2x3, small 50 mm 3x5); app chrome hides itself with `print:` variants.
 - **Passes** (`passes/{vehicleId}_{dateKey}`): one per vehicle per day. `dateKey` is `YYYYMMDD` in `tenants.timezone` (default `Asia/Colombo`) from `dateKey(timezone, date)` in `src/lib/dates.ts` / `functions/src/dates.ts` (duplicated on purpose; the one place to change for per-trip/per-shift). A non-`rejected` pass blocks everyone else; a `rejected` one is resubmitted in place by the same driver with `attempt + 1` (max 5), the reason moves to `rejectionHistory[]` (with that attempt's checklist and evidence refs). **All writes to `passes` go through callables** (`resolveVehicle` (drivers only, returns a discriminated `state`), `submitPass`, `updateTenantSettings` (admin)); rules give clients read only. Server-side: dateKey, tenant, contractor, plate, driver name and checklist labels are never taken from the client. Evidence lives at `tenants/{tid}/passes/{vehicleId}/{dateKey}/{attempt}/{gps|dashcam|extra1|extra2}.jpg`, is uploaded straight from the browser (driver assigned to the vehicle; only while no pass exists or the pass is rejected and `attempt` is the next one), and `submitPass` re-verifies every file with the Admin SDK (JPEG signature, 10-700 KB, created within 30 min). Earlier attempts' evidence is never overwritten or deleted. Storage rules read Firestore (`firestore.get`): first deploy needs the cross-service IAM grant. Checklist and pass settings come from `tenants/{id}` (`checklist`, `passSettings`) with defaults in `defaultChecklist.ts` (duplicated in `functions/src`).
+- **Approvals (Module 4)**: the state machine lives in ONE file, `functions/src/passTransitions.ts`; `src/lib/passTransitions.ts` is a read-only mirror for UI labels (a unit test compares them). Changing the flow means changing the table, the tests and both copies.
+
+  | From | To | Action | Who |
+  |---|---|---|---|
+  | `submitted` | `supervisor_approved` | approve | supervisor, own contractor |
+  | `submitted` | `rejected` | reject | supervisor, own contractor |
+  | `supervisor_approved` | `officer_approved` | approve | officer |
+  | `supervisor_approved` | `rejected` | reject | officer |
+  | `officer_approved` | `rejected` | revoke (`stage: 'revoked'`) | officer or admin, only before `checked_in` |
+
+  - **Admin cannot approve or reject**, at either step, in the UI or the functions (`reviewStageOf('admin')` is `null`). Admin can view everything and revoke.
+  - **Expected status and attempt**: every decision carries what the reviewer was looking at (`expectedStatus`, `expectedAttempt`). `decidePass` re-reads the pass inside the transaction and refuses a mismatch with `failed-precondition` / `pass-changed` ("This pass changed. Please review it again."). The UI keeps decisions locked until the reviewer acknowledges a changed pass (`useReviewLock`). `bulkApprove` derives the status from the caller's role and takes only the attempt; `revokePass` takes an optional `expectedAttempt` (the UI always sends it).
+  - **Today only**: a pass whose `dateKey` is not today (tenant timezone, same helper as Module 3) can never be approved, rejected or revoked (`pass-expired`). UI status `expired` = waiting for a reviewer from a previous day; read only.
+  - **Active checks** (approve and reject, not revoke): the vehicle, its contractor and the driver (`users` doc) must be active, else `vehicle-suspended` / `contractor-suspended` / `driver-inactive`.
+  - **Bulk rules**: max 50 items, one transaction per item, per-item `{ passId, ok, error? }`, one failure never fails the batch. A pass with ANY checklist answer `no` returns `has_issues` and is not approved; enforced on the server, and the UI never offers a checkbox for it. A UI selection remembers the attempt that was ticked and drops the pass if the driver resubmits.
+  - **Data**: `supervisor` / `officer` `{ uid, name, at }` (cleared on resubmit), `rejection` `{ reason, reasonCode, note?, stage, byUid, byName, byRole, at }` (`reason` = label plus note; for `other` the note alone; Module 3's resubmit screen shows it unchanged), `history[]` of every decision (never trimmed, survives resubmits), `rejectionHistory[]` (earlier rejections with that attempt's checklist and evidence refs). Reasons come from `tenants.rejectionReasons` (2-10, `other` always present, ids are slugs that never change), defaults in `defaultRejectionReasons.ts` (duplicated in `functions/src` and `src/lib`; change both).
+  - **Live data**: `usePassQueue` shares one `onSnapshot` listener (limit 100) per distinct query and unsubscribes with the last user; badges (`usePendingCount`) read the same listener as the list. Queries carry the where clauses the rules require (tenant; supervisor also contractor). Indexes: see `firestore.indexes.json`; the emulator does not enforce them, production does.
+  - Decisions are optimistic (`useDecisions` hides the decided version, rolls back on error). Callables: `decidePass`, `bulkApprove`, `revokePass`, and `updateTenantSettings` also takes `rejectionReasons`.
 - **API payloads**: send phone numbers as typed (`07…`); the server normalises them. The `94…` form is not accepted as input.
 - **Strings**: all user-facing text in `src/lib/strings.ts` (Sinhala/Tamil later).
 - **Shared logic duplicated on purpose**: `src/lib/credentials.ts` and `functions/src/credentials.ts` (functions deploy from their own folder). Change both, plus tests.
@@ -35,6 +53,6 @@ Firebase modular SDK: Auth, Firestore, Cloud Functions v2 (Node 22, `functions/`
 - No `any` (lint-enforced). No secrets, project IDs or credentials in code.
 
 ## Commands
-`npm run dev` · `npm run build` · `npm run typecheck` · `npm run lint` · `npm test` (unit + component + functions + rules; functions and rules start the Firestore/Storage emulators) · `npm run emulators` · `npm run seed:emulator -- --email … --password …` · `npm run seed:demo` (emulator only; 2 contractors, 6 vehicles, 4 drivers, prints logins) · `npm run seed:prod -- --confirm-production --email … --password …`
+`npm run dev` · `npm run build` · `npm run typecheck` · `npm run lint` · `npm test` (unit + component + functions + rules; functions and rules start the Firestore/Storage emulators) · `npm run emulators` · `npm run seed:emulator -- --email … --password …` · `npm run seed:demo` (emulator only; admin, officer, 2 supervisors, 4 drivers, 9 vehicles, passes in every state with fixture photos from `scripts/fixtures/evidence`, prints logins) · `npm run seed:prod -- --confirm-production --email … --password …`
 
 In a sandbox with an outbound HTTP proxy, run emulator tests with the proxy variables unset (the Storage emulator's Firestore lookups on 127.0.0.1 otherwise go through the proxy and fail).
