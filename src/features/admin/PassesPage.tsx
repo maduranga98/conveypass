@@ -8,7 +8,7 @@ import { Modal } from '@/components/ui/Modal'
 import { dateKey as dayKey, DEFAULT_TIMEZONE } from '@/lib/dates'
 import { strings } from '@/lib/strings'
 import { useSession } from '@/features/auth/useAuth'
-import { PassHistory } from '@/features/passes/PassHistory'
+import { CheckInBlock, PassHistory } from '@/features/passes/PassHistory'
 import { PassReview } from '@/features/passes/PassReview'
 import { PassStatusBadge } from '@/features/passes/PassStatusBadge'
 import { displayStatus, formatTime, issueCount, timeAgo, toMs, type DisplayStatus } from '@/features/passes/passView'
@@ -59,6 +59,7 @@ function PassDrawer({ passId, today, contractorName, onClose }: { passId: string
       ) : (
         <div className="space-y-6">
           <PassReview pass={state.pass} today={today} contractorName={contractorName(state.pass.contractorId)} />
+          <CheckInBlock pass={state.pass} />
           <PassHistory pass={state.pass} />
           {state.pass.status === 'officer_approved' ? (
             <Button variant="danger" className="w-full" onClick={() => { setError(null); setRevoking(true) }}>{t.revoke}</Button>
