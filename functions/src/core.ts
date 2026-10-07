@@ -317,7 +317,7 @@ export async function requireActiveContractor(deps: Deps, caller: Caller, contra
  * or long blobs (photo URLs, file contents) are replaced. Nothing here is expected to trigger; it is the net under
  * the redaction test (`audit.redaction.test.ts`).
  */
-const SECRET_KEY = /pass(word)?|pin$|^pin|token|secret|credential|apikey|authorization|dataurl|base64|content|bytes/i
+const SECRET_KEY = /passw|passphrase|pin$|^pin|token|secret|credential|apikey|authorization|dataurl|base64|content|bytes/i
 const SECRET_VALUE = /https?:\/\/|data:|^eyJ|[A-Za-z0-9+/_-]{60,}/
 
 export function sanitiseMeta(meta: AuditEntry['meta']): AuditEntry['meta'] {

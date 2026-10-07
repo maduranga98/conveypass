@@ -2,6 +2,7 @@
 // (and the whole audit entry) never contains any of it. A new path that goes through `audit()` is covered by the
 // source scan at the bottom.
 import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { bulkApprove, decidePass, revokePass } from './approvals.js'
 import { changeOwnPassword, createUser, resetCredential, sanitiseMeta, updateUser } from './core.js'
@@ -104,8 +105,8 @@ describe('audit redaction: every write path', () => {
   })
 
   it('no module writes auditLog except through the data port, and the port always spreads an AuditEntry', () => {
-    const files = readdirSync(new URL('.', import.meta.url)).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
-    const writers = files.filter((f) => readFileSync(new URL(f, import.meta.url), 'utf8').includes("'auditLog'"))
+    const files = readdirSync(__dirname).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
+    const writers = files.filter((f) => readFileSync(join(__dirname, f), 'utf8').includes("'auditLog'"))
     // ports.ts is the Admin SDK adapter; notifications/retention reuse deps.data.writeAudit rather than writing directly.
     expect(writers).toEqual(['ports.ts'])
   })

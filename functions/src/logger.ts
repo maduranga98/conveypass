@@ -17,7 +17,7 @@ export interface LogContext {
 
 export type LogExtra = Record<string, string | number | boolean | null | undefined>
 
-const SENSITIVE_KEY = /pass(word)?|pin$|^pin|token|secret|credential|authorization|cookie|url|phone|email|name$|photo|plate|payload|body/i
+const SENSITIVE_KEY = /passw|passphrase|pin$|^pin|token|secret|credential|authorization|cookie|url|phone|email|name$|photo|plate|payload|body/i
 const MASKABLE = /https?:\/\/|data:|^eyJ|[A-Za-z0-9_-]{40,}/
 const MAX_STRING = 120
 
