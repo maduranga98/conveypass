@@ -8,6 +8,7 @@ import * as gate from './gate.js'
 import { fail } from './errors.js'
 import { newVehicleId } from './ids.js'
 import * as passes from './passes.js'
+import * as reportsApi from './reportsApi.js'
 import { authPort, dataPort, storagePort } from './ports.js'
 import { ROLES, type Caller, type Role } from './types.js'
 import * as vehicles from './vehicles.js'
@@ -88,3 +89,11 @@ export const revokePass = onCall((request) => approvals.revokePass(deps(), calle
 // Module 5: the gate. Security reads directly from Firestore; these are its only writes.
 export const checkIn = onCall((request) => gate.checkIn(deps(), callerFrom(request), request.data))
 export const denyEntry = onCall((request) => gate.denyEntry(deps(), callerFrom(request), request.data))
+
+// Module 6: dashboard trend and reports (admin and officer, read only).
+export const getDashboardTrend = onCall({ timeoutSeconds: 60 }, (request) =>
+  reportsApi.getDashboardTrend(deps(), callerFrom(request), request.data),
+)
+export const runReport = onCall({ timeoutSeconds: 300, memory: '1GiB' }, (request) =>
+  reportsApi.runReport(deps(), callerFrom(request), request.data),
+)

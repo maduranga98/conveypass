@@ -247,6 +247,40 @@ export function makeWorld(): World {
         w.audits.push(audit)
       },
       writeAudit: async (audit) => void w.audits.push(audit),
+      countPasses: async (q) => (await w.deps.data.listPasses(q, Number.MAX_SAFE_INTEGER)).length,
+      listPasses: async (q, limit) =>
+        [...w.passes]
+          .filter(([, p]) => {
+            if (p.tenantId !== q.tenantId) return false
+            if (q.kind === 'checkIn') return p.checkIn !== undefined && p.checkIn.at >= q.startMs && p.checkIn.at < q.endMs
+            return (
+              p.dateKey >= q.fromKey &&
+              p.dateKey <= q.toKey &&
+              (!q.statuses || q.statuses.includes(p.status)) &&
+              (!q.contractorId || p.contractorId === q.contractorId) &&
+              (!q.vehicleId || p.vehicleId === q.vehicleId) &&
+              (!q.driverId || p.driverId === q.driverId)
+            )
+          })
+          .slice(0, limit)
+          .map(([id, p]) => {
+            const { evidence: _e, checklist: _c, captureMeta: _m, tenantId: _t, ...rest } = structuredClone(p)
+            void _e; void _c; void _m; void _t
+            const { rejectionHistory, ...slim } = rest
+            return {
+              ...slim,
+              id,
+              ...(rejectionHistory ? { rejectionHistory: rejectionHistory.map(({ checklist: _k, evidence: _v, ...r }) => (void _k, void _v, r)) } : {}),
+            }
+          }),
+      countGateEvents: async (q) => (await w.deps.data.listGateEvents(q, Number.MAX_SAFE_INTEGER)).length,
+      listGateEvents: async (q, limit) =>
+        [...w.gateEvents]
+          .filter(([, e]) => e.tenantId === q.tenantId && e.at >= q.startMs && e.at < q.endMs)
+          .slice(0, limit)
+          .map(([id, e]) => ({ ...structuredClone(e), id })),
+      listContractorNames: async (tenantId) =>
+        new Map([...w.contractors].filter(([, c]) => c.tenantId === tenantId).map(([id]) => [id, `Name ${id}`])),
       listUserIdsByContractor: async (tenantId, contractorId) =>
         [...w.users].filter(([, u]) => u.tenantId === tenantId && u.contractorId === contractorId).map(([uid]) => uid),
     },
