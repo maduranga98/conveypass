@@ -3,7 +3,8 @@ import type { Role } from './roles'
 import { functions } from './firebase'
 import type { ChecklistItemDef, PassSettings } from './defaultChecklist'
 import type { VehicleType } from './vehicleTypes'
-import type { ResolveResult, SubmitPassPayload } from '@/types/passes'
+import type { RejectionReasonDef } from './defaultRejectionReasons'
+import type { BulkItemResult, DecidePassPayload, PassStatus, ResolveResult, SubmitPassPayload } from '@/types/passes'
 
 export interface CreateUserPayload {
   role: Role
@@ -73,6 +74,20 @@ export const submitPass = call<SubmitPassPayload, { passId: string; status: 'sub
   60_000,
 )
 export const updateTenantSettings = call<
-  { passSettings?: PassSettings; checklist?: ChecklistItemDef[] },
+  { passSettings?: PassSettings; checklist?: ChecklistItemDef[]; rejectionReasons?: RejectionReasonDef[] },
   { ok: true }
 >('updateTenantSettings')
+
+// Module 4: approvals. The client says what it was looking at (expectedStatus/Attempt); the server decides.
+export const decidePass = call<DecidePassPayload, { passId: string; status: PassStatus; attempt: number }>(
+  'decidePass',
+  30_000,
+)
+export const bulkApprove = call<{ items: { passId: string; expectedAttempt: number }[] }, { results: BulkItemResult[] }>(
+  'bulkApprove',
+  120_000,
+)
+export const revokePass = call<
+  { passId: string; reasonCode: string; note?: string; expectedAttempt?: number },
+  { passId: string; status: 'rejected' }
+>('revokePass', 30_000)

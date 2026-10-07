@@ -45,9 +45,82 @@ export interface PassDoc {
   checklist: PassChecklistItem[]
   evidence: PassEvidence
   captureMeta: CaptureMeta
-  /** Written by Module 4. */
-  rejection?: { reason: string; byUid: string; byRole: string; at: Timestamp }
-  rejectionHistory?: { reason: string; attempt: number; at: Timestamp }[]
+  /** Set when a supervisor approves; cleared when the driver resubmits. */
+  supervisor?: ApprovalStamp
+  /** Set when an officer approves; cleared when the driver resubmits. */
+  officer?: ApprovalStamp
+  rejection?: Rejection
+  /** Earlier rejections, moved here when the driver resubmits. */
+  rejectionHistory?: RejectionHistoryEntry[]
+  /** Every decision ever made on this pass, never removed (not even on resubmit). */
+  history?: HistoryEntry[]
+}
+
+export type DecisionStage = 'supervisor' | 'officer' | 'revoked'
+
+export interface ApprovalStamp {
+  uid: string
+  name: string
+  at: Timestamp
+}
+
+export interface Rejection {
+  /** Human readable: the reason label plus the note. Shown on the driver's resubmit screen. */
+  reason: string
+  reasonCode: string
+  note?: string
+  stage: DecisionStage
+  byUid: string
+  byName: string
+  byRole: string
+  at: Timestamp
+}
+
+export interface RejectionHistoryEntry extends Rejection {
+  attempt: number
+  checklist: PassChecklistItem[]
+  evidence: PassEvidence
+}
+
+export interface HistoryEntry {
+  action: 'approve' | 'reject' | 'revoke'
+  stage: DecisionStage
+  byUid: string
+  byName: string
+  byRole: string
+  at: Timestamp
+  attempt: number
+}
+
+export type PassWithId = PassDoc & { id: string }
+
+// ---- Module 4 callables (mirrors functions/src/approvals.ts) ---------------------------------
+
+export interface DecidePassPayload {
+  passId: string
+  action: 'approve' | 'reject'
+  expectedStatus: PassStatus
+  expectedAttempt: number
+  reasonCode?: string
+  note?: string
+}
+
+export type BulkErrorCode =
+  | 'has_issues'
+  | 'pass-changed'
+  | 'pass-expired'
+  | 'pass-not-found'
+  | 'forbidden'
+  | 'tenant-mismatch'
+  | 'vehicle-suspended'
+  | 'contractor-suspended'
+  | 'driver-inactive'
+  | 'internal'
+
+export interface BulkItemResult {
+  passId: string
+  ok: boolean
+  error?: BulkErrorCode
 }
 
 export interface SubmitPassPayload {
