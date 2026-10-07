@@ -10,7 +10,7 @@ const options = (maxSizeMB: number, edge: number) => ({
   maxWidthOrHeight: edge,
   fileType: 'image/jpeg',
   initialQuality: 0.8,
-  useWebWorker: true,
+  useWebWorker: false, // the worker build loads its code from a CDN (blocked by the CSP, and unavailable offline)
 })
 
 /** Resizes to about 400 px and re-encodes as JPEG under 150 KB. Throws when the file is not a usable image. */

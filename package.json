@@ -17,7 +17,10 @@
     "seed:emulator": "tsx scripts/seed.ts --target=emulator",
     "seed:prod": "tsx scripts/seed.ts --target=prod",
     "seed:demo": "tsx scripts/seed-demo.ts",
-    "postinstall": "npm --prefix functions install"
+    "postinstall": "npm --prefix functions install",
+    "config:csp": "tsx scripts/enforce-csp.ts",
+    "create-tenant": "tsx scripts/create-tenant.ts",
+    "reset-admin": "tsx scripts/reset-admin.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

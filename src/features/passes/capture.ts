@@ -60,7 +60,7 @@ export async function encodeAndCompress(canvas: HTMLCanvasElement): Promise<Blob
       maxWidthOrHeight: MAX_EDGE_PX,
       fileType: 'image/jpeg',
       initialQuality: 0.8,
-      useWebWorker: true,
+      useWebWorker: false, // the worker build loads its code from a CDN (blocked by the CSP, and unavailable offline)
     })
   }
   if (blob.size > HARD_MAX_BYTES) throw new Error('photo too large')

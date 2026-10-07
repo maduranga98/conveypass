@@ -1,9 +1,11 @@
 import { initializeApp } from 'firebase-admin/app'
 import { setGlobalOptions } from 'firebase-functions/v2'
+import { onRequest } from 'firebase-functions/v2/https'
 import { ENFORCE_APP_CHECK, REGION } from './config.js'
 import * as approvals from './approvals.js'
 import * as clientErrors from './clientErrors.js'
 import * as core from './core.js'
+import { handleCspReport } from './cspReport.js'
 import * as devices from './devices.js'
 import * as gate from './gate.js'
 import * as passes from './passes.js'
@@ -58,3 +60,6 @@ export const unregisterDevice = callable('unregisterDevice', (d, caller, data) =
 
 // Browsers report crashes here: signed-in users only, rate limited per user, scrubbed and truncated, logs only.
 export const reportClientError = callable('reportClientError', clientErrors.reportClientError, { rateLimit: true })
+
+// Content-Security-Policy-Report-Only violations (hosting rewrites /csp-report here). Logs only: host, path, directive.
+export const cspReport = onRequest({ cors: false, maxInstances: 2, memory: '128MiB' }, (req, res) => handleCspReport(req, res))
