@@ -130,8 +130,8 @@ export async function runReport(deps: Deps, caller: Caller, raw: unknown, scanCa
     ...(input.driverId ? { driverId: input.driverId } : {}),
   }
 
-  let passes: ReportPass[] = []
-  let events: ReportEvent[] = []
+  let passes: ReportPass[]
+  let events: ReportEvent[]
   if (input.type === 'gate_log') {
     // Check-ins by `checkIn.at`, denials by `at`. Filters apply in memory so no extra indexes are needed.
     const passQuery: PassQuery = { kind: 'checkIn', tenantId, startMs: bounds.startMs, endMs: bounds.endMs }
@@ -160,6 +160,7 @@ export async function runReport(deps: Deps, caller: Caller, raw: unknown, scanCa
     if ((await deps.data.countPasses(query)) > scanCap) throw tooLarge()
     passes = await deps.data.listPasses(query, scanCap + 1)
     if (passes.length > scanCap) throw tooLarge()
+    events = []
   }
 
   const reasonLabels = new Map<string, string>(DEFAULT_REJECTION_REASONS.map((r) => [r.id, r.label]))
