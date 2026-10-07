@@ -1,5 +1,6 @@
 import { ClipboardList } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
@@ -19,6 +20,7 @@ import { usePass } from '@/features/passes/usePass'
 import { usePassQueue } from '@/features/passes/usePassQueue'
 import { useNow, useToday } from '@/features/passes/useToday'
 import { useContractorList } from '@/features/shared/queries'
+import { vehicleHistoryLink } from '@/features/reports/filters'
 import type { PassWithId } from '@/types/passes'
 
 const t = strings.admin.passes
@@ -58,7 +60,7 @@ function PassDrawer({ passId, today, contractorName, onClose }: { passId: string
         <ErrorState message={t.loadFailed} />
       ) : (
         <div className="space-y-6">
-          <PassReview pass={state.pass} today={today} contractorName={contractorName(state.pass.contractorId)} />
+          <PassReview pass={state.pass} today={today} contractorName={contractorName(state.pass.contractorId)} {...(today ? { historyHref: vehicleHistoryLink('admin', state.pass.vehicleId, today) } : {})} />
           <CheckInBlock pass={state.pass} />
           <PassHistory pass={state.pass} />
           {state.pass.status === 'officer_approved' ? (
@@ -80,9 +82,14 @@ export default function PassesPage() {
   const now = useNow()
   const contractors = useContractorList('admin')
   const [picked, setPicked] = useState<string | null>(null) // dateKey the admin chose; null = today
-  const [status, setStatus] = useState<DisplayStatus | ''>('')
+  // `?status=` and `?pass=` come from the dashboard tiles and attention list.
+  const [params] = useSearchParams()
+  const [status, setStatus] = useState<DisplayStatus | ''>(() => {
+    const s = params.get('status')
+    return s && (STATUS_FILTERS as string[]).includes(s) ? (s as DisplayStatus) : ''
+  })
   const [contractorId, setContractorId] = useState('')
-  const [openId, setOpenId] = useState<string | null>(null)
+  const [openId, setOpenId] = useState<string | null>(() => params.get('pass'))
 
   const day = picked ?? today ?? dayKey(tenant.data?.timezone ?? DEFAULT_TIMEZONE)
   const queue = usePassQueue({ scope: 'admin', dateKey: day, enabled: today !== null })

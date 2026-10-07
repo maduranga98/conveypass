@@ -89,8 +89,9 @@ export function toRequest(f: ReportFilters): ReportRequest {
   }
 }
 
-/** A link to a vehicle's history for the last 30 days. */
+/** A link to a vehicle's history for the last 30 days. `today` is a `YYYY-MM-DD` day or a `YYYYMMDD` dateKey. */
 export function vehicleHistoryLink(scope: 'admin' | 'officer', vehicleId: string, today: string): string {
-  const { from, to } = presetRange('last30', today)
+  const day = today.includes('-') ? today : `${today.slice(0, 4)}-${today.slice(4, 6)}-${today.slice(6, 8)}`
+  const { from, to } = presetRange('last30', day)
   return `/${scope}/reports?${toParams({ type: 'vehicle_history', preset: 'last30', from, to, contractorId: '', vehicleId, driverId: '' })}`
 }

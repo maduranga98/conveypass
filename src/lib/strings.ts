@@ -465,6 +465,7 @@ export const strings = {
       driverNote: (note: string) => `Driver's note: ${note}`,
     },
     info: {
+      vehicleHistory: 'Vehicle history',
       driver: 'Driver',
       vehicle: 'Vehicle',
       contractor: 'Contractor',
@@ -922,7 +923,7 @@ export const strings = {
   },
 
   admin: {
-    nav: { dashboard: 'Dashboard', reports: 'Reports', users: 'Users', contractors: 'Contractors', vehicles: 'Vehicles', drivers: 'Drivers', passes: 'Passes', gateLog: 'Gate log', qr: 'QR labels', settings: 'Settings' },
+    nav: { dashboard: 'Dashboard', reports: 'Reports', users: 'Users', contractors: 'Contractors', vehicles: 'Vehicles', drivers: 'Drivers', passes: 'Passes', qr: 'QR labels', settings: 'Settings' },
     gates: {
       title: 'Gates',
       hint: 'Security picks one of these on their phone. 1 to 10 gates.',
@@ -941,22 +942,6 @@ export const strings = {
       officer: 'Officer, minutes',
       error: 'Use a whole number from 5 to 240',
       usingDefaults: 'Showing the default (30 minutes each). Save to make it your own.',
-    },
-    gateLog: {
-      title: 'Gate log',
-      intro: 'Check-ins and denied entries for one day (tenant timezone). Read only.',
-      date: 'Date',
-      columns: { time: 'Time', type: 'Type', plate: 'Plate', contractor: 'Contractor', driver: 'Driver', gate: 'Gate', guard: 'Guard', reason: 'Reason or note' },
-      checkIn: 'Check-in',
-      denied: 'Denied',
-      offline: (time: string) => `Offline · device ${time} (unverified)`,
-      passStatus: (status: string) => `Pass: ${status}`,
-      noPass: 'No pass today',
-      emptyTitle: 'Nothing at the gate this day',
-      emptyBody: 'Pick another date.',
-      loadFailed: "Couldn't load the gate log.",
-      count: (n: number) => `${n} ${n === 1 ? 'entry' : 'entries'}`,
-      capNotice: 'Showing the first 500 of each kind for this day.',
     },
     panel: 'Admin',
     passes: {

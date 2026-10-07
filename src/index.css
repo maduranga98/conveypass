@@ -23,6 +23,19 @@
   margin: 10mm;
 }
 
+/* Reports: the table header repeats on every printed page, the totals row does not. */
+@media print {
+  .report-table thead {
+    display: table-header-group;
+  }
+  .report-table tfoot {
+    display: table-row-group;
+  }
+  .report-table tr {
+    break-inside: avoid;
+  }
+}
+
 @media print {
   html,
   body {
