@@ -9,8 +9,11 @@ interface ModalProps {
   onClose: () => void
   title: string
   children: ReactNode
-  /** `drawer` slides in from the right on desktop and fills the screen on mobile. */
-  variant?: 'center' | 'drawer'
+  /**
+   * `drawer` slides in from the right on desktop and fills the screen on mobile. `sheet` is a bottom sheet on
+   * mobile and a centred dialog from `sm` up.
+   */
+  variant?: 'center' | 'drawer' | 'sheet'
   footer?: ReactNode
 }
 
@@ -36,9 +39,10 @@ export function Modal({ open, onClose, title, children, variant = 'center', foot
       }}
       className={cn(
         'bg-white p-0 text-slate-900 shadow-xl backdrop:bg-slate-900/40',
-        variant === 'center'
-          ? 'm-auto w-[calc(100%-2rem)] max-w-md rounded-xl'
-          : 'my-0 ml-auto mr-0 h-dvh max-h-dvh w-full max-w-none sm:max-w-md',
+        variant === 'center' && 'm-auto w-[calc(100%-2rem)] max-w-md rounded-xl',
+        variant === 'drawer' && 'my-0 ml-auto mr-0 h-dvh max-h-dvh w-full max-w-none sm:max-w-md',
+        variant === 'sheet' &&
+          'mx-0 mb-0 mt-auto w-full max-w-none rounded-t-2xl sm:m-auto sm:w-[calc(100%-2rem)] sm:max-w-md sm:rounded-xl',
       )}
     >
       {open && (

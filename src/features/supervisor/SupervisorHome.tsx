@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { strings } from '@/lib/strings'
 import { useSession } from '@/features/auth/useAuth'
+import { usePendingCount } from '@/features/passes/usePendingCount'
 import { useDrivers, useVehicles } from '@/features/shared/queries'
 
 const t = strings.supervisor
@@ -26,6 +27,7 @@ const actionClass =
 
 export default function SupervisorHome() {
   const { profile } = useSession()
+  const { count: pendingCount } = usePendingCount('supervisor')
   const vehicles = useVehicles('supervisor')
   const drivers = useDrivers('supervisor')
   const count = (q: { isPending: boolean; isError: boolean; data?: { items: unknown[] } }): ReactNode =>
@@ -49,11 +51,20 @@ export default function SupervisorHome() {
         </Link>
       </section>
 
-      {/* Reserved for the approval queue (later module). */}
-      <section aria-label={t.approvalsTitle} className="rounded-xl border border-dashed border-slate-300 p-6 text-center">
-        <ClipboardCheck aria-hidden className="mx-auto size-8 text-slate-300" />
-        <h2 className="mt-3 text-sm font-medium">{t.approvalsTitle}</h2>
-        <p className="mt-1 text-sm text-slate-500">{t.approvalsBody}</p>
+      <section aria-label={t.approvalsTitle} className="space-y-3 rounded-2xl border-2 border-slate-300 bg-white p-4">
+        <div className="flex items-center gap-3">
+          <ClipboardCheck aria-hidden className="size-7 shrink-0 text-accent" />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-semibold">{t.homePendingTitle}</h2>
+            <p aria-live="polite" className="text-sm text-slate-700">
+              {pendingCount === null ? strings.common.loading : t.homePending(pendingCount)}
+            </p>
+          </div>
+          <span className="text-4xl font-extrabold tabular-nums tracking-tight">{pendingCount ?? strings.common.none}</span>
+        </div>
+        <Link to="/supervisor/approvals" className="flex h-14 items-center justify-center rounded-xl bg-accent text-lg font-bold text-white hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+          {t.openApprovals}
+        </Link>
       </section>
     </div>
   )

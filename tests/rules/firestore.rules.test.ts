@@ -513,3 +513,74 @@ describe('passes', () => {
     await assertFails(updateDoc(doc(drvA1(), 'tenants', A), { passSettings: { requireLocation: true } }))
   })
 })
+
+describe('passes: approval queues (Module 4)', () => {
+  const DAY = '20260310'
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore()
+      const pass = (tenantId: string, contractorId: string, driverId: string, status: string, over: Record<string, unknown> = {}) => ({
+        tenantId, contractorId, driverId, status, attempt: 1, dateKey: DAY, submittedAt: new Date(),
+        checklist: [{ id: 'x', label: 'X', answer: 'yes' }], ...over,
+      })
+      await setDoc(doc(db, 'passes', 'q1'), pass(A, 'c1', 'drvA1', 'submitted'))
+      await setDoc(doc(db, 'passes', 'q2'), pass(A, 'c1', 'drvA1b', 'supervisor_approved', { supervisor: { uid: 'supA1', name: 'S' } }))
+      await setDoc(doc(db, 'passes', 'q3'), pass(A, 'c2', 'drvA2', 'submitted'))
+      await setDoc(doc(db, 'passes', 'q4'), pass(A, 'c2', 'drvA2', 'supervisor_approved', { dateKey: '20260309' }))
+      await setDoc(doc(db, 'passes', 'q5'), pass(B, 'cB', 'drvB1', 'submitted'))
+    })
+  })
+  const dayQuery = (db: ReturnType<typeof adminA>, ...extra: ReturnType<typeof where>[]) =>
+    getDocs(query(collection(db, 'passes'), where('tenantId', '==', A), ...extra))
+
+  it('a supervisor’s live queue only works scoped to their contractor, and never shows another contractor', async () => {
+    const db = supA1()
+    const mine = await assertSucceeds(dayQuery(db, where('contractorId', '==', 'c1'), where('status', 'in', ['submitted', 'supervisor_approved']), where('dateKey', '==', DAY)))
+    expect(mine.docs.map((d) => d.id).sort()).toEqual(['q1', 'q2'])
+    await assertFails(dayQuery(db, where('contractorId', '==', 'c2'), where('status', '==', 'submitted')))
+    await assertFails(dayQuery(db, where('status', '==', 'submitted'))) // not scoped to the contractor
+    await assertFails(getDoc(doc(db, 'passes', 'q3')))
+  })
+  it('an officer’s queue (status + day, and the expired range) reads across contractors in the tenant only', async () => {
+    const db = officerA()
+    const awaiting = await assertSucceeds(dayQuery(db, where('status', '==', 'supervisor_approved'), where('dateKey', '==', DAY)))
+    expect(awaiting.docs.map((d) => d.id)).toEqual(['q2'])
+    const expired = await assertSucceeds(dayQuery(db, where('status', 'in', ['submitted', 'supervisor_approved']), where('dateKey', '<', DAY)))
+    expect(expired.docs.map((d) => d.id)).toEqual(['q4'])
+    await assertFails(getDocs(query(collection(db, 'passes'), where('tenantId', '==', B))))
+    await assertFails(getDoc(doc(db, 'passes', 'q5')))
+  })
+  it('admin reads the day list for the tenant, not another tenant’s', async () => {
+    const day = await assertSucceeds(dayQuery(adminA(), where('dateKey', '==', DAY)))
+    expect(day.size).toBe(3)
+    await assertFails(getDoc(doc(adminA(), 'passes', 'q5')))
+  })
+  it('a driver reads only their own, and not through a tenant-wide or contractor-wide query', async () => {
+    await assertSucceeds(getDoc(doc(drvA1(), 'passes', 'q1')))
+    await assertFails(getDoc(doc(drvA1(), 'passes', 'q2')))
+    await assertFails(dayQuery(drvA1(), where('contractorId', '==', 'c1')))
+  })
+  it('no role can write any decision field, create a history entry or delete (all of it is function-only)', async () => {
+    const decisions = [
+      { status: 'supervisor_approved' },
+      { status: 'officer_approved', officer: { uid: 'x', name: 'X' } },
+      { status: 'rejected', rejection: { reason: 'r', reasonCode: 'other', stage: 'officer' } },
+      { history: [] },
+      { supervisor: { uid: 'x', name: 'X' } },
+    ]
+    for (const db of [adminA(), supA1(), drvA1(), officerA(), securityA()]) {
+      for (const patch of decisions) await assertFails(updateDoc(doc(db, 'passes', 'q1'), patch))
+      await assertFails(deleteDoc(doc(db, 'passes', 'q1')))
+    }
+  })
+  it('members read rejectionReasons from their tenant document but cannot change it', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'tenants', A), { name: 'A', status: 'active', rejectionReasons: [{ id: 'other', label: 'Other' }] })
+    })
+    for (const db of [adminA(), supA1(), officerA(), drvA1()]) {
+      const snap = await assertSucceeds(getDoc(doc(db, 'tenants', A)))
+      expect(snap.data()?.rejectionReasons).toEqual([{ id: 'other', label: 'Other' }])
+      await assertFails(updateDoc(doc(db, 'tenants', A), { rejectionReasons: [] }))
+    }
+  })
+})

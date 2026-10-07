@@ -1,0 +1,176 @@
+import { ClipboardList } from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
+import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
+import { ListSkeleton } from '@/components/ui/Skeleton'
+import { Modal } from '@/components/ui/Modal'
+import { dateKey as dayKey, DEFAULT_TIMEZONE } from '@/lib/dates'
+import { strings } from '@/lib/strings'
+import { useSession } from '@/features/auth/useAuth'
+import { PassHistory } from '@/features/passes/PassHistory'
+import { PassReview } from '@/features/passes/PassReview'
+import { PassStatusBadge } from '@/features/passes/PassStatusBadge'
+import { displayStatus, formatTime, issueCount, timeAgo, toMs, type DisplayStatus } from '@/features/passes/passView'
+import { useRejectionReasons, useTenant } from '@/features/passes/queries'
+import { RejectSheet, type RejectChoice } from '@/features/passes/RejectSheet'
+import { useDecisions } from '@/features/passes/useDecisions'
+import { usePass } from '@/features/passes/usePass'
+import { usePassQueue } from '@/features/passes/usePassQueue'
+import { useNow, useToday } from '@/features/passes/useToday'
+import { useContractorList } from '@/features/shared/queries'
+import type { PassWithId } from '@/types/passes'
+
+const t = strings.admin.passes
+
+/** `2026-03-10` (date input) <-> `20260310` (dateKey). */
+const toInput = (key: string): string => `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`
+const fromInput = (v: string): string => v.replaceAll('-', '')
+
+const STATUS_FILTERS: DisplayStatus[] = ['submitted', 'supervisor_approved', 'officer_approved', 'checked_in', 'rejected', 'expired']
+
+/** Read-only pass table for admins: filters, a detail drawer with the full history, and Revoke. Never approve or reject. */
+function PassDrawer({ passId, today, contractorName, onClose }: { passId: string; today: string | null; contractorName: (id: string) => string; onClose: () => void }) {
+  const { claims } = useSession()
+  const reasons = useRejectionReasons(claims.tenantId)
+  const state = usePass(passId)
+  const decisions = useDecisions()
+  const [revoking, setRevoking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [sending, setSending] = useState(false)
+
+  const pass = state.status === 'ready' ? state.pass : null
+  const confirm = async (choice: RejectChoice) => {
+    if (!pass) return
+    setSending(true)
+    setError(null)
+    const res = await decisions.revoke(pass, choice, { inline: true })
+    setSending(false)
+    if (res.outcome === 'error') setError(res.message ?? strings.common.somethingWrong)
+    else setRevoking(false)
+  }
+
+  return (
+    <Modal open onClose={onClose} title={t.drawerTitle} variant="drawer">
+      {state.status === 'loading' ? (
+        <ListSkeleton rows={3} />
+      ) : state.status === 'error' || state.status === 'missing' ? (
+        <ErrorState message={t.loadFailed} />
+      ) : (
+        <div className="space-y-6">
+          <PassReview pass={state.pass} today={today} contractorName={contractorName(state.pass.contractorId)} />
+          <PassHistory pass={state.pass} />
+          {state.pass.status === 'officer_approved' ? (
+            <Button variant="danger" className="w-full" onClick={() => { setError(null); setRevoking(true) }}>{t.revoke}</Button>
+          ) : (
+            <p className="text-sm text-slate-500">{t.revokeHint}</p>
+          )}
+        </div>
+      )}
+      <RejectSheet open={revoking} mode="revoke" reasons={reasons} loading={sending} error={error} onConfirm={(c) => void confirm(c)} onCancel={() => setRevoking(false)} />
+    </Modal>
+  )
+}
+
+export default function PassesPage() {
+  const { claims } = useSession()
+  const tenant = useTenant(claims.tenantId)
+  const today = useToday()
+  const now = useNow()
+  const contractors = useContractorList('admin')
+  const [picked, setPicked] = useState<string | null>(null) // dateKey the admin chose; null = today
+  const [status, setStatus] = useState<DisplayStatus | ''>('')
+  const [contractorId, setContractorId] = useState('')
+  const [openId, setOpenId] = useState<string | null>(null)
+
+  const day = picked ?? today ?? dayKey(tenant.data?.timezone ?? DEFAULT_TIMEZONE)
+  const queue = usePassQueue({ scope: 'admin', dateKey: day, enabled: today !== null })
+
+  const nameOf = useCallback((id: string) => contractors.data?.find((c) => c.id === id)?.name ?? strings.common.none, [contractors.data])
+  const rows = useMemo(
+    () =>
+      queue.items.filter(
+        (p: PassWithId) => (status === '' || displayStatus(p, today) === status) && (contractorId === '' || p.contractorId === contractorId),
+      ),
+    [queue.items, status, contractorId, today],
+  )
+
+  const field = 'h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm focus-visible:outline-2 focus-visible:outline-accent'
+  const label = 'flex flex-col gap-1 text-sm font-medium text-slate-700'
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t.intro}</p>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <label className={label}>
+          {t.date}
+          <input type="date" value={toInput(day)} onChange={(e) => e.target.value && setPicked(fromInput(e.target.value))} className={field} />
+        </label>
+        <label className={label}>
+          {t.status}
+          <select value={status} onChange={(e) => setStatus(e.target.value as DisplayStatus | '')} className={field}>
+            <option value="">{t.allStatuses}</option>
+            {STATUS_FILTERS.map((s) => <option key={s} value={s}>{strings.approvals.status[s]}</option>)}
+          </select>
+        </label>
+        <label className={label}>
+          {t.contractor}
+          <select value={contractorId} onChange={(e) => setContractorId(e.target.value)} className={field}>
+            <option value="">{t.allContractors}</option>
+            {(contractors.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
+        {!queue.isLoading && <p role="status" className="pb-2 text-sm text-slate-600">{t.count(rows.length)}</p>}
+      </div>
+
+      {queue.isError && queue.items.length === 0 ? (
+        <ErrorState message={t.loadFailed} onRetry={queue.retry} />
+      ) : queue.isLoading ? (
+        <ListSkeleton rows={6} />
+      ) : rows.length === 0 ? (
+        <div className="rounded-xl border border-slate-200 bg-white">
+          <EmptyState icon={<ClipboardList aria-hidden />} title={t.emptyTitle} body={t.emptyBody} />
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <table className="w-full min-w-[720px] border-collapse text-sm">
+            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+              <tr>
+                <th scope="col" className="px-4 py-3">{t.columns.plate}</th>
+                <th scope="col" className="px-4 py-3">{t.columns.contractor}</th>
+                <th scope="col" className="px-4 py-3">{t.columns.driver}</th>
+                <th scope="col" className="px-4 py-3">{t.columns.status}</th>
+                <th scope="col" className="px-4 py-3">{t.columns.submitted}</th>
+                <th scope="col" className="px-4 py-3">{t.columns.issues}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map((p) => (
+                <tr key={p.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3">
+                    <button type="button" onClick={() => setOpenId(p.id)} aria-label={t.open(p.plateNo)} className="rounded font-bold tracking-tight text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+                      {p.plateNo}
+                    </button>
+                    <p className="text-xs text-slate-500">{p.vehicleType}</p>
+                  </td>
+                  <td className="px-4 py-3">{nameOf(p.contractorId)}</td>
+                  <td className="px-4 py-3">{p.driverName}</td>
+                  <td className="px-4 py-3"><PassStatusBadge status={displayStatus(p, today)} /></td>
+                  <td className="px-4 py-3 whitespace-nowrap">{timeAgo(toMs(p.submittedAt), now)} <span className="text-xs text-slate-500">({formatTime(toMs(p.submittedAt))})</span></td>
+                  <td className="px-4 py-3">{issueCount(p) > 0 ? <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">{strings.approvals.card.issues(issueCount(p))}</span> : strings.common.none}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {queue.capped && <p role="status" className="text-sm text-slate-600">{strings.approvals.queue.capNotice}</p>}
+
+      {openId && <PassDrawer key={openId} passId={openId} today={today} contractorName={nameOf} onClose={() => setOpenId(null)} />}
+    </div>
+  )
+}

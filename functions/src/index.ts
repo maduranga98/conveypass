@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase-admin/app'
 import { onCall, type CallableRequest } from 'firebase-functions/v2/https'
 import { setGlobalOptions } from 'firebase-functions/v2'
 import { REGION } from './config.js'
+import * as approvals from './approvals.js'
 import * as core from './core.js'
 import { fail } from './errors.js'
 import { newVehicleId } from './ids.js'
@@ -75,3 +76,10 @@ export const submitPass = onCall((request) => passes.submitPass(deps(), callerFr
 export const updateTenantSettings = onCall((request) =>
   passes.updateTenantSettings(deps(), callerFrom(request), request.data),
 )
+
+export const decidePass = onCall((request) => approvals.decidePass(deps(), callerFrom(request), request.data))
+// 50 items, one transaction each.
+export const bulkApprove = onCall({ timeoutSeconds: 120 }, (request) =>
+  approvals.bulkApprove(deps(), callerFrom(request), request.data),
+)
+export const revokePass = onCall((request) => approvals.revokePass(deps(), callerFrom(request), request.data))

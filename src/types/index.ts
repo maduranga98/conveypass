@@ -1,6 +1,7 @@
 import type { Timestamp } from 'firebase/firestore'
 import type { Role } from '@/lib/roles'
 import type { ChecklistItemDef, PassSettings } from '@/lib/defaultChecklist'
+import type { RejectionReasonDef } from '@/lib/defaultRejectionReasons'
 import type { VehicleType } from '@/lib/vehicleTypes'
 
 export type UserStatus = 'active' | 'disabled'
@@ -15,6 +16,8 @@ export interface Tenant {
   passSettings?: Partial<PassSettings>
   /** Falls back to DEFAULT_CHECKLIST when absent or empty. */
   checklist?: ChecklistItemDef[]
+  /** Falls back to DEFAULT_REJECTION_REASONS when absent or empty. */
+  rejectionReasons?: RejectionReasonDef[]
 }
 
 export interface UserDoc {

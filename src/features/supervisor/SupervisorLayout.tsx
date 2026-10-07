@@ -1,13 +1,16 @@
-import { Home, LogOut, QrCode, Truck, Users } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { ClipboardCheck, Home, LogOut, QrCode, Truck, Users } from 'lucide-react'
+import { NavLink, Outlet, useMatch } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
 import { useAuth, useSession } from '@/features/auth/useAuth'
+import { usePendingCount } from '@/features/passes/usePendingCount'
+import { usePendingTitle } from '@/features/passes/usePendingTitle'
 import { useContractorList } from '@/features/shared/queries'
 
 const nav = [
   { to: '/supervisor', label: strings.supervisor.nav.home, icon: Home, end: true },
+  { to: '/supervisor/approvals', label: strings.supervisor.nav.approvals, icon: ClipboardCheck, end: false },
   { to: '/supervisor/vehicles', label: strings.supervisor.nav.vehicles, icon: Truck, end: false },
   { to: '/supervisor/drivers', label: strings.supervisor.nav.drivers, icon: Users, end: false },
   { to: '/supervisor/qr', label: strings.supervisor.nav.qr, icon: QrCode, end: false },
@@ -18,9 +21,13 @@ export default function SupervisorLayout() {
   const { profile, claims } = useSession()
   const { signOut } = useAuth()
   const contractors = useContractorList('supervisor')
+  const { count } = usePendingCount('supervisor')
+  usePendingTitle(count)
+  // The review screen has its own sticky Approve/Reject bar where the bottom navigation would be.
+  const reviewing = useMatch('/supervisor/approvals/:passId') !== null
 
   return (
-    <div className="min-h-dvh pb-20 print:pb-0">
+    <div className={cn('min-h-dvh print:pb-0', reviewing ? 'pb-0' : 'pb-20')}>
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white print:hidden">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4">
           <div className="min-w-0">
@@ -43,8 +50,8 @@ export default function SupervisorLayout() {
         )}
       </main>
 
-      <nav aria-label={strings.supervisor.mainNav} className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] print:hidden">
-        <ul className="mx-auto grid max-w-5xl grid-cols-4">
+      {!reviewing && <nav aria-label={strings.supervisor.mainNav} className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] print:hidden">
+        <ul className="mx-auto grid max-w-5xl grid-cols-5">
           {nav.map(({ to, label, icon: Icon, end }) => (
             <li key={to}>
               <NavLink
@@ -57,13 +64,23 @@ export default function SupervisorLayout() {
                   )
                 }
               >
-                <Icon aria-hidden className="size-5" />
+                <span className="relative">
+                  <Icon aria-hidden className="size-5" />
+                  {to === '/supervisor/approvals' && count !== null && count > 0 && (
+                    <span
+                      aria-label={strings.supervisor.homePending(count)}
+                      className="absolute -right-3 -top-2 grid min-w-5 place-items-center rounded-full bg-red-700 px-1 text-[11px] font-bold leading-5 text-white"
+                    >
+                      {count >= 100 ? '99+' : count}
+                    </span>
+                  )}
+                </span>
                 {label}
               </NavLink>
             </li>
           ))}
         </ul>
-      </nav>
+      </nav>}
     </div>
   )
 }
