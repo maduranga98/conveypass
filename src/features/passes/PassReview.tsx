@@ -1,4 +1,6 @@
+import { History } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
 import type { PassWithId } from '@/types/passes'
@@ -23,6 +25,8 @@ interface Props {
   today: string | null
   /** Officers and admins see which contractor the vehicle belongs to. */
   contractorName?: string
+  /** Admin and officer: link to this vehicle's history report. */
+  historyHref?: string
   /** `wide` lays the photos out two across (officer panel, admin drawer); `stack` is one full-width photo per row. */
   layout?: 'stack' | 'wide'
   /** Lets a parent that has keyboard shortcuts stand down while the full-screen viewer is open. */
@@ -30,7 +34,7 @@ interface Props {
 }
 
 /** What a reviewer looks at: photos (tap for the viewer), people and vehicle, checklist, who approved what. */
-export function PassReview({ pass, today, contractorName, layout = 'stack', onViewerOpenChange }: Props) {
+export function PassReview({ pass, today, contractorName, historyHref, layout = 'stack', onViewerOpenChange }: Props) {
   const [viewer, setViewerState] = useState<number | null>(null)
   const setViewer = (v: number | null) => {
     setViewerState(v)
@@ -45,6 +49,12 @@ export function PassReview({ pass, today, contractorName, layout = 'stack', onVi
         <div>
           <h2 className="text-3xl font-extrabold tracking-tight">{pass.plateNo}</h2>
           <p className="text-base text-slate-700">{pass.vehicleType}</p>
+          {historyHref && (
+            <Link to={historyHref} className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent">
+              <History aria-hidden className="size-4" />
+              {t.info.vehicleHistory}
+            </Link>
+          )}
         </div>
         <PassStatusBadge status={displayStatus(pass, today)} />
       </header>

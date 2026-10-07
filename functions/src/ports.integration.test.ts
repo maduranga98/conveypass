@@ -1,7 +1,7 @@
 // Runs the real Firestore data port against the emulator (`npm run test:functions` starts it).
 // Without FIRESTORE_EMULATOR_HOST the whole file is skipped, so a bare `vitest run` stays hermetic.
 import { initializeApp } from 'firebase-admin/app'
-import { getFirestore } from 'firebase-admin/firestore'
+import { getFirestore, Timestamp } from 'firebase-admin/firestore'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { PassConflictError, PlateTakenError, type Deps } from './core.js'
 import { newVehicleId } from './ids.js'
@@ -311,5 +311,55 @@ describe.skipIf(!emulator)('Firestore data port (emulator)', () => {
     await db.doc('tenants/T1').set({ name: 'Demo', timezone: 'Asia/Colombo' })
     await port().updateTenantSettingsWithAudit('T1', { passSettings: { requireLocation: true, maxExtraPhotos: 1 } }, { ...audit, targetType: 'tenant' })
     expect((await db.doc('tenants/T1').get()).data()).toMatchObject({ name: 'Demo', timezone: 'Asia/Colombo', passSettings: { requireLocation: true, maxExtraPhotos: 1 } })
+  })
+
+  describe('report queries', () => {
+    const base = (id: string, over: Record<string, unknown>) =>
+      db.doc(`passes/${id}`).set({
+        tenantId: 'T1', contractorId: 'C1', vehicleId: 'veh_a', plateNo: 'A 1', vehicleType: 'Tipper', dateKey: '20260310', driverId: 'd1',
+        driverName: 'Dan', status: 'submitted', attempt: 1, submittedAt: Timestamp.fromMillis(1000),
+        checklist: [{ id: 'x', label: 'x', answer: 'yes' }],
+        evidence: { gps: { path: 'tenants/T1/secret.jpg', size: 1, contentType: 'image/jpeg' }, dashcam: { path: 'p', size: 1, contentType: 'image/jpeg' }, extra: [] },
+        captureMeta: { method: 'live', clientCapturedAt: { gps: 'a', dashcam: 'b' } },
+        ...over,
+      })
+
+    it('counts and lists by dateKey range, status and one equality filter, without evidence', async () => {
+      await base('a', {})
+      await base('b', { dateKey: '20260311', status: 'checked_in', vehicleId: 'veh_b' })
+      await base('c', { dateKey: '20260312', contractorId: 'C2' })
+      await base('d', { tenantId: 'T2' })
+      const q = { kind: 'dateKey' as const, tenantId: 'T1', fromKey: '20260310', toKey: '20260311' }
+      expect(await port().countPasses(q)).toBe(2)
+      expect(await port().countPasses({ ...q, fromKey: '20260311', statuses: ['checked_in', 'rejected'] })).toBe(1)
+      expect(await port().countPasses({ ...q, fromKey: '20260310', toKey: '20260310', statuses: ['submitted'] })).toBe(1)
+      const listed = await port().listPasses({ ...q, toKey: '20260312', contractorId: 'C1', vehicleId: 'veh_a' }, 100)
+      expect(listed.map((p) => p.id)).toEqual(['a'])
+      expect(JSON.stringify(listed)).not.toContain('secret')
+      expect(listed[0]?.submittedAt).toBe(1000)
+    })
+
+    it('lists check-ins and denials by time, half open', async () => {
+      const at = (ms: number) => ({ checkIn: { uid: 's', name: 'G', at: Timestamp.fromMillis(ms), gateId: 'main', gateName: 'Main', requestId: 'r' } })
+      await base('in1', at(1000))
+      await base('in2', at(2000))
+      await base('none', {})
+      const event = (id: string, ms: number) =>
+        db.doc(`gateEvents/${id}`).set({ tenantId: 'T1', type: 'denied', vehicleId: 'v', plateNo: 'A', contractorId: 'C1', reasonCode: 'other', gateId: 'main', gateName: 'Main', byUid: 's', byName: 'G', at: Timestamp.fromMillis(ms), requestId: id })
+      await event('den_1', 1500)
+      await event('den_2', 2000)
+      const q = { tenantId: 'T1', startMs: 1000, endMs: 2000 }
+      const passes = await port().listPasses({ kind: 'checkIn', ...q }, 10)
+      expect(passes.map((p) => [p.id, p.checkIn?.at])).toEqual([['in1', 1000]])
+      expect(await port().countPasses({ kind: 'checkIn', ...q })).toBe(1)
+      expect((await port().listGateEvents(q, 10)).map((e) => [e.id, e.at])).toEqual([['den_1', 1500]])
+      expect(await port().countGateEvents(q)).toBe(1)
+    })
+
+    it('lists contractor names of the tenant only', async () => {
+      await db.doc('contractors/C1').set({ tenantId: 'T1', name: 'Alpha', status: 'active' })
+      await db.doc('contractors/CX').set({ tenantId: 'T2', name: 'Other', status: 'active' })
+      expect([...(await port().listContractorNames('T1'))]).toEqual([['C1', 'Alpha']])
+    })
   })
 })

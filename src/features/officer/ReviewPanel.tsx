@@ -5,6 +5,7 @@ import { strings } from '@/lib/strings'
 import { DecisionBar } from '@/features/passes/DecisionBar'
 import { PassChangedBanner } from '@/features/passes/PassChangedBanner'
 import { PassReview } from '@/features/passes/PassReview'
+import { vehicleHistoryLink } from '@/features/reports/filters'
 import { isExpired } from '@/features/passes/passView'
 import { RejectSheet, type RejectChoice } from '@/features/passes/RejectSheet'
 import { useReviewShortcuts } from '@/features/passes/shortcuts'
@@ -102,7 +103,7 @@ export function ReviewPanel({ pass, today, contractorName, reasons, decisions, p
         {!lock.changed && decidable && pass.checklist.some((x) => x.answer === 'no') && (
           <p role="note" className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-900">{a.decision.issuesWarning}</p>
         )}
-        <PassReview pass={pass} today={today} contractorName={contractorName} layout="wide" onViewerOpenChange={setViewerOpen} />
+        <PassReview pass={pass} today={today} contractorName={contractorName} {...(today ? { historyHref: vehicleHistoryLink('officer', pass.vehicleId, today) } : {})} layout="wide" onViewerOpenChange={setViewerOpen} />
       </div>
 
       <footer className="space-y-2 border-t border-slate-300 bg-white p-3">

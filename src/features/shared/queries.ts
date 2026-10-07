@@ -28,20 +28,20 @@ async function load<T>(name: string, constraints: QueryConstraint[]): Promise<Li
   return { items: snap.docs.map((d) => ({ ...(d.data() as T), id: d.id })), capped: snap.size >= LIST_CAP }
 }
 
-export function useVehicles(scope: Scope) {
+export function useVehicles(scope: Scope, opts: { enabled?: boolean } = {}) {
   const { tenantId, contractorId, ready } = useScope(scope)
   return useQuery({
     queryKey: ['vehicles', tenantId, contractorId ?? 'all'],
-    enabled: ready,
+    enabled: ready && (opts.enabled ?? true),
     queryFn: () => load<Vehicle>('vehicles', scoped(tenantId, contractorId, 'plateKey')),
   })
 }
 
-export function useDrivers(scope: Scope) {
+export function useDrivers(scope: Scope, opts: { enabled?: boolean } = {}) {
   const { tenantId, contractorId, ready } = useScope(scope)
   return useQuery({
     queryKey: ['drivers', tenantId, contractorId ?? 'all'],
-    enabled: ready,
+    enabled: ready && (opts.enabled ?? true),
     queryFn: () => load<Driver>('drivers', scoped(tenantId, contractorId, 'name')),
   })
 }

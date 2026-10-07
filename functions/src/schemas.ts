@@ -3,6 +3,7 @@ import { ROLES } from './types.js'
 import { VEHICLE_TYPES } from './vehicleTypes.js'
 import { GATE_ID_PATTERN, GATE_NAME_MAX, GATE_NAME_MIN, MAX_GATES, MIN_GATES } from './gates.js'
 import { MAX_DENY_NOTE } from './denyReasons.js'
+import { SLA_MAX, SLA_MIN } from './defaultSla.js'
 
 const name = z.string().trim().min(1).max(100)
 
@@ -188,9 +189,15 @@ export const updateTenantSettingsSchema = z
       .min(MIN_GATES)
       .max(MAX_GATES)
       .optional(),
+    sla: z
+      .object({
+        supervisorMinutes: z.number().int().min(SLA_MIN).max(SLA_MAX),
+        officerMinutes: z.number().int().min(SLA_MIN).max(SLA_MAX),
+      })
+      .optional(),
   })
   .refine(
-    (v) => v.passSettings !== undefined || v.checklist !== undefined || v.rejectionReasons !== undefined || v.gates !== undefined,
+    (v) => v.passSettings !== undefined || v.checklist !== undefined || v.rejectionReasons !== undefined || v.gates !== undefined || v.sla !== undefined,
     { message: 'Nothing to update' },
   )
 

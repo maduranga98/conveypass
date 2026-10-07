@@ -48,6 +48,11 @@ export type Reason =
   | 'offline-time-stale'
   | 'offline-day-mismatch'
   | 'request-conflict'
+  | 'range-invalid'
+  | 'range-too-long'
+  | 'range-too-large'
+  | 'id-required'
+  | 'filter-invalid'
   | 'internal'
 
 /** Typed error: `code` is the gRPC-style code, `details.reason` is a stable key the client maps to a string. */

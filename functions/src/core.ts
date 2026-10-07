@@ -6,6 +6,8 @@ import {
   normalisePhone,
   PASSWORD_MIN_LENGTH,
 } from './credentials.js'
+import type { SlaSettings } from './defaultSla.js'
+import type { ReportEvent, ReportPass } from './reports/types.js'
 import { fail } from './errors.js'
 import {
   changeOwnPasswordSchema,
@@ -98,6 +100,27 @@ export type CheckInPlan =
   | { kind: 'replay'; checkIn: CheckInStamp }
   | { kind: 'write'; checkIn: CheckInStamp; entry: HistoryEntry; audit: AuditEntry }
 
+/** Which passes a report reads. `dateKey` ranges are inclusive and use the equality filters that have an index. */
+export type PassQuery =
+  | {
+      kind: 'dateKey'
+      tenantId: string
+      fromKey: string
+      toKey: string
+      statuses?: readonly PassStatus[]
+      contractorId?: string
+      vehicleId?: string
+      driverId?: string
+    }
+  | { kind: 'checkIn'; tenantId: string; startMs: number; endMs: number }
+
+/** `[startMs, endMs)` of `gateEvents.at`. */
+export interface GateEventQuery {
+  tenantId: string
+  startMs: number
+  endMs: number
+}
+
 export interface DataPort {
   getUser(uid: string): Promise<UserData | null>
   getContractor(id: string): Promise<ContractorData | null>
@@ -173,9 +196,18 @@ export interface DataPort {
       checklist?: ChecklistItemDef[]
       rejectionReasons?: RejectionReasonDef[]
       gates?: GateDef[]
+      sla?: SlaSettings
     },
     audit: AuditEntry,
   ): Promise<void>
+  /** Module 6 (read only, Admin SDK, always one tenant). `count()` aggregation: no documents are read. */
+  countPasses(q: PassQuery): Promise<number>
+  /** At most `limit` passes, reduced to what reports need (no evidence, checklist or capture data). */
+  listPasses(q: PassQuery, limit: number): Promise<ReportPass[]>
+  countGateEvents(q: GateEventQuery): Promise<number>
+  listGateEvents(q: GateEventQuery, limit: number): Promise<ReportEvent[]>
+  /** Contractor id -> name for the tenant. */
+  listContractorNames(tenantId: string): Promise<Map<string, string>>
   /** Auth uids of every `users` doc of this contractor. */
   listUserIdsByContractor(tenantId: string, contractorId: string): Promise<string[]>
 }

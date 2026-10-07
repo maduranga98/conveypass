@@ -7,9 +7,12 @@ import {
   type AuthPort,
   type DataPort,
   type DecisionContext,
+  type GateEventQuery,
+  type PassQuery,
   type StoragePort,
 } from './core.js'
 import { planSubmit } from './passRules.js'
+import type { ReportEvent, ReportPass } from './reports/types.js'
 import type { ContractorData, DriverData, GateEventData, PassData, TenantData, UserData, VehicleData } from './types.js'
 
 const ts = (ms: number): Timestamp => Timestamp.fromMillis(ms)
@@ -73,6 +76,65 @@ function toPass(raw: Record<string, unknown>): PassData {
     ...(history ? { history: history.map((h) => ({ ...h, at: millis(h.at) ?? 0 })) } : {}),
     ...(checkIn ? { checkIn: { ...checkIn, at: millis(checkIn.at) ?? 0 } } : {}),
   } as PassData
+}
+
+/** Only these fields are read for reports: evidence, checklist answers and capture data never leave Firestore. */
+const REPORT_PASS_FIELDS = [
+  'contractorId', 'vehicleId', 'plateNo', 'vehicleType', 'dateKey', 'driverId', 'driverName', 'status', 'attempt',
+  'submittedAt', 'supervisor', 'officer', 'rejection', 'rejectionHistory', 'history', 'checkIn',
+] as const
+
+type Q = FirebaseFirestore.Query
+
+function passQuery(db: FirebaseFirestore.Firestore, q: PassQuery): Q {
+  let query: Q = db.collection('passes').where('tenantId', '==', q.tenantId)
+  if (q.kind === 'checkIn') {
+    return query.where('checkIn.at', '>=', ts(q.startMs)).where('checkIn.at', '<', ts(q.endMs))
+  }
+  // A single day is an equality filter, which `(tenantId, dateKey, status)` serves for the trend counts.
+  query = q.fromKey === q.toKey
+    ? query.where('dateKey', '==', q.fromKey)
+    : query.where('dateKey', '>=', q.fromKey).where('dateKey', '<=', q.toKey)
+  if (q.statuses && q.statuses.length === 1) query = query.where('status', '==', q.statuses[0] as string)
+  else if (q.statuses && q.statuses.length > 1) query = query.where('status', 'in', [...q.statuses])
+  // One equality filter per query (the ones with an index); a second one is applied in memory by `listPasses`.
+  if (q.vehicleId) return query.where('vehicleId', '==', q.vehicleId)
+  if (q.driverId) return query.where('driverId', '==', q.driverId)
+  if (q.contractorId) return query.where('contractorId', '==', q.contractorId)
+  return query
+}
+
+const eventQuery = (db: FirebaseFirestore.Firestore, q: GateEventQuery): Q =>
+  db.collection('gateEvents').where('tenantId', '==', q.tenantId).where('at', '>=', ts(q.startMs)).where('at', '<', ts(q.endMs))
+
+/** Stored pass -> the slim shape reports use, with every timestamp in milliseconds. */
+function toReportPass(id: string, raw: Record<string, unknown>): ReportPass {
+  const { evidence: _e, checklist: _c, captureMeta: _m, ...pass } = toPass(raw) as PassData & Record<string, unknown>
+  void _e
+  void _c
+  void _m
+  const slim: ReportPass = {
+    id,
+    contractorId: pass.contractorId,
+    vehicleId: pass.vehicleId,
+    plateNo: pass.plateNo,
+    vehicleType: pass.vehicleType,
+    dateKey: pass.dateKey,
+    driverId: pass.driverId,
+    driverName: pass.driverName,
+    status: pass.status,
+    attempt: pass.attempt,
+    submittedAt: pass.submittedAt,
+    ...(pass.supervisor ? { supervisor: pass.supervisor } : {}),
+    ...(pass.officer ? { officer: pass.officer } : {}),
+    ...(pass.rejection ? { rejection: pass.rejection } : {}),
+    ...(pass.rejectionHistory
+      ? { rejectionHistory: pass.rejectionHistory.map(({ checklist: _k, evidence: _v, ...r }) => (void _k, void _v, r)) }
+      : {}),
+    ...(pass.history ? { history: pass.history } : {}),
+    ...(pass.checkIn ? { checkIn: pass.checkIn } : {}),
+  }
+  return slim
 }
 
 export const storagePort = (): StoragePort => ({
@@ -311,6 +373,32 @@ export const dataPort = (): DataPort => {
     },
     writeAudit: async (audit) => {
       await db.collection('auditLog').doc().create({ ...audit, createdAt: FieldValue.serverTimestamp() })
+    },
+    countPasses: async (q) => (await passQuery(db, q).count().get()).data().count,
+    listPasses: async (q, limit) => {
+      const snap = await passQuery(db, q)
+        .select(...REPORT_PASS_FIELDS)
+        .orderBy(q.kind === 'checkIn' ? 'checkIn.at' : 'dateKey')
+        .limit(limit)
+        .get()
+      return snap.docs
+        .map((d) => toReportPass(d.id, d.data() as Record<string, unknown>))
+        .filter(
+          (p) =>
+            q.kind === 'checkIn' ||
+            ((!q.vehicleId || p.vehicleId === q.vehicleId) &&
+              (!q.driverId || p.driverId === q.driverId) &&
+              (!q.contractorId || p.contractorId === q.contractorId)),
+        )
+    },
+    countGateEvents: async (q) => (await eventQuery(db, q).count().get()).data().count,
+    listGateEvents: async (q, limit) => {
+      const snap = await eventQuery(db, q).orderBy('at').limit(limit).get()
+      return snap.docs.map((d): ReportEvent => ({ ...toGateEvent(d.data() as Record<string, unknown>), id: d.id }))
+    },
+    listContractorNames: async (tenantId) => {
+      const snap = await db.collection('contractors').where('tenantId', '==', tenantId).select('name').get()
+      return new Map(snap.docs.map((d) => [d.id, String((d.data() as { name?: unknown }).name ?? d.id)]))
     },
     listUserIdsByContractor: async (tenantId, contractorId) => {
       const snap = await db

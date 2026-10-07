@@ -1,3 +1,4 @@
+import type { SlaSettings } from './defaultSla.js'
 import type { GateDef } from './gates.js'
 
 export const ROLES = ['admin', 'officer', 'supervisor', 'driver', 'security'] as const
@@ -107,6 +108,8 @@ export interface TenantData {
   rejectionReasons?: RejectionReasonDef[]
   /** Falls back to DEFAULT_GATES when absent or empty. */
   gates?: GateDef[]
+  /** Falls back to DEFAULT_SLA. */
+  sla?: Partial<SlaSettings>
 }
 
 

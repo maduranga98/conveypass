@@ -341,6 +341,7 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
       ...(input.checklist ? { checklist: input.checklist } : {}),
       ...(input.rejectionReasons ? { rejectionReasons: input.rejectionReasons } : {}),
       ...(input.gates ? { gates: input.gates } : {}),
+      ...(input.sla ? { sla: input.sla } : {}),
     },
     audit(
       caller,
@@ -351,6 +352,7 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
         checklistItems: input.checklist?.length ?? null,
         rejectionReasons: input.rejectionReasons?.length ?? null,
         gates: input.gates?.length ?? null,
+        sla: input.sla !== undefined,
         requireLocation: input.passSettings?.requireLocation ?? null,
         maxExtraPhotos: input.passSettings?.maxExtraPhotos ?? null,
       },

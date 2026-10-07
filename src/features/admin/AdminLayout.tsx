@@ -1,4 +1,4 @@
-import { Building2, ClipboardList, DoorOpen, LogOut, Menu, QrCode, Settings, Truck, UserRound, Users, X } from 'lucide-react'
+import { Building2, ClipboardList, FileBarChart, LayoutDashboard, LogOut, Menu, QrCode, Settings, Truck, UserRound, Users, X } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
@@ -7,12 +7,13 @@ import { strings } from '@/lib/strings'
 import { useAuth, useSession } from '@/features/auth/useAuth'
 
 const nav = [
+  { to: '/admin/dashboard', label: strings.admin.nav.dashboard, icon: LayoutDashboard },
   { to: '/admin/users', label: strings.admin.nav.users, icon: Users },
   { to: '/admin/contractors', label: strings.admin.nav.contractors, icon: Building2 },
   { to: '/admin/vehicles', label: strings.admin.nav.vehicles, icon: Truck },
   { to: '/admin/drivers', label: strings.admin.nav.drivers, icon: UserRound },
   { to: '/admin/passes', label: strings.admin.nav.passes, icon: ClipboardList },
-  { to: '/admin/gate-log', label: strings.admin.nav.gateLog, icon: DoorOpen },
+  { to: '/admin/reports', label: strings.admin.nav.reports, icon: FileBarChart },
   { to: '/admin/qr', label: strings.admin.nav.qr, icon: QrCode },
   { to: '/admin/settings', label: strings.admin.nav.settings, icon: Settings },
 ] as const

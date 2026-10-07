@@ -678,3 +678,49 @@ describe('the gate (Module 5)', () => {
     }
   })
 })
+
+describe('dashboard and reports (Module 6): nothing new, nothing loosened', () => {
+  const DAY = '20260310'
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore()
+      const pass = (tenantId: string, contractorId: string, status: string) => ({
+        tenantId, contractorId, driverId: 'drvA1', status, attempt: 1, dateKey: DAY, submittedAt: new Date(),
+      })
+      await setDoc(doc(db, 'passes', 'm1'), pass(A, 'c1', 'submitted'))
+      await setDoc(doc(db, 'passes', 'm2'), pass(A, 'c2', 'checked_in'))
+      await setDoc(doc(db, 'passes', 'mB'), pass(B, 'cB', 'submitted'))
+      await setDoc(doc(db, 'gateEvents', 'den_a'), {
+        tenantId: A, type: 'denied', vehicleId: 'veh_a1', plateNo: 'CAB-1234', contractorId: 'c1', reasonCode: 'other', gateId: 'main',
+        gateName: 'Main Gate', byUid: 'secA', byName: 'S', at: new Date(), requestId: 'r',
+      })
+    })
+  })
+
+  it('admin and officer read today’s tenant passes (the live dashboard query) and never another tenant’s', async () => {
+    for (const db of [adminA(), officerA()]) {
+      const today = await assertSucceeds(getDocs(query(collection(db, 'passes'), where('tenantId', '==', A), where('dateKey', '==', DAY), limit(1000))))
+      expect(today.docs.map((d) => d.id).sort()).toEqual(['m1', 'm2'])
+      await assertFails(getDocs(query(collection(db, 'passes'), where('tenantId', '==', B), where('dateKey', '==', DAY))))
+      await assertFails(getDoc(doc(db, 'passes', 'mB')))
+    }
+  })
+  it('admin and officer read the tenant’s gate events, vehicles, drivers and contractors', async () => {
+    for (const db of [adminA(), officerA()]) {
+      const events = await assertSucceeds(getDocs(query(collection(db, 'gateEvents'), where('tenantId', '==', A), where('at', '>=', new Date(0)), orderBy('at', 'desc'), limit(15))))
+      expect(events.size).toBe(1)
+      await assertSucceeds(getDocs(query(collection(db, 'vehicles'), where('tenantId', '==', A), orderBy('plateKey'), limit(1000))))
+      await assertSucceeds(getDocs(query(collection(db, 'drivers'), where('tenantId', '==', A), limit(1000))))
+      await assertSucceeds(getDocs(query(collection(db, 'contractors'), where('tenantId', '==', A))))
+      await assertFails(getDocs(query(collection(db, 'gateEvents'), where('tenantId', '==', B))))
+    }
+  })
+  it('supervisor, driver and security cannot read the tenant-wide passes or the gate events a dashboard needs', async () => {
+    for (const db of [supA1(), drvA1(), securityA()]) {
+      await assertFails(getDocs(query(collection(db, 'gateEvents'), where('tenantId', '==', A))))
+    }
+    for (const db of [supA1(), drvA1()]) {
+      await assertFails(getDocs(query(collection(db, 'passes'), where('tenantId', '==', A), where('dateKey', '==', DAY))))
+    }
+  })
+})
