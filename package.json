@@ -16,6 +16,7 @@
     "emulators": "firebase emulators:start --only auth,firestore,functions,storage",
     "seed:emulator": "tsx scripts/seed.ts --target=emulator",
     "seed:prod": "tsx scripts/seed.ts --target=prod",
+    "seed:demo": "tsx scripts/seed-demo.ts",
     "postinstall": "npm --prefix functions install"
   },
   "dependencies": {
