@@ -63,7 +63,7 @@ export interface CallableConfig {
  */
 export function callable<T>(
   name: string,
-  run: (deps: Deps, caller: Caller, data: unknown) => Promise<T>,
+  run: (deps: Deps, caller: Caller, data: unknown, meta: { userAgent: string | undefined }) => Promise<T>,
   config: CallableConfig = {},
 ) {
   const options: CallableOptions = {
@@ -77,7 +77,8 @@ export function callable<T>(
     try {
       caller = callerFrom(request)
       if (config.rateLimit) await enforceRateLimit(firestoreRateLimitPort(), caller.uid, name)
-      const result = await run(deps(), caller, request.data)
+      const ua = request.rawRequest?.headers?.['user-agent']
+      const result = await run(deps(), caller, request.data, { userAgent: typeof ua === 'string' ? ua : undefined })
       logInfo({ fn: name, uid: caller.uid, tenantId: caller.tenantId, requestId }, 'ok')
       return result
     } catch (e) {
@@ -85,9 +86,9 @@ export function callable<T>(
       if (e instanceof HttpsError) {
         const reason = (e.details as { reason?: unknown } | undefined)?.reason
         const outcome = e.code === 'resource-exhausted' ? 'rate-limited' : e.code === 'internal' ? 'error' : 'denied'
-        const log = outcome === 'error' ? logError : logWarn
-        if (outcome === 'error') logError(ctx, e, { code: e.code, reason: typeof reason === 'string' ? reason : undefined })
-        else log(ctx, outcome, { code: e.code, reason: typeof reason === 'string' ? reason : undefined })
+        const extra = { code: e.code, reason: typeof reason === 'string' ? reason : undefined }
+        if (outcome === 'error') logError(ctx, e, extra)
+        else logWarn(ctx, outcome, extra)
         throw e
       }
       logError(ctx, e)

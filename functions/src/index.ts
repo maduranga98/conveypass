@@ -3,9 +3,11 @@ import { setGlobalOptions } from 'firebase-functions/v2'
 import { ENFORCE_APP_CHECK, REGION } from './config.js'
 import * as approvals from './approvals.js'
 import * as core from './core.js'
+import * as devices from './devices.js'
 import * as gate from './gate.js'
 import * as passes from './passes.js'
 import * as reportsApi from './reportsApi.js'
+import { devicePort } from './notifyPorts.js'
 import { callable } from './runtime.js'
 import * as vehicles from './vehicles.js'
 
@@ -42,4 +44,13 @@ export const denyEntry = callable('denyEntry', gate.denyEntry)
 
 // Module 6: dashboard trend and reports (admin and officer, read only).
 export const getDashboardTrend = callable('getDashboardTrend', reportsApi.getDashboardTrend, { timeoutSeconds: 60 })
-export const runReport = callable('runReport', reportsApi.runReport, { timeoutSeconds: 300, memory: '1GiB' })
+export const runReport = callable('runReport', (d, c, data) => reportsApi.runReport(d, c, data), { timeoutSeconds: 300, memory: '1GiB' })
+
+// Module 7: notifications. Triggers (passes, gateEvents) and the SLA schedule live in notificationTriggers.ts.
+export { onGateEventCreated, onPassWritten, slaReminders } from './notificationTriggers.js'
+export const registerDevice = callable(
+  'registerDevice',
+  (d, caller, data, meta) => devices.registerDevice(d, devicePort(), caller, data, meta),
+  { rateLimit: true },
+)
+export const unregisterDevice = callable('unregisterDevice', (d, caller, data) => devices.unregisterDevice(d, devicePort(), caller, data))
