@@ -89,6 +89,16 @@ describe('driver photos: read', () => {
   })
 })
 
+describe('driver photos: the gate (Module 5)', () => {
+  it('security reads every driver photo of the tenant (to compare faces), never another tenant’s, and cannot write', async () => {
+    for (const p of [path(A, 'c1', 'drvA1'), path(A, 'c2', 'drvA2')]) await assertSucceeds(getBytes(ref(securityA(), p)))
+    await assertFails(getBytes(ref(securityA(), path(B, 'cB', 'drvB1'))))
+    await assertFails(getBytes(ref(as('secB', { role: 'security', tenantId: B }), path(A, 'c1', 'drvA1'))))
+    await assertFails(uploadBytes(ref(securityA(), path(A, 'c1', 'drvA1')), jpeg(), JPEG))
+    await assertFails(deleteObject(ref(securityA(), path(A, 'c1', 'drvA1'))))
+  })
+})
+
 describe('driver photos: write', () => {
   it('admin and the contractor’s supervisor can upload a JPEG under 1 MB', async () => {
     await assertSucceeds(uploadBytes(ref(adminA(), path(A, 'c1', 'newDrv1')), jpeg(), JPEG))
