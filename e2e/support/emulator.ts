@@ -18,7 +18,8 @@ export const seed = (): void => writeFileSync(SEED_FILE, JSON.stringify(admin<Re
 export const uids = (): Record<string, string> => JSON.parse(readFileSync(SEED_FILE, 'utf8')) as Record<string, string>
 
 /** What `submitPass` leaves behind: the real Firestore trigger then notifies the contractor's supervisors. */
-export const writeSubmittedPass = (vehicleId = VEHICLE, plateNo = PLATE): string =>
-  admin<string>('writeSubmittedPass', { vehicleId, plateNo, driverId: uids().driver ?? '' })
+export const writePass = (status: string, vehicleId = VEHICLE, plateNo = PLATE): string =>
+  admin<string>('writePass', { status, vehicleId, plateNo, driverId: uids().driver ?? '' })
+export const writeSubmittedPass = (vehicleId = VEHICLE, plateNo = PLATE): string => writePass('submitted', vehicleId, plateNo)
 
 export const notificationsFor = (uid: string) => admin<{ id: string; read: boolean }[]>('notificationsFor', { uid })

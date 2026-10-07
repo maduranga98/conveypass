@@ -57,15 +57,16 @@ const todayKey = (): string => {
 }
 
 /** What `submitPass` would leave behind: the real Firestore trigger then notifies the contractor's supervisors. */
-async function writeSubmittedPass(over: Record<string, unknown> = {}, vehicleId = VEHICLE, plateNo = PLATE, driverId = ''): Promise<string> {
+async function writePass(status = 'submitted', vehicleId = VEHICLE, plateNo = PLATE, driverId = ''): Promise<string> {
   const id = `${vehicleId}_${todayKey()}`
   await db.doc(`passes/${id}`).set({
     tenantId: TENANT, contractorId: CONTRACTOR, vehicleId, plateNo, vehicleType: 'Tipper', dateKey: todayKey(), driverId: driverId, driverName: 'Dan Driver',
-    status: 'submitted', attempt: 1, submittedAt: Timestamp.now(), updatedAt: Timestamp.now(),
+    status, attempt: 1, submittedAt: Timestamp.now(), updatedAt: Timestamp.now(),
+    ...(status === 'supervisor_approved' || status === 'officer_approved' ? { supervisor: { uid: uids.supervisor ?? 's', name: 'Sue Supervisor', at: Timestamp.now() } } : {}),
+    ...(status === 'officer_approved' ? { officer: { uid: uids.officer ?? 'o', name: 'Olga Officer', at: Timestamp.now() } } : {}),
     checklist: [{ id: 'tyres', label: 'Tyres are in good condition', answer: 'yes' }],
     evidence: { gps: { path: 'p/gps.jpg', size: 1, contentType: 'image/jpeg' }, dashcam: { path: 'p/dashcam.jpg', size: 1, contentType: 'image/jpeg' }, extra: [] },
     captureMeta: { method: 'live', clientCapturedAt: { gps: 'a', dashcam: 'b' } },
-    ...over,
   })
   return id
 }
@@ -79,8 +80,8 @@ const run = async (): Promise<unknown> => {
   switch (command) {
     case 'seed':
       return seed()
-    case 'writeSubmittedPass':
-      return writeSubmittedPass({}, args.vehicleId, args.plateNo, args.driverId)
+    case 'writePass':
+      return writePass(args.status, args.vehicleId, args.plateNo, args.driverId)
     case 'notificationsFor':
       return notificationsFor(args.uid ?? '')
     default:
