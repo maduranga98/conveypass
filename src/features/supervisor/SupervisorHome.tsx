@@ -15,7 +15,7 @@ function Tile({ to, icon, label, value }: { to: string; icon: ReactNode; label: 
       to={to}
       className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 hover:border-slate-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
-      <span className="text-slate-400 [&>svg]:size-5">{icon}</span>
+      <span className="text-slate-500 [&>svg]:size-5">{icon}</span>
       <span className="text-3xl font-semibold tabular-nums tracking-tight">{value}</span>
       <span className="text-sm text-slate-500">{label}</span>
     </Link>
@@ -23,7 +23,7 @@ function Tile({ to, icon, label, value }: { to: string; icon: ReactNode; label: 
 }
 
 const actionClass =
-  'inline-flex h-11 flex-1 items-center justify-center rounded-lg px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+  'inline-flex h-11 w-full items-center sm:w-auto sm:flex-1 justify-center rounded-lg px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
 
 export default function SupervisorHome() {
   const { profile } = useSession()

@@ -3,8 +3,8 @@ import { signInWithEmailAndPassword } from 'firebase/auth'
 import { Eye, EyeOff, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Navigate, useSearchParams } from 'react-router-dom'
-import { z } from 'zod'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { z } from '@/lib/zod'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { PageSpinner } from '@/components/ui/Spinner'
@@ -71,8 +71,8 @@ export default function LoginPage() {
                   setError(null)
                 }}
                 className={cn(
-                  'h-10 rounded-md text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-accent',
-                  mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700',
+                  'h-11 rounded-md text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-accent',
+                  mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900',
                 )}
               >
                 {m === 'staff' ? strings.auth.staffTab : strings.auth.driverTab}
@@ -89,6 +89,12 @@ export default function LoginPage() {
 
           {mode === 'staff' ? <StaffForm onSubmit={signIn} /> : <DriverForm onSubmit={signIn} />}
         </div>
+
+        <footer className="mt-6 text-center">
+          <Link to="/privacy" className="inline-flex min-h-11 items-center px-3 text-sm text-slate-700 underline underline-offset-2 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-accent">
+            {strings.privacy.link}
+          </Link>
+        </footer>
       </div>
     </main>
   )

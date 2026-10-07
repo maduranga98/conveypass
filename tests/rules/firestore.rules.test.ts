@@ -117,6 +117,20 @@ beforeEach(async () => {
     }
     await setDoc(doc(db, 'auditLog', 'a1'), { tenantId: A, action: 'user.create' })
     await setDoc(doc(db, 'auditLog', 'b1'), { tenantId: B, action: 'user.create' })
+    const when = new Date('2026-03-10T08:00:00Z')
+    for (const [id, tenantId, recipientUid] of [
+      ['n_drv', A, 'drvA1'],
+      ['n_drv2', A, 'drvA1'],
+      ['n_sup', A, 'supA1'],
+      ['n_other_tenant', B, 'drvA1'], // same uid, wrong tenant: never readable
+    ] as const) {
+      await setDoc(doc(db, 'notifications', id), {
+        tenantId, recipientUid, type: 'pass_approved', title: 't', body: 'b', link: '/driver', createdAt: when, readAt: null, expireAt: when,
+      })
+    }
+    await setDoc(doc(db, 'users', 'drvA1', 'devices', 'dev1'), { token: 'secret-token', enabled: true })
+    await setDoc(doc(db, 'rateLimits', 'drvA1_createUser'), { windowStart: 1, count: 1 })
+    await setDoc(doc(db, 'auditLog', 'a2'), { tenantId: A, action: 'pass.submit', actorUid: 'drvA1', targetType: 'pass', createdAt: when })
   })
 })
 
@@ -722,5 +736,88 @@ describe('dashboard and reports (Module 6): nothing new, nothing loosened', () =
     for (const db of [supA1(), drvA1()]) {
       await assertFails(getDocs(query(collection(db, 'passes'), where('tenantId', '==', A), where('dateKey', '==', DAY))))
     }
+  })
+})
+
+describe('notifications (Module 7)', () => {
+  const own = (uid: string) => query(collection(drvA1(), 'notifications'), where('tenantId', '==', A), where('recipientUid', '==', uid), orderBy('createdAt', 'desc'), limit(50))
+
+  it('a user reads only their own notifications, in their own tenant', async () => {
+    const snap = await assertSucceeds(getDocs(own('drvA1')))
+    expect(snap.docs.map((d) => d.id).sort()).toEqual(['n_drv', 'n_drv2'])
+    await assertSucceeds(getDoc(doc(drvA1(), 'notifications', 'n_drv')))
+    await assertFails(getDoc(doc(drvA1(), 'notifications', 'n_sup'))) // someone else's
+    await assertFails(getDoc(doc(drvA1(), 'notifications', 'n_other_tenant'))) // right uid, other tenant
+    await assertFails(getDocs(own('supA1'))) // another recipient's query
+    await assertFails(getDocs(query(collection(drvA1(), 'notifications'), where('recipientUid', '==', 'drvA1')))) // no tenant constraint
+    await assertFails(getDocs(collection(drvA1(), 'notifications'))) // unfiltered
+  })
+  it('even admins cannot read other people’s notifications', async () => {
+    await assertFails(getDoc(doc(adminA(), 'notifications', 'n_drv')))
+    await assertFails(getDocs(query(collection(adminA(), 'notifications'), where('tenantId', '==', A))))
+  })
+  it('a user may update only readAt on their own notification, and only to the server time', async () => {
+    const ref = doc(drvA1(), 'notifications', 'n_drv')
+    await assertSucceeds(updateDoc(ref, { readAt: serverTimestamp() }))
+    await assertSucceeds(updateDoc(doc(drvA1(), 'notifications', 'n_drv2'), { readAt: serverTimestamp() }))
+  })
+  it('rejects a readAt that is not the request time, other fields, extra fields and other people’s docs', async () => {
+    const ref = doc(drvA1(), 'notifications', 'n_drv')
+    await assertFails(updateDoc(ref, { readAt: new Date('2020-01-01') }))
+    await assertFails(updateDoc(ref, { readAt: null }))
+    await assertFails(updateDoc(ref, { title: 'hacked' }))
+    await assertFails(updateDoc(ref, { readAt: serverTimestamp(), title: 'hacked' }))
+    await assertFails(updateDoc(ref, { readAt: serverTimestamp(), recipientUid: 'supA1' }))
+    await assertFails(updateDoc(doc(drvA1(), 'notifications', 'n_sup'), { readAt: serverTimestamp() }))
+    await assertFails(updateDoc(doc(drvA1(), 'notifications', 'n_other_tenant'), { readAt: serverTimestamp() }))
+  })
+  it('no client creates or deletes notifications, not even for themselves', async () => {
+    const mine = { tenantId: A, recipientUid: 'drvA1', type: 'x', title: 't', body: 'b', link: '/', createdAt: serverTimestamp(), readAt: null, expireAt: new Date() }
+    await assertFails(setDoc(doc(drvA1(), 'notifications', 'new'), mine))
+    await assertFails(addDoc(collection(adminA(), 'notifications'), mine))
+    await assertFails(deleteDoc(doc(drvA1(), 'notifications', 'n_drv')))
+    await assertFails(deleteDoc(doc(adminA(), 'notifications', 'n_drv')))
+  })
+  it('unauthenticated users have no access', async () => {
+    const anon = env.unauthenticatedContext().firestore()
+    await assertFails(getDoc(doc(anon, 'notifications', 'n_drv')))
+    await assertFails(updateDoc(doc(anon, 'notifications', 'n_drv'), { readAt: serverTimestamp() }))
+  })
+})
+
+describe('devices and rateLimits (Module 7)', () => {
+  it('users/{uid}/devices is closed to every client, including the owner and admins', async () => {
+    for (const db of [drvA1(), adminA(), supA1()]) {
+      await assertFails(getDoc(doc(db, 'users', 'drvA1', 'devices', 'dev1')))
+      await assertFails(getDocs(collection(db, 'users', 'drvA1', 'devices')))
+      await assertFails(setDoc(doc(db, 'users', 'drvA1', 'devices', 'dev2'), { token: 'x', enabled: true }))
+      await assertFails(updateDoc(doc(db, 'users', 'drvA1', 'devices', 'dev1'), { enabled: false }))
+      await assertFails(deleteDoc(doc(db, 'users', 'drvA1', 'devices', 'dev1')))
+    }
+  })
+  it('rateLimits is closed to every client', async () => {
+    for (const db of [drvA1(), adminA()]) {
+      await assertFails(getDoc(doc(db, 'rateLimits', 'drvA1_createUser')))
+      await assertFails(setDoc(doc(db, 'rateLimits', 'drvA1_createUser'), { windowStart: 1, count: 0 }))
+      await assertFails(deleteDoc(doc(db, 'rateLimits', 'drvA1_createUser')))
+    }
+  })
+})
+
+describe('auditLog (Module 7 viewer queries)', () => {
+  const audit = (db: ReturnType<typeof adminA>, ...extra: Parameters<typeof where>[]) =>
+    getDocs(query(collection(db, 'auditLog'), where('tenantId', '==', A), ...extra.map((e) => where(...e)), orderBy('createdAt', 'desc'), limit(26)))
+
+  it('admin reads their tenant’s log with the viewer’s filters, never another tenant’s', async () => {
+    expect((await assertSucceeds(audit(adminA()))).size).toBe(1)
+    await assertSucceeds(audit(adminA(), ['action', '==', 'pass.submit']))
+    await assertSucceeds(audit(adminA(), ['actorUid', '==', 'drvA1']))
+    await assertSucceeds(audit(adminA(), ['targetType', '==', 'pass']))
+    await assertFails(getDocs(query(collection(adminA(), 'auditLog'), where('tenantId', '==', B), orderBy('createdAt', 'desc'))))
+  })
+  it('officers, supervisors, drivers and security cannot query it, and nobody can write it', async () => {
+    for (const db of [officerA(), supA1(), drvA1(), securityA()]) await assertFails(audit(db))
+    await assertFails(setDoc(doc(adminA(), 'auditLog', 'a2'), { tenantId: A, action: 'tampered' }))
+    await assertFails(deleteDoc(doc(adminA(), 'auditLog', 'a2')))
   })
 })

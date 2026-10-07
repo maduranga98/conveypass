@@ -67,8 +67,9 @@ export interface AuditEntry {
   tenantId: string
   action: string
   actorUid: string
-  actorRole: Role
-  targetType: 'user' | 'vehicle' | 'contractor' | 'tenant' | 'pass' | 'gateEvent'
+  /** `system` for scheduled jobs (retention). */
+  actorRole: Role | 'system'
+  targetType: 'user' | 'vehicle' | 'contractor' | 'tenant' | 'pass' | 'gateEvent' | 'notification'
   targetId: string
   meta: Record<string, string | number | boolean | null>
 }
@@ -110,6 +111,8 @@ export interface TenantData {
   gates?: GateDef[]
   /** Falls back to DEFAULT_SLA. */
   sla?: Partial<SlaSettings>
+  /** Evidence retention in days. 0 or absent = keep forever; otherwise 30-3650. */
+  retentionDays?: number
 }
 
 
@@ -204,7 +207,14 @@ export interface PassData {
   history?: HistoryEntry[]
   /** Set once by `checkIn`. There is no check-out. */
   checkIn?: CheckInStamp
+  /** Written by the SLA reminder job: which attempt was already reminded for each step (one reminder per step and attempt). */
+  slaAlerts?: SlaAlerts
+  /** Set by `purgeOldEvidence` (milliseconds here): the photos are gone, the pass and its history stay. */
+  evidenceDeletedAt?: number
 }
+
+export type SlaStage = 'supervisor' | 'officer'
+export type SlaAlerts = Partial<Record<SlaStage, { attempt: number; at: number }>>
 
 /** Who let the vehicle in, where and when. `at` is the server time (milliseconds here; the data port converts). */
 export interface CheckInStamp {

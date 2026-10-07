@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, where, type QueryConstraint } from 'firebase/firestore'
-import { getDownloadURL, ref } from 'firebase/storage'
-import { db, storage } from '@/lib/firebase'
+import { db } from '@/lib/firebase'
+import { downloadUrl } from '@/lib/storage'
 import type { Contractor, Driver, Vehicle, WithId } from '@/types'
 import { useScope, type Scope } from './scope'
 
@@ -76,6 +76,6 @@ export function useDriverPhotoUrl(photoPath: string | null | undefined, version?
     staleTime: 30 * 60_000,
     gcTime: 60 * 60_000,
     retry: false,
-    queryFn: () => getDownloadURL(ref(storage, photoPath as string)),
+    queryFn: () => downloadUrl(photoPath as string),
   })
 }

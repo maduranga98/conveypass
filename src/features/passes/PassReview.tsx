@@ -1,4 +1,4 @@
-import { History } from 'lucide-react'
+import { Archive, History } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/cn'
@@ -68,6 +68,12 @@ export function PassReview({ pass, today, contractorName, historyHref, layout = 
 
       <section aria-labelledby="photos-h" className="space-y-2">
         <h3 id="photos-h" className="text-base font-semibold">{t.evidence.title}</h3>
+        {pass.evidenceDeletedAt ? (
+          <p role="note" className="flex items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-800">
+            <Archive aria-hidden className="size-4 shrink-0" />
+            {strings.retention.removed}
+          </p>
+        ) : (
         <ul className={cn('grid gap-3', layout === 'wide' ? 'grid-cols-2' : 'grid-cols-1')}>
           {items.map((item, i) => (
             <li key={item.key}>
@@ -83,6 +89,7 @@ export function PassReview({ pass, today, contractorName, historyHref, layout = 
             </li>
           ))}
         </ul>
+        )}
       </section>
 
       <dl className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-300 bg-white">

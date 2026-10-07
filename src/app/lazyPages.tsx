@@ -1,8 +1,12 @@
 import { lazy } from 'react'
+import { loadStorage } from '@/lib/storage'
 
 export const LoginPage = lazy(() => import('@/features/auth/LoginPage'))
+export const PrivacyPage = lazy(() => import('@/features/auth/PrivacyPage'))
 export const ChangePasswordPage = lazy(() => import('@/features/auth/ChangePasswordPage'))
 export const DriverHome = lazy(() => import('@/features/passes/DriverHome'))
+export const NotificationsPage = lazy(() => import('@/features/notifications/NotificationsPage'))
+export const UserSettingsPage = lazy(() => import('@/features/notifications/UserSettingsPage'))
 export const SettingsPage = lazy(() => import('@/features/admin/SettingsPage'))
 export const AdminLayout = lazy(() => import('@/features/admin/AdminLayout'))
 export const UsersPage = lazy(() => import('@/features/admin/UsersPage'))
@@ -10,6 +14,7 @@ export const ContractorsPage = lazy(() => import('@/features/admin/ContractorsPa
 export const ContractorDetailPage = lazy(() => import('@/features/admin/ContractorDetailPage'))
 export const VehiclesPage = lazy(() => import('@/features/vehicles/VehiclesPage'))
 export const DriversPage = lazy(() => import('@/features/drivers/DriversPage'))
+export const AuditPage = lazy(() => import('@/features/admin/audit/AuditPage'))
 export const QrLabelsPage = lazy(() => import('@/features/qr/QrLabelsPage'))
 export const SupervisorLayout = lazy(() => import('@/features/supervisor/SupervisorLayout'))
 export const SupervisorHome = lazy(() => import('@/features/supervisor/SupervisorHome'))
@@ -28,6 +33,8 @@ const gateChunks = {
 }
 const withGate = <T,>(load: () => Promise<T>) => () => {
   for (const chunk of Object.values(gateChunks)) void chunk().catch(() => undefined)
+  // Driver photos come from Storage: load its SDK now too, so the gate still shows photos after the connection drops.
+  void loadStorage().catch(() => undefined)
   return load()
 }
 export const SecurityLayout = lazy(withGate(gateChunks.layout))

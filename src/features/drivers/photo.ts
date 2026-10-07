@@ -1,6 +1,5 @@
 import imageCompression from 'browser-image-compression'
-import { ref, uploadBytes } from 'firebase/storage'
-import { storage } from '@/lib/firebase'
+import { uploadPhoto } from '@/lib/storage'
 
 export const PHOTO_MAX_BYTES = 150 * 1024
 const PHOTO_EDGE_PX = 400
@@ -10,7 +9,7 @@ const options = (maxSizeMB: number, edge: number) => ({
   maxWidthOrHeight: edge,
   fileType: 'image/jpeg',
   initialQuality: 0.8,
-  useWebWorker: true,
+  useWebWorker: false, // the worker build loads its code from a CDN (blocked by the CSP, and unavailable offline)
 })
 
 /** Resizes to about 400 px and re-encodes as JPEG under 150 KB. Throws when the file is not a usable image. */
@@ -23,5 +22,5 @@ export async function compressPhoto(file: File): Promise<Blob> {
 }
 
 export async function uploadDriverPhoto(path: string, photo: Blob): Promise<void> {
-  await uploadBytes(ref(storage, path), photo, { contentType: 'image/jpeg', cacheControl: 'private, max-age=3600' })
+  await uploadPhoto(path, photo)
 }

@@ -2,6 +2,7 @@ import { onAuthStateChanged, signOut as fbSignOut } from 'firebase/auth'
 import { doc, getDoc, onSnapshot } from 'firebase/firestore'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { auth, db } from '@/lib/firebase'
+import { releaseDeviceOnSignOut } from '@/features/notifications/push/registration'
 import { queryClient } from '@/lib/queryClient'
 import { strings } from '@/lib/strings'
 import type { Contractor, UserDoc } from '@/types'
@@ -126,7 +127,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       ...state,
       clearNotice: () => setState((s) => ({ ...s, notice: null })),
-      signOut: () => fbSignOut(auth),
+      signOut: async () => {
+        // This device must stop receiving this account's alerts (best effort, never blocks sign-out).
+        const uid = auth.currentUser?.uid
+        if (uid) await releaseDeviceOnSignOut(uid)
+        await fbSignOut(auth)
+      },
       refreshClaims,
     }),
     [state, refreshClaims],

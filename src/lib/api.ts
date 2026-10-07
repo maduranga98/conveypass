@@ -86,7 +86,7 @@ export const submitPass = call<SubmitPassPayload, { passId: string; status: 'sub
   60_000,
 )
 export const updateTenantSettings = call<
-  { passSettings?: PassSettings; checklist?: ChecklistItemDef[]; rejectionReasons?: RejectionReasonDef[]; gates?: GateDef[]; sla?: SlaSettings },
+  { passSettings?: PassSettings; checklist?: ChecklistItemDef[]; rejectionReasons?: RejectionReasonDef[]; gates?: GateDef[]; sla?: SlaSettings; retentionDays?: number },
   { ok: true }
 >('updateTenantSettings')
 
@@ -111,3 +111,16 @@ export const denyEntry = call<DenyEntryPayload, { eventId: string; at: number; p
 // Module 6: dashboard trend and reports (admin and officer; read only). Reports can scan a lot of passes, so wait longer.
 export const getDashboardTrend = call<{ days: 7 | 14 | 30 }, TrendResult>('getDashboardTrend', 60_000)
 export const runReport = call<ReportRequest, ReportResult>('runReport', 300_000)
+
+// Module 7: push devices (caller only). The browser's FCM token goes to the server, never into the page's storage.
+export const registerDevice = call<{ deviceId: string; token: string; platform: 'android' | 'ios' | 'desktop' | 'other' }, { ok: true }>(
+  'registerDevice',
+  20_000,
+)
+export const unregisterDevice = call<{ deviceId: string }, { ok: true }>('unregisterDevice', 20_000)
+
+// Crash reports (signed-in users only; the server scrubs, truncates and rate limits).
+export const reportClientError = call<
+  { message: string; stack?: string; route?: string; source: 'boundary' | 'window' | 'promise' | 'gate' | 'form'; appVersion?: string },
+  { ok: true }
+>('reportClientError', 10_000)

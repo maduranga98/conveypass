@@ -1,0 +1,67 @@
+name: Deploy
+
+# A version tag (v1.2.3) deploys to staging automatically. Production waits for a manual approval: configure the
+# "production" environment in GitHub (Settings > Environments) with Required reviewers. Nothing else deploys.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+
+  staging:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/deploy
+        with:
+          alias: staging
+          credentials: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          region: ${{ vars.FUNCTIONS_REGION }}
+          app-base-url: ${{ vars.APP_BASE_URL }}
+          enforce-app-check: ${{ vars.ENFORCE_APP_CHECK }}
+          min-instances: ${{ vars.MIN_INSTANCES }}
+          firebase-api-key: ${{ vars.VITE_FIREBASE_API_KEY }}
+          firebase-auth-domain: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          firebase-project-id: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          firebase-storage-bucket: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          firebase-messaging-sender-id: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          firebase-app-id: ${{ vars.VITE_FIREBASE_APP_ID }}
+          vapid-key: ${{ vars.VITE_FIREBASE_VAPID_KEY }}
+          app-check-site-key: ${{ vars.VITE_APP_CHECK_SITE_KEY }}
+
+  production:
+    needs: staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Required reviewers on this environment = the manual approval gate.
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/deploy
+        with:
+          alias: prod
+          credentials: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          region: ${{ vars.FUNCTIONS_REGION }}
+          app-base-url: ${{ vars.APP_BASE_URL }}
+          enforce-app-check: ${{ vars.ENFORCE_APP_CHECK }}
+          min-instances: ${{ vars.MIN_INSTANCES }}
+          firebase-api-key: ${{ vars.VITE_FIREBASE_API_KEY }}
+          firebase-auth-domain: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          firebase-project-id: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          firebase-storage-bucket: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          firebase-messaging-sender-id: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          firebase-app-id: ${{ vars.VITE_FIREBASE_APP_ID }}
+          vapid-key: ${{ vars.VITE_FIREBASE_VAPID_KEY }}
+          app-check-site-key: ${{ vars.VITE_APP_CHECK_SITE_KEY }}

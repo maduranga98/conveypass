@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/Button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { Input, Select } from '@/components/ui/Input'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -22,9 +23,10 @@ import { strings } from '@/lib/strings'
 import { useSession } from '@/features/auth/useAuth'
 import { useTenant } from '@/features/passes/queries'
 import type { Tenant } from '@/types'
-import { gateNameOk, MAX_REASONS, MIN_REASONS, reasonLabelOk, slaOk } from './reasons'
+import { gateNameOk, MAX_REASONS, MIN_REASONS, reasonLabelOk, retentionOk, slaOk } from './reasons'
 import { RejectionReasonsEditor } from './RejectionReasonsEditor'
 import { GatesEditor } from './GatesEditor'
+import { RetentionEditor } from './RetentionEditor'
 import { SlaEditor } from './SlaEditor'
 
 const t = strings.admin.settings
@@ -40,6 +42,7 @@ interface Baseline {
   reasons: RejectionReasonDef[]
   gates: GateDef[]
   sla: SlaSettings
+  retentionDays: number
 }
 
 const baselineOf = (tenant: Tenant | null): Baseline => ({
@@ -48,6 +51,7 @@ const baselineOf = (tenant: Tenant | null): Baseline => ({
   reasons: tenant?.rejectionReasons && tenant.rejectionReasons.length > 0 ? tenant.rejectionReasons : [...DEFAULT_REJECTION_REASONS],
   gates: tenant?.gates && tenant.gates.length > 0 ? tenant.gates : [...DEFAULT_GATES],
   sla: slaOf(tenant),
+  retentionDays: tenant?.retentionDays ?? 0,
 })
 
 function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: string }) {
@@ -62,13 +66,16 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
   const usingDefaultGates = !tenant?.gates || tenant.gates.length === 0
   const [sla, setSla] = useState<SlaSettings>(baseline.sla)
   const usingDefaultSla = !tenant?.sla
+  const [retention, setRetention] = useState<number>(baseline.retentionDays)
+  const [confirmRetention, setConfirmRetention] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [touched, setTouched] = useState(false)
 
   const dirty =
-    JSON.stringify({ items, settings, reasons, gates, sla }) !==
-    JSON.stringify({ items: baseline.checklist, settings: baseline.settings, reasons: baseline.reasons, gates: baseline.gates, sla: baseline.sla })
+    JSON.stringify({ items, settings, reasons, gates, sla, retention }) !==
+    JSON.stringify({ items: baseline.checklist, settings: baseline.settings, reasons: baseline.reasons, gates: baseline.gates, sla: baseline.sla, retention: baseline.retentionDays })
+  const retentionChanged = !Object.is(retention, baseline.retentionDays)
   const slaChanged = JSON.stringify(sla) !== JSON.stringify(baseline.sla)
   const reasonsChanged = JSON.stringify(reasons) !== JSON.stringify(baseline.reasons)
   const gatesChanged = JSON.stringify(gates) !== JSON.stringify(baseline.gates)
@@ -89,9 +96,18 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
       return next
     })
 
-  const save = async () => {
+  // Turning deletion on, or shortening the limit, asks first: it removes photos for good.
+  const askOrSave = () => {
     setTouched(true)
-    if (invalidLabels || problem || reasonCountBad || !slaOk(sla)) return
+    if (invalidLabels || problem || reasonCountBad || !slaOk(sla) || !retentionOk(retention)) return
+    if (retentionChanged && retention !== 0 && (baseline.retentionDays === 0 || retention < baseline.retentionDays)) setConfirmRetention(true)
+    else void save()
+  }
+
+  const save = async () => {
+    setConfirmRetention(false)
+    setTouched(true)
+    if (invalidLabels || problem || reasonCountBad || !slaOk(sla) || !retentionOk(retention)) return
     setSaving(true)
     setError(null)
     const checklist = items.map((i) => ({ ...i, label: i.label.trim() }))
@@ -107,11 +123,12 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
         ...(saveReasons ? { rejectionReasons: cleanReasons } : {}),
         ...(saveGates ? { gates: cleanGates } : {}),
         ...(slaChanged || !usingDefaultSla ? { sla } : {}),
+        ...(retentionChanged ? { retentionDays: retention } : {}),
       })
       setItems(checklist)
       setReasons(cleanReasons)
       setGates(cleanGates)
-      setBaseline({ checklist, settings, reasons: cleanReasons, gates: cleanGates, sla })
+      setBaseline({ checklist, settings, reasons: cleanReasons, gates: cleanGates, sla, retentionDays: retention })
       await queryClient.invalidateQueries({ queryKey: ['tenant', tenantId] })
       toast.success(t.saved)
     } catch (e) {
@@ -184,6 +201,8 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
 
       <SlaEditor value={sla} onChange={setSla} showErrors={touched} usingDefaults={usingDefaultSla} />
 
+      <RetentionEditor value={retention} onChange={setRetention} showErrors={touched} />
+
       <section aria-label={strings.admin.nav.settings} className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
         <label className="flex min-h-10 items-start gap-3 text-sm">
           <input
@@ -206,10 +225,19 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
 
       {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       <div>
-        <Button loading={saving} disabled={!dirty} onClick={() => void save()}>
+        <Button loading={saving} disabled={!dirty} onClick={askOrSave}>
           {saving ? strings.common.saving : t.save}
         </Button>
       </div>
+      <ConfirmDialog
+        open={confirmRetention}
+        title={strings.retention.confirmTitle}
+        body={strings.retention.confirmBody(retention)}
+        confirmLabel={strings.retention.confirm}
+        tone="danger"
+        onConfirm={() => void save()}
+        onCancel={() => setConfirmRetention(false)}
+      />
     </div>
   )
 }

@@ -1,99 +1,65 @@
 import { initializeApp } from 'firebase-admin/app'
-import { onCall, type CallableRequest } from 'firebase-functions/v2/https'
 import { setGlobalOptions } from 'firebase-functions/v2'
-import { REGION } from './config.js'
+import { onRequest } from 'firebase-functions/v2/https'
+import { ENFORCE_APP_CHECK, REGION } from './config.js'
 import * as approvals from './approvals.js'
+import * as clientErrors from './clientErrors.js'
 import * as core from './core.js'
+import { handleCspReport } from './cspReport.js'
+import * as devices from './devices.js'
 import * as gate from './gate.js'
-import { fail } from './errors.js'
-import { newVehicleId } from './ids.js'
 import * as passes from './passes.js'
 import * as reportsApi from './reportsApi.js'
-import { authPort, dataPort, storagePort } from './ports.js'
-import { ROLES, type Caller, type Role } from './types.js'
+import { devicePort } from './notifyPorts.js'
+import { callable } from './runtime.js'
 import * as vehicles from './vehicles.js'
 
 initializeApp()
-setGlobalOptions({ region: REGION, maxInstances: 10 })
+// `enforceAppCheck` applies to callables only (ENFORCE_APP_CHECK=true in functions/.env.<alias>, never in the emulator).
+setGlobalOptions({ region: REGION, maxInstances: 10, enforceAppCheck: ENFORCE_APP_CHECK })
 
-/** The caller identity comes from verified token claims only, never from the request payload. */
-function callerFrom(request: CallableRequest<unknown>): Caller {
-  const token = request.auth?.token
-  if (!request.auth || !token) throw fail('unauthenticated', 'unauthenticated', 'Sign in required')
-  const role = token.role as unknown
-  const tenantId = token.tenantId as unknown
-  const contractorId = token.contractorId as unknown
-  if (
-    typeof role !== 'string' ||
-    !(ROLES as readonly string[]).includes(role) ||
-    typeof tenantId !== 'string' ||
-    !tenantId
-  ) {
-    throw fail('permission-denied', 'forbidden', 'Account is not set up')
-  }
-  return {
-    uid: request.auth.uid,
-    role: role as Role,
-    tenantId,
-    contractorId: typeof contractorId === 'string' && contractorId ? contractorId : null,
-    authTime: typeof token.auth_time === 'number' ? token.auth_time : 0,
-  }
-}
+// Sensitive callables are rate limited per user (`rateLimit: true`); latency-sensitive ones stay warm (`warm: true`).
+export const createUser = callable('createUser', core.createUser, { rateLimit: true })
+export const updateUser = callable('updateUser', core.updateUser)
+export const resetCredential = callable('resetCredential', core.resetCredential, { rateLimit: true })
+export const changeOwnPassword = callable('changeOwnPassword', core.changeOwnPassword)
 
-const deps = (): core.Deps => ({
-  auth: authPort(),
-  data: dataPort(),
-  storage: storagePort(),
-  newVehicleId,
-  now: () => Math.floor(Date.now() / 1000),
-})
-
-export const createUser = onCall((request) => core.createUser(deps(), callerFrom(request), request.data))
-export const updateUser = onCall((request) => core.updateUser(deps(), callerFrom(request), request.data))
-export const resetCredential = onCall((request) =>
-  core.resetCredential(deps(), callerFrom(request), request.data),
-)
-export const changeOwnPassword = onCall((request) =>
-  core.changeOwnPassword(deps(), callerFrom(request), request.data),
-)
-
-export const createVehicle = onCall((request) => vehicles.createVehicle(deps(), callerFrom(request), request.data))
-export const updateVehicle = onCall((request) => vehicles.updateVehicle(deps(), callerFrom(request), request.data))
-export const setVehicleStatus = onCall((request) =>
-  vehicles.setVehicleStatus(deps(), callerFrom(request), request.data),
-)
-export const setVehicleDrivers = onCall((request) =>
-  vehicles.setVehicleDrivers(deps(), callerFrom(request), request.data),
-)
+export const createVehicle = callable('createVehicle', vehicles.createVehicle)
+export const updateVehicle = callable('updateVehicle', vehicles.updateVehicle)
+export const setVehicleStatus = callable('setVehicleStatus', vehicles.setVehicleStatus)
+export const setVehicleDrivers = callable('setVehicleDrivers', vehicles.setVehicleDrivers)
 // 200 rows, one transaction each.
-export const importVehicles = onCall({ timeoutSeconds: 180 }, (request) =>
-  vehicles.importVehicles(deps(), callerFrom(request), request.data),
-)
-export const setContractorStatus = onCall({ timeoutSeconds: 120 }, (request) =>
-  vehicles.setContractorStatus(deps(), callerFrom(request), request.data),
-)
+export const importVehicles = callable('importVehicles', vehicles.importVehicles, { timeoutSeconds: 180, rateLimit: true })
+export const setContractorStatus = callable('setContractorStatus', vehicles.setContractorStatus, { timeoutSeconds: 120 })
 
-export const resolveVehicle = onCall((request) => passes.resolveVehicle(deps(), callerFrom(request), request.data))
-export const submitPass = onCall((request) => passes.submitPass(deps(), callerFrom(request), request.data))
-export const updateTenantSettings = onCall((request) =>
-  passes.updateTenantSettings(deps(), callerFrom(request), request.data),
-)
+export const resolveVehicle = callable('resolveVehicle', passes.resolveVehicle, { warm: true })
+export const submitPass = callable('submitPass', passes.submitPass, { warm: true })
+export const updateTenantSettings = callable('updateTenantSettings', passes.updateTenantSettings)
 
-export const decidePass = onCall((request) => approvals.decidePass(deps(), callerFrom(request), request.data))
+export const decidePass = callable('decidePass', approvals.decidePass)
 // 50 items, one transaction each.
-export const bulkApprove = onCall({ timeoutSeconds: 120 }, (request) =>
-  approvals.bulkApprove(deps(), callerFrom(request), request.data),
-)
-export const revokePass = onCall((request) => approvals.revokePass(deps(), callerFrom(request), request.data))
+export const bulkApprove = callable('bulkApprove', approvals.bulkApprove, { timeoutSeconds: 120, rateLimit: true })
+export const revokePass = callable('revokePass', approvals.revokePass)
 
 // Module 5: the gate. Security reads directly from Firestore; these are its only writes.
-export const checkIn = onCall((request) => gate.checkIn(deps(), callerFrom(request), request.data))
-export const denyEntry = onCall((request) => gate.denyEntry(deps(), callerFrom(request), request.data))
+export const checkIn = callable('checkIn', gate.checkIn, { warm: true })
+export const denyEntry = callable('denyEntry', gate.denyEntry)
 
 // Module 6: dashboard trend and reports (admin and officer, read only).
-export const getDashboardTrend = onCall({ timeoutSeconds: 60 }, (request) =>
-  reportsApi.getDashboardTrend(deps(), callerFrom(request), request.data),
+export const getDashboardTrend = callable('getDashboardTrend', reportsApi.getDashboardTrend, { timeoutSeconds: 60 })
+export const runReport = callable('runReport', (d, c, data) => reportsApi.runReport(d, c, data), { timeoutSeconds: 300, memory: '1GiB' })
+
+// Module 7: notifications. Triggers (passes, gateEvents) and the SLA schedule live in notificationTriggers.ts.
+export { onGateEventCreated, onPassWritten, purgeOldEvidenceDaily as purgeOldEvidence, slaReminders } from './notificationTriggers.js'
+export const registerDevice = callable(
+  'registerDevice',
+  (d, caller, data, meta) => devices.registerDevice(d, devicePort(), caller, data, meta),
+  { rateLimit: true },
 )
-export const runReport = onCall({ timeoutSeconds: 300, memory: '1GiB' }, (request) =>
-  reportsApi.runReport(deps(), callerFrom(request), request.data),
-)
+export const unregisterDevice = callable('unregisterDevice', (d, caller, data) => devices.unregisterDevice(d, devicePort(), caller, data))
+
+// Browsers report crashes here: signed-in users only, rate limited per user, scrubbed and truncated, logs only.
+export const reportClientError = callable('reportClientError', clientErrors.reportClientError, { rateLimit: true })
+
+// Content-Security-Policy-Report-Only violations (hosting rewrites /csp-report here). Logs only: host, path, directive.
+export const cspReport = onRequest({ cors: false, maxInstances: 2, memory: '128MiB' }, (req, res) => handleCspReport(req, res))

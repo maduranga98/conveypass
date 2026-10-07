@@ -34,3 +34,9 @@ firebase-debug.log
 firestore-debug.log
 ui-debug.log
 *-debug.log
+!functions/.env.example
+e2e/.seed.json
+test-results/
+playwright-report/
+.drill/
+dist-csp

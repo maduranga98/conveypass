@@ -5,7 +5,8 @@ import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
 import { useAuth, useSession } from '@/features/auth/useAuth'
 import { usePendingCount } from '@/features/passes/usePendingCount'
-import { usePendingTitle } from '@/features/passes/usePendingTitle'
+import { Bell } from '@/features/notifications/Bell'
+import { PushOptInCard } from '@/features/notifications/PushOptInCard'
 import { useContractorList } from '@/features/shared/queries'
 
 const nav = [
@@ -22,7 +23,6 @@ export default function SupervisorLayout() {
   const { signOut } = useAuth()
   const contractors = useContractorList('supervisor')
   const { count } = usePendingCount('supervisor')
-  usePendingTitle(count)
   // The review screen has its own sticky Approve/Reject bar where the bottom navigation would be.
   const reviewing = useMatch('/supervisor/approvals/:passId') !== null
 
@@ -34,13 +34,17 @@ export default function SupervisorLayout() {
             <p className="truncate text-sm font-semibold tracking-tight">{contractors.data?.[0]?.name ?? strings.app.name}</p>
             <p className="truncate text-xs text-slate-500">{profile.name}</p>
           </div>
-          <Button variant="ghost" size="icon" aria-label={strings.common.signOut} title={strings.common.signOut} onClick={() => void signOut()}>
-            <LogOut aria-hidden className="size-5" />
-          </Button>
+          <div className="flex items-center">
+            <Bell />
+            <Button variant="ghost" size="icon" className="size-11" aria-label={strings.common.signOut} title={strings.common.signOut} onClick={() => void signOut()}>
+              <LogOut aria-hidden className="size-5" />
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-6 print:max-w-none print:p-0">
+        <div className="pb-4 empty:hidden print:hidden"><PushOptInCard /></div>
         {claims.contractorId ? (
           <Outlet />
         ) : (

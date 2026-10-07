@@ -24,6 +24,8 @@ export interface Tenant {
   gates?: GateDef[]
   /** Falls back to DEFAULT_SLA. */
   sla?: Partial<SlaSettings>
+  /** 0 or absent = keep evidence forever; otherwise 30-3650 days. */
+  retentionDays?: number
 }
 
 export interface UserDoc {

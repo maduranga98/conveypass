@@ -85,7 +85,7 @@ export function PassCard({ pass, now, contractorName, mode = 'open', selected = 
         <div className="grid grid-cols-2 gap-2">
           {([['gps', strings.approvals.evidence.gps, pass.evidence.gps.path], ['dashcam', strings.approvals.evidence.dashcam, pass.evidence.dashcam.path]] as const).map(([key, label, path]) => (
             <div key={key} className="aspect-[4/3] overflow-hidden rounded-lg bg-slate-200">
-              <EvidenceThumb path={path} alt={t.photoOf(label, pass.plateNo)} />
+              <EvidenceThumb path={path} alt={t.photoOf(label, pass.plateNo)} removed={Boolean(pass.evidenceDeletedAt)} />
             </div>
           ))}
         </div>

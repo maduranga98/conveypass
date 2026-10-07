@@ -12,9 +12,10 @@ const variants: Record<Variant, string> = {
   danger: 'bg-red-600 text-white hover:bg-red-700',
 }
 const sizes: Record<Size, string> = {
-  sm: 'h-9 px-3 text-sm',
+  // Dense on a mouse, 44 px (the touch-target guideline) on a finger.
+  sm: 'h-9 px-3 text-sm pointer-coarse:h-11',
   md: 'h-11 px-4 text-sm',
-  icon: 'size-9 justify-center',
+  icon: 'size-9 justify-center pointer-coarse:size-11',
 }
 
 interface ButtonProps extends ComponentProps<'button'> {

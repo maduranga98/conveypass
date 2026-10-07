@@ -54,7 +54,7 @@ async function readDecisionContext(
 }
 
 /** Stored pass -> PassData with every timestamp as milliseconds. */
-function toPass(raw: Record<string, unknown>): PassData {
+export function toPass(raw: Record<string, unknown>): PassData {
   const data = raw as unknown as PassData & {
     supervisor?: { at: unknown }
     officer?: { at: unknown }

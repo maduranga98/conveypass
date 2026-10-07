@@ -1,0 +1,98 @@
+name: CI
+
+# Pull requests, and reused by deploy.yml so a release is verified the same way before it ships.
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+
+      # The Firestore and Storage emulators need a JVM.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install (also installs functions/ through the postinstall hook)
+        run: npm ci
+
+      - name: Lint (ESLint incl. jsx-a11y)
+        run: npm run lint
+
+      - name: Type check (tsc --noEmit for the web app, the service worker, scripts and functions)
+        run: npm run typecheck
+
+      - name: Unit and component tests
+        run: npm run test:unit
+
+      - name: Function tests (Firestore emulator)
+        run: npm run test:functions
+
+      - name: Rules tests (Firestore and Storage emulators)
+        run: npm run test:rules
+
+      - name: "Build the web app (no secrets needed: public config is injected at deploy time)"
+        run: npm run build
+
+      - name: "Bundle budget (gzipped first load of the driver and security routes; heavy libraries must stay lazy)"
+        run: npm run bundle:report -- --budget
+
+      - name: Build the functions
+        run: npm --prefix functions run build
+
+  # End to end: the app against the Auth, Firestore, Functions and Storage emulators (live notification bell fed by the
+  # real trigger, opt-in and iOS guidance, accessibility and touch targets, the CSP run, installability).
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - run: npm ci
+
+      - name: Install the browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright
+        run: npm run test:e2e
+
+      - name: Keep the traces of a failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7

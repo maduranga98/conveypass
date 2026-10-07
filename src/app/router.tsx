@@ -1,11 +1,14 @@
 import { Suspense, type ReactNode } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { VehicleRouteBoundary } from '@/components/RouteErrorBoundary'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { ForbiddenPage, NotFoundPage } from '@/features/auth/ErrorPages'
 import { RequireAuth, RequireRole, RoleHomeRedirect } from '@/features/auth/guards'
+import { NotificationsRoot } from '@/features/notifications/NotificationsProvider'
 import {
   AdminLayout,
   ApprovalsPage,
+  AuditPage,
   ChangePasswordPage,
   ContractorDetailPage,
   ContractorsPage,
@@ -14,15 +17,18 @@ import {
   DriversPage,
   GateHome,
   LoginPage,
+  NotificationsPage,
   OfficerLayout,
   OfficerQueue,
   PassesPage,
+  PrivacyPage,
   QrLabelsPage,
   QueuePage,
   ReportsPage,
   ReviewPage,
   SecurityLayout,
   SettingsPage,
+  UserSettingsPage,
   SupervisorHome,
   SupervisorLayout,
   UsersPage,
@@ -35,12 +41,19 @@ const lazyEl = (node: ReactNode) => <Suspense fallback={<PageSpinner />}>{node}<
 
 export const router = createBrowserRouter([
   { path: '/login', element: lazyEl(<LoginPage />) },
+  { path: '/privacy', element: lazyEl(<PrivacyPage />) },
   {
     element: <RequireAuth />,
     children: [
+      {
+        // Everything below shares one live notification feed (the bell, /notifications and the tab title).
+        element: <NotificationsRoot />,
+        children: [
       { path: '/', element: <RoleHomeRedirect /> },
+      { path: '/notifications', element: lazyEl(<NotificationsPage />) },
+      { path: '/settings', element: lazyEl(<UserSettingsPage />) },
       { path: '/change-password', element: lazyEl(<ChangePasswordPage />) },
-      { path: '/v/:vehicleId', element: lazyEl(<VehicleRoute />) },
+      { path: '/v/:vehicleId', element: <VehicleRouteBoundary>{lazyEl(<VehicleRoute />)}</VehicleRouteBoundary> },
       {
         element: <RequireRole roles={['admin']} />,
         children: [
@@ -57,6 +70,7 @@ export const router = createBrowserRouter([
               { path: 'drivers', element: lazyEl(<DriversPage scope="admin" />) },
               { path: 'passes', element: lazyEl(<PassesPage />) },
               { path: 'reports', element: lazyEl(<ReportsPage />) },
+              { path: 'audit', element: lazyEl(<AuditPage />) },
               // Module 5's gate log is now a report.
               { path: 'gate-log', element: <Navigate to="/admin/reports?type=gate_log" replace /> },
               { path: 'qr', element: lazyEl(<QrLabelsPage scope="admin" />) },
@@ -111,6 +125,8 @@ export const router = createBrowserRouter([
               { path: 'queue', element: lazyEl(<QueuePage />) },
             ],
           },
+        ],
+      },
         ],
       },
     ],

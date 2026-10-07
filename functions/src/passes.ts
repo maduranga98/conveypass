@@ -342,6 +342,7 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
       ...(input.rejectionReasons ? { rejectionReasons: input.rejectionReasons } : {}),
       ...(input.gates ? { gates: input.gates } : {}),
       ...(input.sla ? { sla: input.sla } : {}),
+      ...(input.retentionDays !== undefined ? { retentionDays: input.retentionDays } : {}),
     },
     audit(
       caller,
@@ -353,6 +354,7 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
         rejectionReasons: input.rejectionReasons?.length ?? null,
         gates: input.gates?.length ?? null,
         sla: input.sla !== undefined,
+        retentionDays: input.retentionDays ?? null,
         requireLocation: input.passSettings?.requireLocation ?? null,
         maxExtraPhotos: input.passSettings?.maxExtraPhotos ?? null,
       },

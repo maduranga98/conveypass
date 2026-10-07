@@ -3,7 +3,7 @@ import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
 
 export const fieldClass =
-  'block w-full rounded-lg border bg-white px-3 text-base text-slate-900 placeholder:text-slate-400 ' +
+  'block w-full rounded-lg border bg-white px-3 text-base text-slate-900 placeholder:text-slate-500 ' +
   'focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-accent disabled:bg-slate-50 disabled:text-slate-500'
 
 interface FieldProps {
@@ -25,7 +25,7 @@ function FieldShell({
     <div className="space-y-1.5">
       <label htmlFor={id} className="flex items-baseline justify-between text-sm font-medium text-slate-700">
         <span>{label}</span>
-        {optional && <span className="text-xs font-normal text-slate-400">{strings.common.optional}</span>}
+        {optional && <span className="text-xs font-normal text-slate-600">{strings.common.optional}</span>}
       </label>
       {children}
       {hint && !error && (

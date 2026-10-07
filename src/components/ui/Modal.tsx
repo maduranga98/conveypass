@@ -30,6 +30,8 @@ export function Modal({ open, onClose, title, children, variant = 'center', foot
   }, [open])
 
   return (
+    // Backdrop click is a pointer convenience only: keyboard users close with Escape (native) or the Close button.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events
     <dialog
       ref={ref}
       aria-labelledby={titleId}

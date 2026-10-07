@@ -5,7 +5,8 @@ import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
 import { useAuth, useSession } from '@/features/auth/useAuth'
 import { usePendingCount } from '@/features/passes/usePendingCount'
-import { usePendingTitle } from '@/features/passes/usePendingTitle'
+import { Bell } from '@/features/notifications/Bell'
+import { PushOptInCard } from '@/features/notifications/PushOptInCard'
 
 const NAV = [
   { to: '/officer', label: strings.officer.nav.queue, end: true },
@@ -17,8 +18,7 @@ const NAV = [
 export default function OfficerLayout() {
   const { profile } = useSession()
   const { signOut } = useAuth()
-  const { count } = usePendingCount('officer')
-  usePendingTitle(count)
+  usePendingCount('officer') // keeps the queue listener warm for the other officer screens
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -44,8 +44,9 @@ export default function OfficerLayout() {
               ))}
             </nav>
           </div>
-          <div className="flex items-center gap-3">
-            <p className="truncate text-sm font-medium text-slate-800">{profile.name}</p>
+          <div className="flex items-center gap-1">
+            <Bell />
+            <p className="hidden truncate px-2 text-sm font-medium text-slate-800 sm:block">{profile.name}</p>
             <Button variant="ghost" size="sm" icon={<LogOut aria-hidden className="size-4" />} onClick={() => void signOut()}>
               {strings.common.signOut}
             </Button>
@@ -53,6 +54,7 @@ export default function OfficerLayout() {
         </div>
       </header>
       <main className="min-w-0 flex-1">
+        <div className="px-4 pt-4 empty:hidden lg:px-6 print:hidden"><PushOptInCard /></div>
         <Outlet />
       </main>
     </div>

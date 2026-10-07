@@ -53,6 +53,8 @@ export type Reason =
   | 'range-too-large'
   | 'id-required'
   | 'filter-invalid'
+  | 'rate-limited'
+  | 'device-invalid'
   | 'internal'
 
 /** Typed error: `code` is the gRPC-style code, `details.reason` is a stable key the client maps to a string. */

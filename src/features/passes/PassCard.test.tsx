@@ -4,8 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import { makePass, no } from '@/test/passFactory'
 
-vi.mock('@/lib/firebase', () => ({ storage: {} }))
-vi.mock('firebase/storage', () => ({ ref: (_s: unknown, p: string) => p, getDownloadURL: async (p: string) => `https://photos.test/${p}` }))
+vi.mock('@/lib/firebase', () => ({ app: {} }))
+vi.mock('firebase/storage', () => ({ getStorage: () => ({}), ref: (_s: unknown, p: string) => p, getDownloadURL: async (p: string) => `https://photos.test/${p}` }))
 
 import { ChecklistSummary } from './ChecklistSummary'
 import { PassCard } from './PassCard'

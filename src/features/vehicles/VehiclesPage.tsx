@@ -73,7 +73,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
         <button
           type="button"
           onClick={() => setOpenId(v.id)}
-          className="rounded font-mono text-base font-semibold tracking-wide text-slate-900 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="inline-flex min-h-11 items-center rounded font-mono text-base font-semibold tracking-wide text-slate-900 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           {v.plateNo}
         </button>
@@ -88,7 +88,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
       header: t.columns.drivers,
       cell: (v) =>
         v.assignedDriverIds.length === 0 ? (
-          <span className="text-slate-400">{t.noDrivers}</span>
+          <span className="text-slate-600">{t.noDrivers}</span>
         ) : (
           <span className="line-clamp-2">{v.assignedDriverIds.map((id) => driverNames.get(id) ?? strings.common.none).join(', ')}</span>
         ),

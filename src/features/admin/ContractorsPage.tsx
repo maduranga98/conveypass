@@ -48,7 +48,7 @@ export default function ContractorsPage() {
       cell: (c) => (
         <Link
           to={`/admin/contractors/${c.id}`}
-          className="rounded font-medium text-slate-900 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="inline-flex min-h-11 items-center rounded font-medium text-slate-900 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           {c.name}
         </Link>

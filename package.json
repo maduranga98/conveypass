@@ -17,7 +17,16 @@
     "seed:emulator": "tsx scripts/seed.ts --target=emulator",
     "seed:prod": "tsx scripts/seed.ts --target=prod",
     "seed:demo": "tsx scripts/seed-demo.ts",
-    "postinstall": "npm --prefix functions install"
+    "postinstall": "npm --prefix functions install",
+    "config:csp": "tsx scripts/enforce-csp.ts",
+    "create-tenant": "tsx scripts/create-tenant.ts",
+    "reset-admin": "tsx scripts/reset-admin.ts",
+    "test:e2e": "firebase emulators:exec --only auth,firestore,functions,storage --project demo-conveypass-e2e \"npm --prefix functions run build && playwright test\"",
+    "verify-restore": "tsx scripts/verify-restore.ts",
+    "drill:restore": "tsx scripts/restore-drill.ts",
+    "sla:check": "tsx functions/src/cli/runSlaCheck.ts",
+    "bundle:report": "tsx scripts/bundle-report.ts",
+    "build:e2e": "tsx scripts/build-e2e.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -40,12 +49,17 @@
     "recharts": "^3.10.1",
     "sonner": "^2.0.8",
     "tailwindcss": "^4.3.3",
+    "workbox-precaching": "^7.4.1",
+    "workbox-routing": "^7.4.1",
+    "workbox-window": "^7.4.1",
     "zod": "^4.6.5",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^10.0.1",
     "@firebase/rules-unit-testing": "^5.0.2",
+    "@playwright/test": "^1.63.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -56,6 +70,7 @@
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^10.10.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.6",
     "fake-indexeddb": "^6.2.5",
@@ -68,6 +83,12 @@
     "typescript-eslint": "^8.69.0",
     "vite": "^8.3.0",
     "vite-plugin-pwa": "^2.0.0",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "workbox-build": "^7.4.1"
+  },
+  "overrides": {
+    "eslint-plugin-jsx-a11y": {
+      "eslint": "$eslint"
+    }
   }
 }
