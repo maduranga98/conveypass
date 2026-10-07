@@ -136,7 +136,7 @@ export default function GateLogPage() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-          <table className="w-full min-w-[880px] border-collapse text-sm">
+          <table className="w-full min-w-[1080px] border-collapse text-sm">
             <thead className="bg-slate-50 text-left text-xs font-semibold tracking-wide text-slate-600 uppercase">
               <tr>
                 {(['time', 'type', 'plate', 'contractor', 'driver', 'gate', 'guard', 'reason'] as const).map((c) => (
@@ -151,15 +151,15 @@ export default function GateLogPage() {
                     {formatTime(r.atMs)}
                     {r.offlineAt && <p className="text-xs text-amber-800">{t.offline(formatTime(Date.parse(r.offlineAt)))}</p>}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <Badge tone={r.kind === 'checkIn' ? 'success' : 'danger'}>{r.kind === 'checkIn' ? t.checkIn : t.denied}</Badge>
                   </td>
-                  <td className="px-4 py-3 font-bold tracking-tight">{r.plateNo}</td>
+                  <td className="px-4 py-3 font-bold tracking-tight whitespace-nowrap">{r.plateNo}</td>
                   <td className="px-4 py-3">{contractorName(r.contractorId)}</td>
                   <td className="px-4 py-3">{r.driver}</td>
                   <td className="px-4 py-3">{r.gate}</td>
                   <td className="px-4 py-3">{r.guard}</td>
-                  <td className="px-4 py-3 text-slate-700">{r.reason || strings.common.none}</td>
+                  <td className="min-w-64 px-4 py-3 text-slate-700">{r.reason || strings.common.none}</td>
                 </tr>
               ))}
             </tbody>

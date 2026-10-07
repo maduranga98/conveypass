@@ -11,6 +11,7 @@ const ts = (ms: number) => ({ toMillis: () => ms, seconds: Math.floor(ms / 1000)
 const h = vi.hoisted(() => ({
   role: 'security' as string,
   pass: null as Record<string, unknown> | null,
+  passError: null as string | null,
   vehicle: { id: 'veh_ab12cd34ef', plateNo: 'WP LJ-4821', plateKey: 'WPLJ4821', type: 'Tipper', contractorId: 'C1', status: 'active' } as Record<string, unknown> | null,
   driver: { id: 'drv1', name: 'Dan Driver', status: 'active', photoPath: null } as Record<string, unknown> | null,
   contractor: { id: 'C1', name: 'Lanka Haulage', status: 'active' } as Record<string, unknown> | null,
@@ -26,7 +27,10 @@ vi.mock('@/features/auth/useAuth', () => ({
 }))
 vi.mock('@/features/passes/useToday', () => ({ useToday: () => TODAY, useNow: () => Date.now() }))
 vi.mock('@/features/passes/usePass', () => ({
-  usePass: (id: string | null) => (id === null ? { status: 'loading' } : h.pass ? { status: 'ready', pass: h.pass } : { status: 'missing' }),
+  usePass: (id: string | null) =>
+    id === null ? { status: 'loading' }
+    : h.passError ? { status: 'error', error: { code: h.passError } }
+    : h.pass ? { status: 'ready', pass: h.pass } : { status: 'missing' },
 }))
 vi.mock('@/features/shared/queries', () => ({ useDriverPhotoUrl: () => ({ data: undefined, isError: false }) }))
 vi.mock('./queries', () => {
@@ -64,6 +68,7 @@ function view(role: Role = 'security') {
 
 beforeEach(() => {
   h.pass = approvedPass()
+  h.passError = null
   h.vehicle = { id: VID, plateNo: 'WP LJ-4821', plateKey: 'WPLJ4821', type: 'Tipper', contractorId: 'C1', status: 'active' }
   h.driver = { id: 'drv1', name: 'Dan Driver', status: 'active', photoPath: null }
   h.contractor = { id: 'C1', name: 'Lanka Haulage', status: 'active' }
@@ -124,6 +129,17 @@ describe('GateVehicleView', () => {
     v.again()
     expect(screen.getByRole('heading', { name: 'APPROVED' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /check in/i })).toBeInTheDocument()
+  })
+
+  it('no pass today: a denied read of a missing pass is "no pass", any other read error is "could not load"', () => {
+    h.pass = null
+    h.passError = 'permission-denied'
+    const v = view()
+    expect(screen.getByText('No pass submitted for today.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Record denied entry' })).toBeInTheDocument()
+    h.passError = 'unavailable'
+    v.again()
+    expect(screen.getByText("Couldn't load this vehicle.")).toBeInTheDocument()
   })
 
   it('unknown QR: not found, only "Scan next"', () => {

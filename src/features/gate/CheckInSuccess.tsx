@@ -42,7 +42,7 @@ export function CheckInSuccess({ info, next, onNext }: { info: SuccessInfo; next
       <div role="status" className="flex flex-col items-center gap-4">
         <CircleCheckBig aria-hidden className="size-28" strokeWidth={2.5} />
         <h1 className="text-5xl font-black tracking-tight">{t.successTitle}</h1>
-        <p className="text-6xl font-black tracking-tight break-all">{info.plateNo}</p>
+        <p className="text-[clamp(2.5rem,13vw,4rem)] leading-none font-black tracking-tight break-words">{info.plateNo}</p>
         <p className="text-3xl font-bold">
           {hhmm(info.atMs)}
           {info.offline && <span className="ml-2 align-middle text-base font-semibold">({t.deviceTime})</span>}

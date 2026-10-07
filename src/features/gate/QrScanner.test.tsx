@@ -32,6 +32,9 @@ vi.mock('html5-qrcode', () => ({
 }))
 
 const { QrScanner } = await import('./QrScanner')
+const { appBase } = await import('@/lib/appUrl')
+// Whatever VITE_APP_BASE_URL the environment sets; the scanner falls back to this page's origin.
+const BASE = appBase?.url ?? window.location.origin
 
 beforeEach(() => {
   h.onRead = null
@@ -58,8 +61,8 @@ describe('QrScanner', () => {
     render(<QrScanner onVehicle={onVehicle} onClose={vi.fn()} />)
     await waitFor(() => expect(h.onRead).not.toBeNull())
     act(() => {
-      h.onRead?.(`${window.location.origin}/v/veh_ab12cd34ef/`)
-      h.onRead?.(`${window.location.origin}/v/veh_ab12cd34ef/`)
+      h.onRead?.(`${BASE}/v/veh_ab12cd34ef/`)
+      h.onRead?.(`${BASE}/v/veh_ab12cd34ef/`)
     })
     await waitFor(() => expect(onVehicle).toHaveBeenCalledWith('veh_ab12cd34ef'))
     expect(onVehicle).toHaveBeenCalledTimes(1)

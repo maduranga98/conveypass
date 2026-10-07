@@ -107,6 +107,9 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
   const passId = vehicle && today ? `${vehicleId}_${today}` : null
   const passState = usePass(passId)
   const pass: PassWithId | null = passState.status === 'ready' ? passState.pass : null
+  // The rules read `resource.data`, so a pass that does not exist comes back as permission-denied rather than
+  // "missing". The vehicle is already known to be in this tenant (and readable), so that can only mean "no pass".
+  const passFailed = passState.status === 'error' && passState.error.code !== 'permission-denied'
   const driverQ = useDriverDoc(pass?.driverId ?? null)
   const contractorQ = useContractorDoc(vehicle?.contractorId ?? null)
 
@@ -114,7 +117,7 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
     validId &&
     (vehicleQ.isPending ||
       (vehicle !== null && (today === null || passState.status === 'loading' || contractorQ.isPending || (pass !== null && driverQ.isPending))))
-  const failed = validId && !loading && (vehicleQ.isError || passState.status === 'error')
+  const failed = validId && !loading && (vehicleQ.isError || passFailed)
 
   const pendingSync = passId !== null && pendingPassIds(queued).has(passId)
   const result = useMemo(

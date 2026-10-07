@@ -59,8 +59,8 @@ function Card({ to, plateNo, sub, line, chip }: { to: string; plateNo: string; s
       >
         <div className="min-w-0 flex-1">
           <p className="text-2xl leading-tight font-black tracking-tight text-slate-950">{plateNo}</p>
-          <p className="truncate text-sm font-semibold text-slate-700">{sub}</p>
-          {line && <p className="truncate text-sm text-slate-700">{line}</p>}
+          <p className="text-sm font-semibold text-slate-700">{sub}</p>
+          {line && <p className="text-sm text-slate-700">{line}</p>}
         </div>
         <StatusChip chip={chip} />
       </Link>
@@ -136,7 +136,7 @@ export default function GateHome() {
           {t.scan}
         </button>
 
-        <section aria-label={t.searchLabel} className="space-y-2">
+        <section className="space-y-2">
           <label htmlFor={searchId} className="text-base font-bold text-slate-900">{t.searchLabel}</label>
           <div className="relative">
             <Search aria-hidden className="pointer-events-none absolute top-1/2 left-4 size-6 -translate-y-1/2 text-slate-500" />
