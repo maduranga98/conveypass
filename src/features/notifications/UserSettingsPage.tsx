@@ -2,6 +2,8 @@ import { ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
+import { AccountDetails } from '@/features/account/AccountDetails'
+import { ChangeCredentialCard } from '@/features/account/ChangeCredentialCard'
 import { useSession } from '@/features/auth/useAuth'
 import { cn } from '@/lib/cn'
 import { ROLE_HOME } from '@/lib/roles'
@@ -13,7 +15,7 @@ const t = strings.push
 
 /** `/settings` for every role: alert settings for this device. */
 export default function UserSettingsPage() {
-  const { uid, claims, profile } = useSession()
+  const { uid, claims } = useSession()
   const [env, setEnv] = useState(readPushEnv)
   const [on, setOn] = useState(() => isPushEnabledHere(uid))
   const [busy, setBusy] = useState(false)
@@ -86,9 +88,10 @@ export default function UserSettingsPage() {
         <p className="text-sm text-slate-600">{t.otherDevices}</p>
       </section>
 
-      <section aria-labelledby="account-h" className="rounded-xl border border-slate-200 bg-white p-4">
+      <section aria-labelledby="account-h" className="space-y-6 rounded-xl border border-slate-200 bg-white p-4">
         <h2 id="account-h" className="font-semibold">{strings.userSettings.account}</h2>
-        <p className="text-sm text-slate-700">{strings.userSettings.signedInAs} {profile.name} ({strings.roles[claims.role]})</p>
+        <AccountDetails />
+        <ChangeCredentialCard />
       </section>
     </div>
   )

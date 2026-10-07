@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -21,6 +21,7 @@ import { DEFAULT_GATES, MIN_GATES, type GateDef } from '@/lib/gates'
 import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
 import { useSession } from '@/features/auth/useAuth'
+import { markSettingsVisited } from '@/features/onboarding/storage'
 import { useTenant } from '@/features/passes/queries'
 import type { Tenant } from '@/types'
 import { gateNameOk, MAX_REASONS, MIN_REASONS, reasonLabelOk, retentionOk, slaOk } from './reasons'
@@ -245,6 +246,8 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
 export default function SettingsPage() {
   const { claims } = useSession()
   const tenant = useTenant(claims.tenantId)
+  // The onboarding checklist's last step: the admin has looked at the defaults (remembered on this device).
+  useEffect(() => markSettingsVisited(claims.tenantId), [claims.tenantId])
 
   return (
     <div className="max-w-2xl space-y-6">

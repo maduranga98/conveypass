@@ -2,6 +2,9 @@ import { lazy } from 'react'
 import { loadStorage } from '@/lib/storage'
 
 export const LoginPage = lazy(() => import('@/features/auth/LoginPage'))
+export const ForgotPasswordPage = lazy(() => import('@/features/auth/ForgotPasswordPage'))
+export const AuthActionPage = lazy(() => import('@/features/auth/AuthActionPage'))
+export const SetupPage = lazy(() => import('@/features/setup/SetupPage'))
 export const PrivacyPage = lazy(() => import('@/features/auth/PrivacyPage'))
 export const ChangePasswordPage = lazy(() => import('@/features/auth/ChangePasswordPage'))
 export const DriverHome = lazy(() => import('@/features/passes/DriverHome'))

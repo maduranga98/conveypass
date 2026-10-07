@@ -124,3 +124,10 @@ export const reportClientError = call<
   { message: string; stack?: string; route?: string; source: 'boundary' | 'window' | 'promise' | 'gate' | 'form'; appVersion?: string },
   { ok: true }
 >('reportClientError', 10_000)
+
+// Module 8: invite-only workspace setup. Both are callable without signing in (the server rate limits per IP).
+export const validateSetupInvite = call<{ code: string }, { valid: boolean; companyHint?: string; emailLock?: string }>('validateSetupInvite', 20_000)
+export const completeSetup = call<
+  { code: string; companyName: string; adminName: string; email: string; password: string; timezone: string },
+  { tenantId: string }
+>('completeSetup', 60_000)

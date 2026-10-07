@@ -2,6 +2,7 @@ import { Radio } from 'lucide-react'
 import { useMemo } from 'react'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { useSession } from '@/features/auth/useAuth'
+import { OnboardingGate } from '@/features/onboarding/OnboardingGate'
 import { formatTime } from '@/features/passes/passView'
 import { useTenant } from '@/features/passes/queries'
 import { useOnline } from '@/features/passes/useOnline'
@@ -57,6 +58,8 @@ export default function DashboardPage({ scope }: { scope: DashboardScope }) {
           {passes.updatedAt !== null && <span className="text-slate-500">· {t.updated(formatTime(passes.updatedAt))}</span>}
         </p>
       </div>
+
+      {scope === 'admin' && <OnboardingGate />}
 
       {passes.isError && passes.items.length === 0 ? (
         <ErrorState message={t.loadFailed} onRetry={passes.retry} />
