@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { MemoryRouter, useNavigate } from 'react-router-dom'
+import { Link, MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const reportClientError = vi.hoisted(() => vi.fn(async (_payload: unknown) => ({ ok: true })))
+const reportClientError = vi.hoisted(() => vi.fn<(payload: unknown) => Promise<{ ok: true }>>(async () => ({ ok: true })))
 vi.mock('@/lib/api', () => ({ reportClientError }))
 
 import { logClientError, resetClientErrorLogging } from '@/lib/clientErrors'
@@ -52,23 +52,22 @@ describe('ErrorBoundary', () => {
   })
 
   it('a route boundary clears when the person navigates away', () => {
-    let go: (to: string) => void = () => undefined
-    function Nav() {
-      const navigate = useNavigate()
-      go = (to) => void navigate(to)
-      return null
+    function Screen() {
+      const { pathname } = useLocation()
+      return pathname === '/a' ? <Boom /> : <p>other screen</p>
     }
     render(
       <MemoryRouter initialEntries={['/a']}>
-        <Nav />
+        <Link to="/b">go</Link>
         <RouteErrorBoundary variant="form">
-          <Boom />
+          <Screen />
         </RouteErrorBoundary>
       </MemoryRouter>,
     )
     expect(screen.getByRole('alert')).toBeInTheDocument()
-    // New route, a child that does not crash: the boundary resets because it is keyed by the path.
-    go('/b')
+    fireEvent.click(screen.getByRole('link', { name: 'go' }))
+    expect(screen.getByText('other screen')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('reporting is deduplicated and capped, and never throws', async () => {
