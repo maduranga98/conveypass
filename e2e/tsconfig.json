@@ -16,6 +16,11 @@
   },
   "include": [
     "./**/*.ts",
-    "../playwright.config.ts"
+    "../playwright.config.ts",
+    "../functions/src/tenants/tenantDefaults.ts",
+    "../functions/src/defaultChecklist.ts",
+    "../functions/src/defaultRejectionReasons.ts",
+    "../functions/src/defaultSla.ts",
+    "../functions/src/gates.ts"
   ]
 }

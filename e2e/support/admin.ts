@@ -3,6 +3,7 @@
 import { initializeApp, getApps } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
+import { tenantDefaults } from '../../functions/src/tenants/tenantDefaults.ts'
 import { CONTRACTOR, DRIVER_AUTH_EMAIL, PASSWORD, PIN, PLATE, PROJECT, STAFF, TENANT, VEHICLE } from './constants.ts'
 
 process.env.FIREBASE_AUTH_EMULATOR_HOST ??= '127.0.0.1:9099'
@@ -34,7 +35,8 @@ async function user(key: string, email: string, password: string, name: string, 
 /** A clean tenant with one of every role, one contractor, one vehicle assigned to the driver. */
 async function seed(): Promise<Record<string, string>> {
   await clearEmulators()
-  await db.doc(`tenants/${TENANT}`).set({ name: 'E2E Quarry', status: 'active', timezone: 'Asia/Colombo', createdAt: FieldValue.serverTimestamp() })
+  // The tenant has exactly what provisionTenant gives every new workspace, so the whole e2e suite runs on a real default tenant.
+  await db.doc(`tenants/${TENANT}`).set({ name: 'E2E Quarry', status: 'active', ...tenantDefaults('Asia/Colombo'), createdAt: FieldValue.serverTimestamp() })
   await db.doc(`contractors/${CONTRACTOR}`).set({ tenantId: TENANT, name: 'Acme Haulage', status: 'active', createdAt: Timestamp.now(), createdBy: 'e2e', updatedAt: Timestamp.now() })
   for (const [role, who] of Object.entries(STAFF)) {
     const contractorId = role === 'supervisor' ? CONTRACTOR : null
