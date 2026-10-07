@@ -92,59 +92,69 @@ a client up themselves (and for the emulator). Both go through `provisionTenant`
 so a tenant made either way has the same defaults (checklist, rejection reasons, one gate, SLA 30/30, pass settings,
 timezone, evidence retention off).
 
-### Platform operators and the operator console
+### Super admin and the Super admin console
 
-Clients are onboarded from the **operator console** at `/platform`, by a **platform operator**: the person who runs
-ConvoyPass itself. An operator is not a member of any client's workspace.
+The **Super admin** is the person who runs ConvoyPass itself. They are not a member of any client's workspace. Their console
+is `/platform` ("Super admin console"). Internally the account is still called an operator (`role: 'platform'`,
+`platformAdmin`, `operators/{uid}`, `platformAuditLog`).
 
-- Claims `{ role: 'platform', platformAdmin: true }` and **no `tenantId`**, set only by `npm run operator:create`. There is no
-  signup, callable or screen that can create or promote an operator. Profile: `operators/{uid}` (name, email, createdAt,
-  `status`), no client access; operators have no `users` doc.
-- Every tenant rule and Storage rule needs a `tenantId`, so an operator is denied all workspace data (passes, vehicles,
-  drivers, photos). The console shows invites and workspace names and **counts** only.
-- Operators are few (one or two). Use a **company mailbox** (not a personal one) and a **strong, unique password** (12+
-  characters, a password manager). **Enable MFA through Identity Platform before onboarding the first paying client**
-  (Firebase console > Authentication > Sign-in method > Multi-factor authentication); an operator can create workspaces, so
-  their account is the most valuable one.
-- Mutating calls (create or revoke an invite) need a sign-in from the last 15 minutes; the console asks for the password
-  again and retries once. Reads work with an older login. Every call needs a verified email (the script verifies it) and an
-  `active` `operators/{uid}`.
-- Every operator action is written to `platformAuditLog` (actor, action, hash prefix or tenant id; never a code or a full
-  hash). The scripts write `actorUid: 'script'`. No client can read the collection: use the Firebase console.
+- Claims `{ role: 'platform', platformAdmin: true }` and **no `tenantId`**, set only by `npm run superadmin:create`
+  (`operator:create` is an alias). No signup, callable or screen can create or promote a super admin. Profile
+  `operators/{uid}` (name, email, createdAt, `status`); no `users` doc.
+- Every tenant rule and Storage rule needs a `tenantId`, so a super admin is denied all workspace data (passes, vehicles,
+  drivers, photos, gate events, notifications). The console shows workspace names, admins and **counts** only.
+- **One or two accounts, on company mailboxes** (not personal ones), each with a **strong, unique password** (12+ characters,
+  a password manager). **Enable MFA through Identity Platform before onboarding the first paying client** (Firebase console >
+  Authentication > Sign-in method > Multi-factor authentication): this account can create workspaces and admins.
+- Mutating calls (create or reset anything, disable, revoke) need a sign-in from the last 15 minutes; the console asks for the
+  password again and retries once. Reads work with an older login. Every call needs a verified email (the script verifies it) and
+  an `active` `operators/{uid}`, and is rate limited (30 a minute per function).
+- Every action is written to `platformAuditLog` (actor, action, hash prefix or tenant id; never a code, a password or a full
+  hash) **and**, for anything touching a workspace's admins, to that tenant's own `auditLog` (actor role `superadmin`, name
+  "ConvoyPass Super Admin"), so the company's admins can see who created or changed their admin accounts in Audit log. The scripts
+  write `actorUid: 'script'`. No client can read `platformAuditLog`: use the Firebase console.
 
 ```sh
-npm run operator:create -- --env staging --email olive@convoypass.com --name "Olive Operator"           # password generated, printed once
-npm run operator:create -- --env prod --confirm-prod --email olive@convoypass.com --name "Olive Operator" --password '<12+ characters>'
-npm run operator:disable -- --env prod --confirm-prod --email olive@convoypass.com   # disables, revokes tokens, marks the doc
+npm run superadmin:create -- --env staging --email olive@convoypass.com --name "Olive"        # password generated, printed once
+npm run superadmin:create -- --env prod --confirm-prod --email olive@convoypass.com --name "Olive" --password '<12+ characters>'
+npm run superadmin:disable -- --env prod --confirm-prod --email olive@convoypass.com           # disables, revokes tokens, marks the doc
 ```
 
-`operator:create` refuses a password under 12 characters, one equal to the email or on the common list, and an email that
-already has any account (a tenant user included). It never turns an existing account into an operator.
+`superadmin:create` refuses a password under 12 characters, one equal to the email or on the common list, and an email that
+already has any account (a tenant user included); it never turns an existing account into a super admin.
+
+**Locked-out super admin.** Use *Forgot password?* on the login page (the mailbox is verified, so the reset email works) or reset
+the password in the Firebase console (Authentication > Users). If the mailbox is lost: `npm run superadmin:disable` for the old
+account, then `superadmin:create` with a new mailbox (the old email stays taken, so use a different address).
 
 ### Onboarding a new client
 
-**Normal route: the console.** Sign in at the app's login page (Staff tab) with the operator account; you land on `/platform`.
+**Normal route: Super admin console > New workspace.** Sign in at the login page (Staff tab) with the super admin account; you
+land on `/platform`.
 
-1. **Invites > New invite.** Company name (optional, shown on the setup page), the expected admin email (recommended: it
-   locks the invite so only that address can complete setup) and the expiry (1, 3, 7, 14 or 30 days; default 7). The server
-   needs `APP_BASE_URL` (https; `functions/.env.<alias>`) to build the link.
-2. **Send the link.** The result card shows the full link **once**, with *Copy link*, *Send by WhatsApp* and *Send by
-   email* (the locked email is the recipient). The message includes the expiry and "Open the link on the device you'll use as
-   admin". Only the SHA-256 hash is stored, so a lost link cannot be recovered: revoke it and create another. Hiding the card
-   (or leaving the page) discards the link from the browser.
-3. **What the client sees** is unchanged from Module 8: one form (company name, their name, work email, a password of 10+
-   characters, timezone), then they are signed in on the dashboard with a "Get ConvoyPass ready" checklist and a
-   verification email. A wrong, expired, used, claimed or wrongly-locked link all show "This setup link is invalid or has
-   expired."
-4. **Track and revoke.** The invites list shows `unused`, `claimed` (someone is mid-setup, up to 10 minutes), `used` (with
-   the workspace name) and `expired`; filter by status. *Revoke* (with a confirmation) deletes an unused or expired invite;
-   a used or currently claimed one cannot be revoked. **Workspaces** lists every workspace (name, created, timezone, admin,
-   user count, vehicle count) with search.
-5. **After setup** the client adds their own contractors, users, vehicles and drivers. Nothing else is needed from you.
+1. **Workspaces > New workspace.** Company name, timezone (search; default Asia/Colombo), admin name and admin email. The server
+   needs `APP_BASE_URL` (https; `functions/.env.<alias>`) for the login URL. The email must not belong to any existing account.
+2. **Hand over the credentials.** The one-time card shows the login URL, the admin email and a **temporary password** (16
+   characters, masked until *Show*), with *Copy* for each, *Copy all as message*, *Send by WhatsApp* and *Send by email*. The
+   password is shown **once**; the card closes only with *I've shared it*, and the password is then gone from the browser. A lost
+   password cannot be shown again: use *Reset credentials* on the workspace page.
+3. **What the admin sees.** They sign in with the temporary password, are forced to choose a new one (10+ characters, not
+   common), and land on the dashboard with the "Get ConvoyPass ready" checklist. The workspace page shows "Not signed in yet"
+   until they do.
+4. **Manage admins** on the workspace page: *Add admin* (another temporary password, same card), *Edit name*, *Reset credentials*
+   (new temporary password, change forced, sessions revoked) and *Disable / Enable* (a disabled admin is signed out; **the last
+   active admin of a workspace cannot be disabled**). Tenant admins cannot do any of this themselves: their Users page shows admin
+   accounts as "Managed by ConvoyPass", and the functions refuse.
+5. **After setup** the client adds their own contractors, supervisors, officers, security users, vehicles and drivers.
 
-**Fallback: scripts** (no console, or the console is down). They write the same invites and also add `platformAuditLog`
-entries. Prerequisites: `APP_BASE_URL` set to the public origin (https, in your shell or `.env`) and Application Default
-Credentials for the project (`gcloud auth application-default login`, or `GOOGLE_APPLICATION_CREDENTIALS`).
+**Alternative: an invite link**, when the client should choose their own password. *Invites > New invite* (company hint,
+optional expected admin email that locks the invite, expiry 1 to 30 days); the link is shown once with Copy, WhatsApp and email.
+It creates one workspace and its first admin (Module 8 flow). Track and revoke invites on the same page: `unused`, `claimed`
+(someone is mid-setup, up to 10 minutes), `used` (with the workspace name), `expired`; a used or claimed invite cannot be
+revoked. A wrong, expired, used, claimed or wrongly-locked link all show "This setup link is invalid or has expired."
+
+**Fallback: scripts** (the console is down). They write the same invites and also add `platformAuditLog` entries. Prerequisites:
+`APP_BASE_URL` (https) and Application Default Credentials for the project.
 
 ```sh
 npm run invite:create -- --env staging --company "Acme Quarry" --lock-email ops@acme.example --expires-days 7
@@ -153,10 +163,8 @@ npm run invite:list -- --env prod --confirm-prod
 npm run invite:revoke -- --env prod --confirm-prod 1a2b3c4d
 ```
 
-The script prints the link **once** (`https://app.convoypass.com/setup#code=<43 characters>`); send it over a secure channel
-(an end-to-end encrypted messenger or a password manager share; not a ticket or a group chat). A used invite is a record of
-the tenant it created and cannot be deleted. If setup fails halfway (for example the email already has an account), nothing
-is left behind and the same link works again.
+The script prints the link **once**; send it over a secure channel. A used invite is a record of the tenant it created and cannot
+be deleted. If setup fails halfway (for example the email already has an account), nothing is left behind and the same link works again.
 
 Operator fallback (no link; you choose the email and a temporary password, and the admin must change it at first login):
 
