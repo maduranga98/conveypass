@@ -1,6 +1,7 @@
 import { lazy } from 'react'
 
 export const LoginPage = lazy(() => import('@/features/auth/LoginPage'))
+export const PrivacyPage = lazy(() => import('@/features/auth/PrivacyPage'))
 export const ChangePasswordPage = lazy(() => import('@/features/auth/ChangePasswordPage'))
 export const DriverHome = lazy(() => import('@/features/passes/DriverHome'))
 export const NotificationsPage = lazy(() => import('@/features/notifications/NotificationsPage'))

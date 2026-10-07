@@ -88,7 +88,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
       header: t.columns.drivers,
       cell: (v) =>
         v.assignedDriverIds.length === 0 ? (
-          <span className="text-slate-400">{t.noDrivers}</span>
+          <span className="text-slate-600">{t.noDrivers}</span>
         ) : (
           <span className="line-clamp-2">{v.assignedDriverIds.map((id) => driverNames.get(id) ?? strings.common.none).join(', ')}</span>
         ),

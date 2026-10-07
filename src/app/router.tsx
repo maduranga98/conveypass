@@ -21,6 +21,7 @@ import {
   OfficerLayout,
   OfficerQueue,
   PassesPage,
+  PrivacyPage,
   QrLabelsPage,
   QueuePage,
   ReportsPage,
@@ -40,6 +41,7 @@ const lazyEl = (node: ReactNode) => <Suspense fallback={<PageSpinner />}>{node}<
 
 export const router = createBrowserRouter([
   { path: '/login', element: lazyEl(<LoginPage />) },
+  { path: '/privacy', element: lazyEl(<PrivacyPage />) },
   {
     element: <RequireAuth />,
     children: [

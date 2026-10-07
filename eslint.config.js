@@ -25,7 +25,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['scripts/**/*.ts', 'tests/**/*.ts', 'functions/**/*.ts', '*.config.ts'],
+    files: ['scripts/**/*.ts', 'tests/**/*.ts', 'e2e/**/*.ts', 'functions/**/*.ts', '*.config.ts'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: { globals: globals.node },
     rules: { '@typescript-eslint/no-explicit-any': 'error' },

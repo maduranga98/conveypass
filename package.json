@@ -20,7 +20,8 @@
     "postinstall": "npm --prefix functions install",
     "config:csp": "tsx scripts/enforce-csp.ts",
     "create-tenant": "tsx scripts/create-tenant.ts",
-    "reset-admin": "tsx scripts/reset-admin.ts"
+    "reset-admin": "tsx scripts/reset-admin.ts",
+    "test:e2e": "firebase emulators:exec --only auth,firestore,functions,storage --project demo-conveypass-e2e \"npm --prefix functions run build && playwright test\""
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -50,8 +51,10 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^10.0.1",
     "@firebase/rules-unit-testing": "^5.0.2",
+    "@playwright/test": "^1.63.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",

@@ -78,7 +78,7 @@ export default function UsersPage() {
       cell: (u) => (
         <div>
           <span className="font-medium text-slate-900">{u.name}</span>
-          {u.mustChangePassword && <p className="text-xs font-normal text-slate-400">{t.mustChange}</p>}
+          {u.mustChangePassword && <p className="text-xs font-normal text-slate-600">{t.mustChange}</p>}
         </div>
       ),
     },

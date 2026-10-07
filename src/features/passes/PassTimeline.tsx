@@ -42,7 +42,7 @@ export function PassTimeline({ status, tone = 'neutral', pass }: { status: PassS
                   ? tone === 'success' ? 'border-white bg-white text-emerald-700' : 'border-emerald-600 bg-emerald-600 text-white'
                   : current
                     ? tone === 'success' ? 'border-white bg-transparent text-white' : 'border-accent bg-white text-accent'
-                    : tone === 'success' ? 'border-white/50 text-white/60' : 'border-slate-300 bg-white text-slate-400',
+                    : tone === 'success' ? 'border-white/70 text-white' : 'border-slate-500 bg-white text-slate-700',
               )}
             >
               {complete ? <Check aria-hidden className="size-4" /> : i + 1}

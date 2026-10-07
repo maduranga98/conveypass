@@ -3,7 +3,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth'
 import { Eye, EyeOff, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Navigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { z } from 'zod'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -89,6 +89,12 @@ export default function LoginPage() {
 
           {mode === 'staff' ? <StaffForm onSubmit={signIn} /> : <DriverForm onSubmit={signIn} />}
         </div>
+
+        <footer className="mt-6 text-center">
+          <Link to="/privacy" className="inline-flex min-h-11 items-center px-3 text-sm text-slate-700 underline underline-offset-2 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-accent">
+            {strings.privacy.link}
+          </Link>
+        </footer>
       </div>
     </main>
   )

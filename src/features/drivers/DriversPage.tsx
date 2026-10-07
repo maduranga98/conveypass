@@ -119,7 +119,7 @@ export default function DriversPage({ scope }: { scope: Scope }) {
       cell: (d) => {
         const list = vehiclesByDriver.get(d.id) ?? []
         return list.length === 0 ? (
-          <span className="text-slate-400">{t.noVehicles}</span>
+          <span className="text-slate-600">{t.noVehicles}</span>
         ) : (
           <ul className="flex flex-wrap justify-end gap-1 md:justify-start">
             {list.map((v) => (

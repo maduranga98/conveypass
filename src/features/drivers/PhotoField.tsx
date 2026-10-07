@@ -54,7 +54,7 @@ export function PhotoField({ name, currentUrl, value, onChange, disabled }: Prop
     <div className="space-y-1.5">
       <p className="flex items-baseline justify-between text-sm font-medium text-slate-700">
         <span>{t.photo}</span>
-        <span className="text-xs font-normal text-slate-400">{strings.common.optional}</span>
+        <span className="text-xs font-normal text-slate-600">{strings.common.optional}</span>
       </p>
       <div className="flex items-center gap-3">
         <Avatar name={name || '?'} src={preview ?? currentUrl ?? null} alt="" className="size-16 text-base" />
