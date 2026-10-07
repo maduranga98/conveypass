@@ -17,6 +17,7 @@ import { useScope, type Scope } from '@/features/shared/scope'
 import type { Vehicle, WithId } from '@/types'
 import { VehicleDrawer } from './VehicleDrawer'
 import { VehicleFormModal } from './VehicleForm'
+import { VehicleImportModal } from './VehicleImportModal'
 
 const t = strings.vehicles
 
@@ -32,6 +33,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
   const [contractorId, setContractorId] = useState(isAdmin ? (params.get('contractor') ?? '') : '')
   const [formFor, setFormFor] = useState<WithId<Vehicle> | 'new' | null>(params.get('new') ? 'new' : null)
   const [openId, setOpenId] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const driverNames = useMemo(() => new Map((drivers.data?.items ?? []).map((d) => [d.id, d.name])), [drivers.data])
   const contractorNames = useMemo(() => new Map((contractors.data ?? []).map((c) => [c.id, c.name])), [contractors.data])
@@ -113,7 +115,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
         <div className="flex gap-2">
-          <Button variant="secondary" icon={<Upload aria-hidden className="size-4" />} onClick={() => undefined} className="hidden">
+          <Button variant="secondary" icon={<Upload aria-hidden className="size-4" />} onClick={() => setImporting(true)}>
             {t.import.button}
           </Button>
           <Button icon={<Plus aria-hidden className="size-4" />} onClick={() => setFormFor('new')}>
@@ -164,6 +166,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
       )}
 
       <VehicleFormModal scope={scope} target={formFor} onClose={closeForm} onCreated={setOpenId} />
+      <VehicleImportModal scope={scope} open={importing} onClose={() => setImporting(false)} />
       <VehicleDrawer
         scope={scope}
         vehicle={opened}
