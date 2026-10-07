@@ -11,7 +11,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 
 const DIR = '.drill'
 const PROJECT = 'demo-conveypass-drill'
-const env = { ...process.env }
+const env = { ...process.env, FIREBASE_PROJECT_ID: PROJECT } // the scripts under emulators:exec use the drill's emulator project
 for (const k of ['HTTPS_PROXY', 'HTTP_PROXY', 'https_proxy', 'http_proxy']) delete env[k]
 
 const run = (label: string, args: string[]): void => {
