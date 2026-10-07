@@ -2,14 +2,14 @@
 
 Multi-tenant PWA for approving gate passes for third-party contractor vehicles.
 Flow: Driver pre-trip form -> Supervisor approves -> Officer approves -> Security checks in.
-**Module 1 (users, roles, auth) and Module 2 (contractors, vehicles, driver profiles, vehicle QR) are built.** Passes, the driver pre-trip form, QR scanning, approvals, gate check-in, reports and document-expiry alerts come later.
+**Modules 1 (users, roles, auth), 2 (contractors, vehicles, driver profiles, vehicle QR) and 3 (driver scan + pre-trip form, creates `submitted` passes) are built.** Approvals/rejections, notifications, the security view of `/v/:vehicleId`, gate check-in, reports and document-expiry alerts come later.
 
 ## Stack
 Vite + React 19 + TypeScript (strict, `noUncheckedIndexedAccess`) + Tailwind v4, react-router-dom v7, TanStack Query, react-hook-form + zod, sonner, lucide-react.
 Firebase modular SDK: Auth, Firestore, Cloud Functions v2 (Node 22, `functions/`), Hosting, emulators. Path alias `@/` -> `src/`.
 
 ## Layout
-`src/app` (router, providers) · `src/lib` (firebase, strings, credentials, plate, appUrl, vehicleTypes, errors, api) · `src/features/{auth,admin,vehicles,drivers,qr,supervisor,shared}` · `src/components/ui` · `src/types` · `functions/src` · `scripts/{seed,seed-demo}.ts` · `tests/rules`.
+`src/app` (router, providers) · `src/lib` (firebase, strings, credentials, plate, appUrl, vehicleTypes, errors, api) · `src/features/{auth,admin,vehicles,drivers,qr,supervisor,passes,shared}` · `src/components/ui` · `src/types` · `functions/src` · `scripts/{seed,seed-demo}.ts` · `tests/rules`.
 
 ## Rules of the road
 - **Roles**: `admin | officer | supervisor | driver | security`. Homes: `/admin /officer /supervisor /driver /security`.
@@ -27,6 +27,7 @@ Firebase modular SDK: Auth, Firestore, Cloud Functions v2 (Node 22, `functions/`
 - **Storage rules**: only the driver photo path is open. Write: admin, or the supervisor of that contractor; `image/jpeg`, under 1 MB; create/update only. Read: admin/officer/security of the tenant, that contractor's supervisor, or the driver themselves. A driver cannot read a vehicle they are not assigned to; Module 3 resolves scans through a callable (do not loosen the rules).
 - **Lists**: loaded once per scope (`admin` = tenant, `supervisor` = own contractor; supervisors cannot query `contractors` tenant-wide, rules allow only their own doc), max 1000 docs ordered by plateKey/name, filtered client-side, invalidated after mutations. The same feature components serve both scopes via a `scope` prop. Queries must include the same `where` clauses the rules require.
 - **QR**: `VITE_APP_BASE_URL` is required for QR screens (`QrGate`); a localhost/private/non-production host (pin the real domain with `VITE_PRODUCTION_HOST`) shows the red "Dev link: do not print" banner. `qrcode.react`, level `Q`; PNG download is 1024 px via canvas. Label sheets print A4 with 10 mm margins (large 90 mm 2x3, small 50 mm 3x5); app chrome hides itself with `print:` variants.
+- **Passes** (`passes/{vehicleId}_{dateKey}`): one per vehicle per day. `dateKey` is `YYYYMMDD` in `tenants.timezone` (default `Asia/Colombo`) from `dateKey(timezone, date)` in `src/lib/dates.ts` / `functions/src/dates.ts` (duplicated on purpose; the one place to change for per-trip/per-shift). A non-`rejected` pass blocks everyone else; a `rejected` one is resubmitted in place by the same driver with `attempt + 1` (max 5), the reason moves to `rejectionHistory[]` (with that attempt's checklist and evidence refs). **All writes to `passes` go through callables** (`resolveVehicle` (drivers only, returns a discriminated `state`), `submitPass`, `updateTenantSettings` (admin)); rules give clients read only. Server-side: dateKey, tenant, contractor, plate, driver name and checklist labels are never taken from the client. Evidence lives at `tenants/{tid}/passes/{vehicleId}/{dateKey}/{attempt}/{gps|dashcam|extra1|extra2}.jpg`, is uploaded straight from the browser (driver assigned to the vehicle; only while no pass exists or the pass is rejected and `attempt` is the next one), and `submitPass` re-verifies every file with the Admin SDK (JPEG signature, 10-700 KB, created within 30 min). Earlier attempts' evidence is never overwritten or deleted. Storage rules read Firestore (`firestore.get`): first deploy needs the cross-service IAM grant. Checklist and pass settings come from `tenants/{id}` (`checklist`, `passSettings`) with defaults in `defaultChecklist.ts` (duplicated in `functions/src`).
 - **API payloads**: send phone numbers as typed (`07…`); the server normalises them. The `94…` form is not accepted as input.
 - **Strings**: all user-facing text in `src/lib/strings.ts` (Sinhala/Tamil later).
 - **Shared logic duplicated on purpose**: `src/lib/credentials.ts` and `functions/src/credentials.ts` (functions deploy from their own folder). Change both, plus tests.
@@ -34,4 +35,6 @@ Firebase modular SDK: Auth, Firestore, Cloud Functions v2 (Node 22, `functions/`
 - No `any` (lint-enforced). No secrets, project IDs or credentials in code.
 
 ## Commands
-`npm run dev` · `npm run build` · `npm run typecheck` · `npm run lint` · `npm test` (unit + functions + rules; functions and rules start the Firestore/Storage emulators) · `npm run emulators` · `npm run seed:emulator -- --email … --password …` · `npm run seed:demo` (emulator only; 2 contractors, 6 vehicles, 4 drivers, prints logins) · `npm run seed:prod -- --confirm-production --email … --password …`
+`npm run dev` · `npm run build` · `npm run typecheck` · `npm run lint` · `npm test` (unit + component + functions + rules; functions and rules start the Firestore/Storage emulators) · `npm run emulators` · `npm run seed:emulator -- --email … --password …` · `npm run seed:demo` (emulator only; 2 contractors, 6 vehicles, 4 drivers, prints logins) · `npm run seed:prod -- --confirm-production --email … --password …`
+
+In a sandbox with an outbound HTTP proxy, run emulator tests with the proxy variables unset (the Storage emulator's Firestore lookups on 127.0.0.1 otherwise go through the proxy and fail).

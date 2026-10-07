@@ -1,7 +1,54 @@
 import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
-import { PlateTakenError, VehicleIdTakenError, type AuthPort, type DataPort } from './core.js'
-import type { ContractorData, DriverData, UserData, VehicleData } from './types.js'
+import { getStorage } from 'firebase-admin/storage'
+import {
+  PlateTakenError,
+  VehicleIdTakenError,
+  type AuthPort,
+  type DataPort,
+  type StoragePort,
+} from './core.js'
+import { planSubmit } from './passRules.js'
+import type { ContractorData, DriverData, PassData, TenantData, UserData, VehicleData } from './types.js'
+
+/** Firestore Timestamp (or anything with toMillis) -> milliseconds. */
+const millis = (v: unknown): number | null =>
+  typeof v === 'object' && v !== null && 'toMillis' in v && typeof v.toMillis === 'function'
+    ? (v.toMillis() as number)
+    : null
+
+/** Stored pass -> PassData with every timestamp as milliseconds. */
+function toPass(raw: Record<string, unknown>): PassData {
+  const data = raw as unknown as PassData & {
+    rejection?: { at: unknown }
+    rejectionHistory?: { at: unknown }[]
+  }
+  const { rejection, rejectionHistory, ...rest } = data
+  return {
+    ...rest,
+    submittedAt: millis(raw.submittedAt),
+    ...(rejection ? { rejection: { ...rejection, at: millis(rejection.at) ?? 0 } } : {}),
+    ...(rejectionHistory
+      ? { rejectionHistory: rejectionHistory.map((h) => ({ ...h, at: millis(h.at) ?? 0 })) }
+      : {}),
+  } as PassData
+}
+
+export const storagePort = (): StoragePort => ({
+  readFile: async (path, headBytes) => {
+    const file = getStorage().bucket().file(path)
+    const [exists] = await file.exists()
+    if (!exists) return null
+    const [meta] = await file.getMetadata()
+    const [head] = await file.download({ start: 0, end: Math.max(0, headBytes - 1) })
+    return {
+      contentType: String(meta.contentType ?? ''),
+      size: Number(meta.size ?? 0),
+      timeCreated: Date.parse(String(meta.timeCreated ?? '')) || 0,
+      head: new Uint8Array(head),
+    }
+  },
+})
 
 export const authPort = (): AuthPort => {
   const auth = getAuth()
@@ -129,6 +176,47 @@ export const dataPort = (): DataPort => {
     setContractorStatusWithAudit: async (contractorId, status, audit) => {
       const batch = db.batch()
       batch.update(db.doc(`contractors/${contractorId}`), { status, updatedAt: FieldValue.serverTimestamp() })
+      batch.create(db.collection('auditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
+      await batch.commit()
+    },
+    getTenant: async (tenantId) => {
+      const snap = await db.doc(`tenants/${tenantId}`).get()
+      return snap.exists ? (snap.data() as TenantData) : null
+    },
+    getPass: async (passId) => {
+      const snap = await db.doc(`passes/${passId}`).get()
+      return snap.exists ? toPass(snap.data() as Record<string, unknown>) : null
+    },
+    submitPassTx: async ({ passId, pass, audit }) => {
+      const ref = db.doc(`passes/${passId}`)
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref)
+        const raw = snap.exists ? (snap.data() as Record<string, unknown>) : null
+        const plan = planSubmit(raw ? toPass(raw) : null, pass.driverId, pass.attempt)
+        const stamps = { status: 'submitted', submittedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }
+        if (plan === 'create') {
+          tx.create(ref, { ...pass, ...stamps })
+        } else {
+          // Keep the rejection (reason, who, when) plus what that attempt looked like; its photos stay in Storage.
+          const previous = raw as { rejection?: object; attempt: number; checklist: unknown; evidence: unknown }
+          tx.update(ref, {
+            ...pass,
+            ...stamps,
+            rejection: FieldValue.delete(),
+            rejectionHistory: FieldValue.arrayUnion({
+              ...(previous.rejection ?? {}),
+              attempt: previous.attempt,
+              checklist: previous.checklist,
+              evidence: previous.evidence,
+            }),
+          })
+        }
+        tx.create(db.collection('auditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
+      })
+    },
+    updateTenantSettingsWithAudit: async (tenantId, patch, audit) => {
+      const batch = db.batch()
+      batch.update(db.doc(`tenants/${tenantId}`), { ...patch, updatedAt: FieldValue.serverTimestamp() })
       batch.create(db.collection('auditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
       await batch.commit()
     },

@@ -1,7 +1,9 @@
 import { httpsCallable } from 'firebase/functions'
 import type { Role } from './roles'
 import { functions } from './firebase'
+import type { ChecklistItemDef, PassSettings } from './defaultChecklist'
 import type { VehicleType } from './vehicleTypes'
+import type { ResolveResult, SubmitPassPayload } from '@/types/passes'
 
 export interface CreateUserPayload {
   role: Role
@@ -64,3 +66,13 @@ export const setContractorStatus = call<
   { contractorId: string; status: 'active' | 'suspended' },
   { ok: true; revoked: number }
 >('setContractorStatus', 120_000)
+
+export const resolveVehicle = call<{ vehicleId: string }, ResolveResult>('resolveVehicle', 30_000)
+export const submitPass = call<SubmitPassPayload, { passId: string; status: 'submitted'; attempt: number }>(
+  'submitPass',
+  60_000,
+)
+export const updateTenantSettings = call<
+  { passSettings?: PassSettings; checklist?: ChecklistItemDef[] },
+  { ok: true }
+>('updateTenantSettings')

@@ -1,6 +1,7 @@
 rules_version = '2';
 
-// Driver photos only: tenants/{tenantId}/contractors/{contractorId}/drivers/{uid}.jpg
+// Driver photos: tenants/{tenantId}/contractors/{contractorId}/drivers/{uid}.jpg
+// Pass evidence: tenants/{tenantId}/passes/{vehicleId}/{dateKey}/{attempt}/{file}
 // Role, tenant and contractor come from custom claims (set by Cloud Functions). Everything else is denied.
 service firebase.storage {
   match /b/{bucket}/o {
@@ -31,6 +32,49 @@ service firebase.storage {
         && file.matches('[A-Za-z0-9]+[.]jpg')
         && request.resource.contentType == 'image/jpeg'
         && request.resource.size < 1024 * 1024;
+    }
+
+    // Pass evidence. Rules read Firestore (`firestore.get`), so the Storage service agent needs the cross-service
+    // IAM grant on first deploy (roles/firebasestorage.serviceAgent); the Firebase CLI offers to add it.
+    function vehiclePath(vid) {
+      return /databases/(default)/documents/vehicles/$(vid);
+    }
+    function passPath(vid, dateKey) {
+      return /databases/(default)/documents/passes/$(vid + '_' + dateKey);
+    }
+    function assignedDriver(tid, vid) {
+      return role() == 'driver'
+        && firestore.exists(vehiclePath(vid))
+        && firestore.get(vehiclePath(vid)).data.tenantId == tid
+        && request.auth.uid in firestore.get(vehiclePath(vid)).data.assignedDriverIds;
+    }
+    // Uploads are open only while there is no pass yet, or the pass was rejected and `attempt` is the next one
+    // for the same driver. Once a pass is submitted its evidence is locked.
+    function uploadOpen(vid, dateKey, attempt) {
+      return !firestore.exists(passPath(vid, dateKey))
+        || (firestore.get(passPath(vid, dateKey)).data.status == 'rejected'
+            && firestore.get(passPath(vid, dateKey)).data.driverId == request.auth.uid
+            && int(attempt) == firestore.get(passPath(vid, dateKey)).data.attempt + 1);
+    }
+
+    match /tenants/{tid}/passes/{vid}/{dateKey}/{attempt}/{file} {
+      allow read: if inTenant(tid) && (
+        role() in ['admin', 'officer', 'security']
+        || (role() == 'supervisor' && firestore.exists(vehiclePath(vid))
+            && firestore.get(vehiclePath(vid)).data.tenantId == tid
+            && supervises(firestore.get(vehiclePath(vid)).data.contractorId))
+        || assignedDriver(tid, vid)
+      );
+
+      // Create/replace only; evidence is never deleted from the client.
+      allow create, update: if inTenant(tid)
+        && assignedDriver(tid, vid)
+        && file in ['gps.jpg', 'dashcam.jpg', 'extra1.jpg', 'extra2.jpg']
+        && attempt.matches('^[1-5]$')
+        && dateKey.matches('^[0-9]{8}$')
+        && request.resource.contentType == 'image/jpeg'
+        && request.resource.size < 700 * 1024
+        && uploadOpen(vid, dateKey, attempt);
     }
 
     match /{allPaths=**} {

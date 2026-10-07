@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Deny by default. Roles/tenant come ONLY from custom claims (set by Cloud Functions).
-// `users`, `tenants`, `auditLog`, `vehicles`, `drivers` and `vehiclePlates` are never client-writable;
+// `users`, `tenants`, `auditLog`, `vehicles`, `drivers`, `vehiclePlates` and `passes` are never client-writable;
 // Cloud Functions use the Admin SDK. `contractors` accept admin writes to descriptive fields only.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -101,6 +101,17 @@ service cloud.firestore {
     // Plate uniqueness guards: server only.
     match /vehiclePlates/{id} {
       allow read, write: if false;
+    }
+
+    // Passes are written only by Cloud Functions (submitPass, later the approval functions). Clients read:
+    // drivers their own, supervisors their contractor's, admin/officer/security the tenant's.
+    match /passes/{id} {
+      allow read: if signedIn() && sameTenant(resource.data) && (
+        role() in ['admin', 'officer', 'security']
+        || (role() == 'supervisor' && contractorId() != null && resource.data.contractorId == contractorId())
+        || (role() == 'driver' && resource.data.driverId == request.auth.uid)
+      );
+      allow write: if false;
     }
 
     match /auditLog/{id} {

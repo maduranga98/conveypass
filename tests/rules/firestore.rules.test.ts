@@ -105,6 +105,14 @@ beforeEach(async () => {
     await setDoc(doc(db, 'drivers', 'drvA2'), driverProfile(A, 'c2'))
     await setDoc(doc(db, 'drivers', 'drvB1'), driverProfile(B, 'cB'))
     await setDoc(doc(db, 'vehiclePlates', `${A}_WPLJ4821`), { vehicleId: 'veh_a1' })
+    for (const [id, tenantId, contractorId, driverId] of [
+      ['veh_a1_20260310', A, 'c1', 'drvA1'],
+      ['veh_a2_20260310', A, 'c1', 'drvA1b'],
+      ['veh_a4_20260310', A, 'c2', 'drvA2'],
+      ['veh_b1_20260310', B, 'cB', 'drvB1'],
+    ] as const) {
+      await setDoc(doc(db, 'passes', id), { tenantId, contractorId, driverId, status: 'submitted', attempt: 1 })
+    }
     await setDoc(doc(db, 'auditLog', 'a1'), { tenantId: A, action: 'user.create' })
     await setDoc(doc(db, 'auditLog', 'b1'), { tenantId: B, action: 'user.create' })
   })
@@ -457,5 +465,51 @@ describe('default deny', () => {
   it('denies unknown collections', async () => {
     await assertFails(getDoc(doc(adminA(), 'secrets', 'x')))
     await assertFails(setDoc(doc(adminA(), 'invoices', 'x'), { tenantId: A }))
+  })
+})
+
+describe('passes', () => {
+  it('a driver reads only their own passes (get and query)', async () => {
+    const db = drvA1()
+    await assertSucceeds(getDoc(doc(db, 'passes', 'veh_a1_20260310')))
+    await assertFails(getDoc(doc(db, 'passes', 'veh_a2_20260310'))) // another driver's pass on a shared vehicle
+    await assertFails(getDoc(doc(db, 'passes', 'veh_a4_20260310')))
+    const own = await assertSucceeds(getDocs(query(collection(db, 'passes'), where('tenantId', '==', A), where('driverId', '==', 'drvA1'))))
+    expect(own.size).toBe(1)
+    await assertFails(getDocs(query(collection(db, 'passes'), where('tenantId', '==', A))))
+  })
+  it('a supervisor reads only their contractor’s passes', async () => {
+    const db = supA1()
+    await assertSucceeds(getDoc(doc(db, 'passes', 'veh_a1_20260310')))
+    await assertSucceeds(getDoc(doc(db, 'passes', 'veh_a2_20260310')))
+    await assertFails(getDoc(doc(db, 'passes', 'veh_a4_20260310')))
+    const mine = await assertSucceeds(getDocs(query(collection(db, 'passes'), where('tenantId', '==', A), where('contractorId', '==', 'c1'))))
+    expect(mine.size).toBe(2)
+    await assertFails(getDocs(query(collection(db, 'passes'), where('tenantId', '==', A))))
+  })
+  it('admin, officer and security read the whole tenant, never another tenant', async () => {
+    for (const db of [adminA(), officerA(), securityA()]) {
+      const all = await assertSucceeds(getDocs(query(collection(db, 'passes'), where('tenantId', '==', A))))
+      expect(all.size).toBe(3)
+      await assertFails(getDoc(doc(db, 'passes', 'veh_b1_20260310')))
+    }
+    await assertFails(getDoc(doc(drvA1(), 'passes', 'veh_b1_20260310')))
+  })
+  it('signed-out users read nothing', async () => {
+    await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'passes', 'veh_a1_20260310')))
+  })
+  it('nobody writes passes from the client, whatever the role or status asked for', async () => {
+    const fresh = { tenantId: A, contractorId: 'c1', driverId: 'drvA1', status: 'submitted', attempt: 1 }
+    for (const db of [adminA(), supA1(), drvA1(), officerA(), securityA()]) {
+      await assertFails(setDoc(doc(db, 'passes', 'veh_a3_20260310'), fresh))
+      await assertFails(addDoc(collection(db, 'passes'), fresh))
+      await assertFails(updateDoc(doc(db, 'passes', 'veh_a1_20260310'), { status: 'officer_approved' }))
+      await assertFails(deleteDoc(doc(db, 'passes', 'veh_a1_20260310')))
+    }
+  })
+  it('tenants stay read-only for members', async () => {
+    await assertSucceeds(getDoc(doc(drvA1(), 'tenants', A)))
+    await assertFails(updateDoc(doc(adminA(), 'tenants', A), { checklist: [] }))
+    await assertFails(updateDoc(doc(drvA1(), 'tenants', A), { passSettings: { requireLocation: true } }))
   })
 })

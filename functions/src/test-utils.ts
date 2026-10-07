@@ -1,12 +1,16 @@
 import { expect } from 'vitest'
 // In-memory fakes for the ports, shared by the function tests. Not part of the build (see tsconfig.json).
 import { PlateTakenError, VehicleIdTakenError, type Deps } from './core.js'
+import { planSubmit } from './passRules.js'
 import type {
   AuditEntry,
   Caller,
   Claims,
   ContractorData,
   DriverData,
+  PassData,
+  StoredFile,
+  TenantData,
   UserData,
   VehicleData,
 } from './types.js'
@@ -44,6 +48,10 @@ export interface World {
   plates: Map<string, string>
   authUsers: Map<string, { email: string; password: string; disabled: boolean; displayName: string }>
   claims: Map<string, Claims>
+  tenants: Map<string, TenantData>
+  passes: Map<string, PassData>
+  /** Storage objects by full path. */
+  files: Map<string, StoredFile>
   audits: AuditEntry[]
   revoked: string[]
   failFirestoreCreate: boolean
@@ -62,6 +70,9 @@ export function makeWorld(): World {
     plates: new Map(),
     authUsers: new Map(),
     claims: new Map(),
+    tenants: new Map(),
+    passes: new Map(),
+    files: new Map(),
     audits: [],
     revoked: [],
     failFirestoreCreate: false,
@@ -74,6 +85,7 @@ export function makeWorld(): World {
   w.deps = {
     now: () => NOW,
     newVehicleId: () => w.idQueue.shift() ?? `veh_${String(++idn).padStart(10, 'a')}`,
+    storage: { readFile: async (path) => w.files.get(path) ?? null },
     auth: {
       createUser: async (p) => {
         if ([...w.authUsers.values()].some((u) => u.email === p.email)) {
@@ -145,11 +157,40 @@ export function makeWorld(): World {
         w.contractors.set(id, { ...(w.contractors.get(id) as ContractorData), status })
         w.audits.push(audit)
       },
+      getTenant: async (id) => w.tenants.get(id) ?? null,
+      getPass: async (id) => structuredClone(w.passes.get(id) ?? null),
+      submitPassTx: async ({ passId, pass, audit }) => {
+        const existing = w.passes.get(passId) ?? null
+        const plan = planSubmit(existing, pass.driverId, pass.attempt)
+        if (plan === 'create') {
+          w.passes.set(passId, { ...structuredClone(pass), status: 'submitted', submittedAt: NOW * 1000 })
+        } else {
+          const prev = existing as PassData
+          const { rejection, ...keep } = prev
+          w.passes.set(passId, {
+            ...keep,
+            ...structuredClone(pass),
+            status: 'submitted',
+            submittedAt: NOW * 1000,
+            rejectionHistory: [
+              ...(prev.rejectionHistory ?? []),
+              { ...(rejection as NonNullable<typeof rejection>), attempt: prev.attempt, checklist: prev.checklist, evidence: prev.evidence },
+            ],
+          })
+        }
+        w.audits.push(audit)
+      },
+      updateTenantSettingsWithAudit: async (id, patch, audit) => {
+        w.tenants.set(id, { ...(w.tenants.get(id) as TenantData), ...patch })
+        w.audits.push(audit)
+      },
       writeAudit: async (audit) => void w.audits.push(audit),
       listUserIdsByContractor: async (tenantId, contractorId) =>
         [...w.users].filter(([, u]) => u.tenantId === tenantId && u.contractorId === contractorId).map(([uid]) => uid),
     },
   }
+  w.tenants.set('T1', { timezone: 'Asia/Colombo' })
+  w.tenants.set('T2', {})
   w.contractors.set('C1', { tenantId: 'T1', status: 'active' })
   w.contractors.set('C2', { tenantId: 'T1', status: 'active' })
   w.contractors.set('CX', { tenantId: 'T2', status: 'active' })
@@ -185,3 +226,6 @@ export const sup2 = () => caller('sup2', 'supervisor', 'C2')
 
 export const rejects = (p: Promise<unknown>, code: string, reason?: string) =>
   expect(p).rejects.toMatchObject({ code, ...(reason ? { details: { reason } } : {}) })
+
+export const drv1 = () => caller('drv1', 'driver', 'C1')
+export const drv1b = () => caller('drv1b', 'driver', 'C1')

@@ -5,7 +5,8 @@ import { REGION } from './config.js'
 import * as core from './core.js'
 import { fail } from './errors.js'
 import { newVehicleId } from './ids.js'
-import { authPort, dataPort } from './ports.js'
+import * as passes from './passes.js'
+import { authPort, dataPort, storagePort } from './ports.js'
 import { ROLES, type Caller, type Role } from './types.js'
 import * as vehicles from './vehicles.js'
 
@@ -39,6 +40,7 @@ function callerFrom(request: CallableRequest<unknown>): Caller {
 const deps = (): core.Deps => ({
   auth: authPort(),
   data: dataPort(),
+  storage: storagePort(),
   newVehicleId,
   now: () => Math.floor(Date.now() / 1000),
 })
@@ -66,4 +68,10 @@ export const importVehicles = onCall({ timeoutSeconds: 180 }, (request) =>
 )
 export const setContractorStatus = onCall({ timeoutSeconds: 120 }, (request) =>
   vehicles.setContractorStatus(deps(), callerFrom(request), request.data),
+)
+
+export const resolveVehicle = onCall((request) => passes.resolveVehicle(deps(), callerFrom(request), request.data))
+export const submitPass = onCall((request) => passes.submitPass(deps(), callerFrom(request), request.data))
+export const updateTenantSettings = onCall((request) =>
+  passes.updateTenantSettings(deps(), callerFrom(request), request.data),
 )

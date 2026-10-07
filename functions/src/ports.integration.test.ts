@@ -3,11 +3,11 @@
 import { initializeApp } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { PlateTakenError, type Deps } from './core.js'
+import { PassConflictError, PlateTakenError, type Deps } from './core.js'
 import { newVehicleId } from './ids.js'
 import { dataPort } from './ports.js'
 import { admin, makeWorld } from './test-utils.js'
-import type { AuditEntry, UserData, VehicleData } from './types.js'
+import type { AuditEntry, PassWrite, UserData, VehicleData } from './types.js'
 import { createVehicle, updateVehicle } from './vehicles.js'
 
 const emulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST)
@@ -41,7 +41,7 @@ describe.skipIf(!emulator)('Firestore data port (emulator)', () => {
     db = getFirestore()
   })
   beforeEach(async () => {
-    for (const c of ['vehicles', 'vehiclePlates', 'auditLog', 'users', 'drivers', 'contractors']) {
+    for (const c of ['vehicles', 'vehiclePlates', 'auditLog', 'users', 'drivers', 'contractors', 'passes', 'tenants']) {
       await db.recursiveDelete(db.collection(c))
     }
   })
@@ -139,5 +139,57 @@ describe.skipIf(!emulator)('Firestore data port (emulator)', () => {
     expect(await port().listUserIdsByContractor('T1', 'C1')).toEqual(['a'])
     expect([...(await port().getDrivers(['a', 'zzz'])).keys()]).toEqual(['a'])
     expect((await port().getDrivers([])).size).toBe(0)
+  })
+
+  const passWrite = (attempt: number, over: Partial<PassWrite> = {}): PassWrite => {
+    const file = (n: string) => ({ path: `p/${attempt}/${n}`, size: 20000, contentType: 'image/jpeg' })
+    return {
+      tenantId: 'T1', contractorId: 'C1', vehicleId: 'veh_aaaaaaaaaa', plateNo: 'CAB-1', vehicleType: 'Tipper', dateKey: '20260310',
+      driverId: 'd1', driverName: 'D', attempt, checklist: [{ id: 'x', label: 'X', answer: 'yes' }],
+      evidence: { gps: file('gps.jpg'), dashcam: file('dashcam.jpg'), extra: [] },
+      captureMeta: { method: 'live', clientCapturedAt: { gps: 'a', dashcam: 'b' } }, ...over,
+    }
+  }
+  const passAudit = { ...audit, targetType: 'pass' as const, targetId: 'veh_aaaaaaaaaa_20260310' }
+
+  it('submitPassTx: concurrent first submissions leave one pass and one audit entry', async () => {
+    const id = 'veh_aaaaaaaaaa_20260310'
+    const results = await Promise.allSettled(
+      Array.from({ length: 6 }, () => port().submitPassTx({ passId: id, pass: passWrite(1), audit: passAudit })),
+    )
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
+    for (const r of results) if (r.status === 'rejected') expect(r.reason).toBeInstanceOf(PassConflictError)
+    expect((await db.collection('auditLog').get()).size).toBe(1)
+    const pass = await port().getPass(id)
+    expect(pass).toMatchObject({ status: 'submitted', attempt: 1 })
+    expect(typeof pass?.submittedAt).toBe('number')
+  })
+
+  it('submitPassTx: resubmitting a rejected pass moves the rejection into rejectionHistory', async () => {
+    const id = 'veh_aaaaaaaaaa_20260310'
+    await port().submitPassTx({ passId: id, pass: passWrite(1), audit: passAudit })
+    await expect(port().submitPassTx({ passId: id, pass: passWrite(2), audit: passAudit })).rejects.toMatchObject({ kind: 'exists' })
+
+    await db.doc(`passes/${id}`).update({
+      status: 'rejected', rejection: { reason: 'Blurry', byUid: 's1', byRole: 'supervisor', at: new Date() },
+    })
+    const stored = await port().getPass(id)
+    expect(typeof stored?.rejection?.at).toBe('number')
+    await expect(port().submitPassTx({ passId: id, pass: passWrite(2, { driverId: 'other' }), audit: passAudit })).rejects.toMatchObject({ kind: 'driver' })
+    await expect(port().submitPassTx({ passId: id, pass: passWrite(3), audit: passAudit })).rejects.toMatchObject({ kind: 'attempt' })
+
+    await port().submitPassTx({ passId: id, pass: passWrite(2), audit: passAudit })
+    const raw = (await db.doc(`passes/${id}`).get()).data()
+    expect(raw).toMatchObject({ status: 'submitted', attempt: 2 })
+    expect(raw).not.toHaveProperty('rejection')
+    expect(raw?.rejectionHistory).toHaveLength(1)
+    expect(raw?.rejectionHistory[0]).toMatchObject({ attempt: 1, reason: 'Blurry', evidence: { gps: { path: 'p/1/gps.jpg' } } })
+    expect(raw?.evidence.gps.path).toBe('p/2/gps.jpg')
+  })
+
+  it('updateTenantSettingsWithAudit merges settings and keeps other tenant fields', async () => {
+    await db.doc('tenants/T1').set({ name: 'Demo', timezone: 'Asia/Colombo' })
+    await port().updateTenantSettingsWithAudit('T1', { passSettings: { requireLocation: true, maxExtraPhotos: 1 } }, { ...audit, targetType: 'tenant' })
+    expect((await db.doc('tenants/T1').get()).data()).toMatchObject({ name: 'Demo', timezone: 'Asia/Colombo', passSettings: { requireLocation: true, maxExtraPhotos: 1 } })
   })
 })

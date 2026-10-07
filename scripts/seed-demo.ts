@@ -5,14 +5,17 @@
  *   npm run emulators            # in one terminal
  *   npm run seed:demo            # in another
  *
- * Creates tenant "demo": 1 admin, 2 contractors (each with a supervisor), 4 drivers and 6 vehicles with assignments,
- * then prints the logins. Re-running needs a clean emulator (the script stops if the tenant already exists).
+ * Creates tenant "demo" (timezone, pass settings and the default checklist), 1 admin, 2 contractors (each with a
+ * supervisor), 4 drivers and 6 vehicles with assignments, plus one REJECTED pass for today so the resubmit path can be
+ * demonstrated, then prints the logins. Re-running needs a clean emulator (the script stops if the tenant already exists).
  */
 import { initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import { readFileSync } from 'node:fs'
 import { randomInt } from 'node:crypto'
+import { dateKey } from '../src/lib/dates.ts'
+import { DEFAULT_CHECKLIST, DEFAULT_PASS_SETTINGS } from '../src/lib/defaultChecklist.ts'
 import { normalisePlate } from '../src/lib/plate.ts'
 
 const die = (msg: string): never => {
@@ -93,7 +96,11 @@ async function main(): Promise<void> {
   if ((await tenantRef.get()).exists) die(`tenant "${TENANT}" already exists. Clear the emulator data and run again.`)
 
   const batch = db.batch()
-  batch.create(tenantRef, { name: 'ConvoyPass Demo', status: 'active', createdAt: ts })
+  const TIMEZONE = 'Asia/Colombo'
+  batch.create(tenantRef, {
+    name: 'ConvoyPass Demo', status: 'active', createdAt: ts,
+    timezone: TIMEZONE, passSettings: DEFAULT_PASS_SETTINGS, checklist: DEFAULT_CHECKLIST,
+  })
 
   const audit = (action: string, targetType: string, targetId: string) =>
     batch.create(db.collection('auditLog').doc(), {
@@ -149,9 +156,11 @@ async function main(): Promise<void> {
     })
   }
 
+  const vehicleIds = new Map<string, string>()
   for (const v of vehicles) {
     const plate = normalisePlate(v.plate) ?? die(`bad demo plate ${v.plate}`)
     const id = newVehicleId()
+    vehicleIds.set(v.plate, id)
     batch.create(db.doc(`vehiclePlates/${TENANT}_${plate.plateKey}`), { vehicleId: id })
     batch.create(db.doc(`vehicles/${id}`), {
       tenantId: TENANT, contractorId: cid(v.contractor), plateNo: plate.plateNo, plateKey: plate.plateKey, type: v.type,
@@ -161,6 +170,25 @@ async function main(): Promise<void> {
     })
     audit('seed.demo.vehicle', 'vehicle', id)
   }
+
+  // A rejected pass for today (driver Ruwan, vehicle NP KA 1234) to demo "fix and resubmit". Attempt 1's photos are
+  // placeholders: they only need to exist as paths, the resubmission uploads attempt 2 under its own path.
+  const rejectedPlate = 'NP KA 1234'
+  const rejectedVehicle = vehicleIds.get(rejectedPlate) ?? die('demo vehicle missing')
+  const rejectedDriver = driverIds.get('d2') as string
+  const today = dateKey(TIMEZONE)
+  const photo = (file: string) => ({ path: `tenants/${TENANT}/passes/${rejectedVehicle}/${today}/1/${file}`, size: 120_000, contentType: 'image/jpeg' })
+  batch.create(db.doc(`passes/${rejectedVehicle}_${today}`), {
+    tenantId: TENANT, contractorId: cid('lanka'), vehicleId: rejectedVehicle, plateNo: normalisePlate(rejectedPlate)?.plateNo ?? rejectedPlate,
+    vehicleType: 'Cement Bulker', dateKey: today, driverId: rejectedDriver, driverName: 'Ruwan Kumara',
+    status: 'rejected', attempt: 1, submittedAt: ts, updatedAt: ts,
+    checklist: DEFAULT_CHECKLIST.map((c) => c.id === 'dashcam_lens'
+      ? { id: c.id, label: c.label, answer: 'no', note: 'Lens is dusty' }
+      : { id: c.id, label: c.label, answer: 'yes' }),
+    evidence: { gps: photo('gps.jpg'), dashcam: photo('dashcam.jpg'), extra: [] },
+    captureMeta: { method: 'file', clientCapturedAt: { gps: new Date().toISOString(), dashcam: new Date().toISOString() } },
+    rejection: { reason: 'Dashcam photo is blurry. Clean the lens and retake both photos.', byUid: 'seed-demo', byRole: 'supervisor', at: ts },
+  })
 
   await batch.commit()
 
@@ -176,7 +204,9 @@ async function main(): Promise<void> {
     const c = contractors.find((x) => x.key === d.contractor)
     console.log(`    ${d.phone}  ${d.pin}   ${d.name} (${c?.name})`)
   }
-  console.log('\n  Vehicles:', vehicles.map((v) => v.plate).join(', '), '\n')
+  console.log('\n  Vehicles:', vehicles.map((v) => v.plate).join(', '))
+  console.log(`  Rejected pass for today: ${rejectedPlate} (driver 0771000002). Open /v/${rejectedVehicle} to fix and resubmit.`)
+  console.log('  Other vehicle ids:', [...vehicleIds].map(([p, id]) => `${p} -> /v/${id}`).join('\n                     '), '\n')
 }
 
 main().catch((e: unknown) => {

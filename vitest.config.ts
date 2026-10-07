@@ -12,6 +12,15 @@ export default defineConfig({
         test: { name: 'unit', environment: 'node', include: ['src/**/*.test.ts'] },
       },
       {
+        resolve: { alias },
+        test: {
+          name: 'component',
+          environment: 'jsdom',
+          include: ['src/**/*.test.tsx'],
+          setupFiles: ['./src/test/setup.ts'],
+        },
+      },
+      {
         // Needs the Firestore emulator: run via `npm run test:rules`.
         test: {
           name: 'rules',
