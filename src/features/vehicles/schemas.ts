@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from '@/lib/zod'
 import { normalisePlate } from '@/lib/plate'
 import { strings } from '@/lib/strings'
 import { VEHICLE_TYPES } from '@/lib/vehicleTypes'

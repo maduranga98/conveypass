@@ -88,3 +88,16 @@ test.describe('accessibility: supervisor lists', () => {
     }
   })
 })
+
+test.describe('accessibility: admin audit log (desktop)', () => {
+  test.use({ viewport: { width: 1280, height: 800 }, hasTouch: false, isMobile: false })
+  test('filters, table and detail drawer', async ({ page }) => {
+    await loginStaff(page, 'admin')
+    await page.goto('/admin/audit')
+    await expect(page.getByRole('table')).toBeVisible()
+    await expectNoAxeViolations(page, 'audit log')
+    await page.getByRole('button', { name: /Audit entry: User created/ }).first().click()
+    await expect(page.getByTestId('audit-meta')).toBeVisible()
+    await expectNoAxeViolations(page, 'audit entry drawer')
+  })
+})

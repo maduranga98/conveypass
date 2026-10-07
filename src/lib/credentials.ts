@@ -1,5 +1,5 @@
 // Mirrors functions/src/credentials.ts (functions deploy from their own folder). Keep both copies, and their tests, in sync.
-import { z } from 'zod'
+import { z } from '@/lib/zod'
 
 export const DRIVER_EMAIL_DOMAIN = 'drivers.convoypass.com'
 

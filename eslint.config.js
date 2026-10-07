@@ -22,6 +22,8 @@ export default defineConfig([
       '@typescript-eslint/no-explicit-any': 'error',
       // Our field labels wrap the input and a two-line text block (label > span > span > text).
       'jsx-a11y/label-has-associated-control': ['error', { assert: 'either', depth: 4 }],
+      // Zod's JIT compiler needs 'unsafe-eval' (blocked by our CSP): '@/lib/zod' turns it off.
+      'no-restricted-imports': ['error', { paths: [{ name: 'zod', message: "Import { z } from '@/lib/zod' (CSP-safe)." }] }],
     },
   },
   {

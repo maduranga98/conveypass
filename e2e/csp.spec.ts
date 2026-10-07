@@ -39,7 +39,8 @@ const reports = async (page: Page): Promise<unknown[]> =>
 
 test('a full run through every role produces no CSP violations (report-only)', async ({ page }) => {
   const violations = await watch(page)
-  writePass('submitted')
+  // A pass for another vehicle: the supervisor has something to review, and the driver's vehicle still has no pass today.
+  const reviewId = writePass('submitted', 'veh_e2etest002', 'CAB-0002')
 
   // The header is really the report-only policy of firebase.json, and the other security headers are there.
   const res = await page.goto('/login')
@@ -65,8 +66,8 @@ test('a full run through every role produces no CSP violations (report-only)', a
     await page.goto(path)
     await page.waitForTimeout(500)
   }
-  await page.goto(`/supervisor/approvals/${VEHICLE}_${new Date().toISOString().slice(0, 4)}`) // unknown pass: the not-found state also renders
-  await page.waitForTimeout(500)
+  await page.goto(`/supervisor/approvals/${reviewId}`) // the review screen: photos are requested from Storage
+  await expect(page.getByRole('button', { name: /approve/i }).first()).toBeVisible()
   await page.getByRole('button', { name: /sign out/i }).click()
 
   // Driver: home, the pre-trip form, live camera capture and the photo upload to Storage.

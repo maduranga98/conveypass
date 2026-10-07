@@ -39,6 +39,8 @@ export function CameraCapture({ label, plateNo, onCapture, onClose }: Props) {
   const [mode, setMode] = useState<'starting' | 'live' | 'fallback'>(() => (hasCamera() ? 'starting' : 'fallback'))
   const [reason, setReason] = useState<'unsupported' | 'denied'>(() => (hasCamera() ? 'denied' : 'unsupported'))
   const [busy, setBusy] = useState(false)
+  // The shutter works once the first frame is there (before that there is nothing to capture).
+  const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // An app update must not reload the page while the camera is open.
   useUpdateLock()
@@ -175,6 +177,7 @@ export function CameraCapture({ label, plateNo, onCapture, onClose }: Props) {
           muted
           autoPlay
           aria-hidden
+          onLoadedData={() => setReady(true)}
           className={mode === 'live' ? 'absolute inset-0 size-full object-cover' : 'pointer-events-none absolute size-px opacity-0'}
         />
 
@@ -222,7 +225,7 @@ export function CameraCapture({ label, plateNo, onCapture, onClose }: Props) {
           <button
             type="button"
             onClick={captureFrame}
-            disabled={busy}
+            disabled={busy || !ready}
             aria-label={t.capture}
             className="grid size-20 place-items-center rounded-full border-4 border-white bg-white/20 active:bg-white/40 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white disabled:opacity-50"
           >

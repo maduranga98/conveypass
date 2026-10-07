@@ -46,6 +46,10 @@ async function seed(): Promise<Record<string, string>> {
     createdAt: Timestamp.now(), createdBy: 'e2e', updatedAt: Timestamp.now(),
   })
   await db.doc(`vehiclePlates/${TENANT}_WPLJ4821`).set({ vehicleId: VEHICLE })
+  // One audit entry, so the audit log page has a row to show and export.
+  await db.collection('auditLog').add({
+    tenantId: TENANT, action: 'user.create', actorUid: uids.admin, actorRole: 'admin', targetType: 'user', targetId: uids.driver, meta: { role: 'driver' }, createdAt: Timestamp.now(),
+  })
   return uids
 }
 
