@@ -12,7 +12,8 @@ test('the production build is installable (manifest, icons, service worker) and 
 
   const cdp = await context.newCDPSession(page)
   const { installabilityErrors } = await cdp.send('Page.getInstallabilityErrors')
-  expect(installabilityErrors, 'Chrome would not offer to install the app').toEqual([])
+  // Playwright's browser contexts are incognito, which Chrome lists as an error of its own: ignore that one only.
+  expect(installabilityErrors.filter((e) => e.errorId !== 'in-incognito'), 'Chrome would not offer to install the app').toEqual([])
   const { data, errors } = await cdp.send('Page.getAppManifest')
   expect(errors.filter((e) => e.critical)).toEqual([])
   const manifest = JSON.parse(data ?? '{}') as { name: string; display: string; start_url: string; icons: { sizes: string; purpose?: string }[] }
