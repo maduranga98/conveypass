@@ -251,3 +251,18 @@ describe('pass evidence: read', () => {
     await assertFails(getBytes(ref(env.unauthenticatedContext().storage(), evidence(A, 'veh_open', 1, 'gps.jpg'))))
   })
 })
+
+describe('platform operators (Module 9)', () => {
+  const operator = () => as('op1', { role: 'platform', platformAdmin: true, email_verified: true })
+  it('an operator token (no tenantId) can read and write no Storage path, driver photos and pass evidence included', async () => {
+    const s = operator()
+    for (const p of [path(A, 'c1', 'drvA1'), path(B, 'cB', 'drvB1'), evidence(A, 'veh_open', 1, 'gps.jpg'), evidence(B, 'veh_b', 1, 'gps.jpg')]) {
+      await assertFails(getBytes(ref(s, p)))
+      await assertFails(uploadBytes(ref(s, p), jpeg(), JPEG))
+      await assertFails(deleteObject(ref(s, p)))
+    }
+    await assertFails(uploadBytes(ref(s, evidence(A, 'veh_open', 1, 'extra2.jpg')), jpeg(), JPEG))
+    await assertFails(uploadBytes(ref(s, 'tenants/tenantNew/anything.jpg'), jpeg(), JPEG))
+    await assertFails(uploadBytes(ref(s, 'operators/op1.jpg'), jpeg(), JPEG))
+  })
+})

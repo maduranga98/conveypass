@@ -240,3 +240,42 @@ export const completeSetupSchema = z.object({
   timezone: z.string().trim().max(64).optional(),
 })
 export type CompleteSetupInput = z.infer<typeof completeSetupSchema>
+
+// ---- Module 9: operator console --------------------------------------------------------------
+
+export const INVITE_PREFIX_PATTERN = /^[0-9a-f]{8}$/
+const pageCursor = z.string().regex(/^\d{1,15}$/)
+
+export const createSetupInviteSchema = z.object({
+  companyHint: z.string().trim().max(80).optional(),
+  lockEmail: z.string().trim().toLowerCase().email().max(254).optional(),
+  expiresInDays: z.number().int().min(1).max(30).default(7),
+})
+export type CreateSetupInviteInput = z.infer<typeof createSetupInviteSchema>
+
+export const listSetupInvitesSchema = z.object({
+  status: z.enum(['unused', 'claimed', 'used', 'expired']).optional(),
+  cursor: pageCursor.optional(),
+})
+
+export const revokeSetupInviteSchema = z.object({ hashPrefix: z.string().trim().toLowerCase().regex(INVITE_PREFIX_PATTERN) })
+
+export const listTenantsSchema = z.object({ cursor: pageCursor.optional() })
+
+// ---- Module 10: super admin workspaces and admins --------------------------------------------
+
+const ws_id = z.string().trim().min(1).max(128)
+const person = z.string().trim().min(2).max(60)
+const adminEmail = z.string().trim().toLowerCase().email().max(254)
+
+export const createWorkspaceSchema = z.object({
+  companyName: z.string().trim().min(2).max(80),
+  timezone: z.string().trim().max(64).optional(),
+  adminName: person,
+  adminEmail,
+})
+export const addTenantAdminSchema = z.object({ tenantId: ws_id, name: person, email: adminEmail })
+export const tenantAdminTargetSchema = z.object({ tenantId: ws_id, uid: ws_id })
+export const setTenantAdminStatusSchema = tenantAdminTargetSchema.extend({ status: z.enum(['active', 'disabled']) })
+export const updateTenantAdminSchema = tenantAdminTargetSchema.extend({ name: person })
+export const getWorkspaceSchema = z.object({ tenantId: ws_id })

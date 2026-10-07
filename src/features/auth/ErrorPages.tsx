@@ -1,12 +1,12 @@
 import { ShieldAlert, SearchX } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { strings } from '@/lib/strings'
-import { ROLE_HOME } from '@/lib/roles'
+import { OPERATOR_HOME, ROLE_HOME } from '@/lib/roles'
 import { useAuth } from './useAuth'
 
 function ErrorPage({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
-  const { session } = useAuth()
-  const to = session ? ROLE_HOME[session.claims.role] : '/login'
+  const { session, operator } = useAuth()
+  const to = session ? ROLE_HOME[session.claims.role] : operator ? OPERATOR_HOME : '/login'
   return (
     <main className="grid min-h-dvh place-items-center px-4">
       <div className="max-w-sm text-center">
@@ -17,7 +17,7 @@ function ErrorPage({ icon, title, body }: { icon: React.ReactNode; title: string
           to={to}
           className="mt-6 inline-flex h-11 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
-          {session ? strings.errorPages.goHome : strings.errorPages.signInRequired}
+          {session || operator ? strings.errorPages.goHome : strings.errorPages.signInRequired}
         </Link>
       </div>
     </main>

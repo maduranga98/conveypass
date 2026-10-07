@@ -8,6 +8,7 @@ import {
 } from './credentials.js'
 import type { SlaSettings } from './defaultSla.js'
 import type { ReportEvent, ReportPass } from './reports/types.js'
+import { sanitiseMeta } from './auditMeta.js'
 import { fail } from './errors.js'
 import {
   changeOwnPasswordSchema,
@@ -275,9 +276,13 @@ async function loadTarget(deps: Deps, caller: Caller, uid: string): Promise<User
   return target
 }
 
-/** Admin: anyone in the tenant. Supervisor: drivers of their own contractor. Everyone else: nobody. */
+/**
+ * Admin: anyone in the tenant EXCEPT other admins and themselves (admin accounts are managed by the platform super admin,
+ * Module 10; a tenant admin changes their own password through `changeOwnPassword`).
+ * Supervisor: drivers of their own contractor. Everyone else: nobody.
+ */
 function assertCanManage(caller: Caller, target: UserData): void {
-  if (caller.role === 'admin') return
+  if (caller.role === 'admin' && target.role !== 'admin') return
   if (
     caller.role === 'supervisor' &&
     caller.contractorId !== null &&
@@ -312,26 +317,7 @@ export async function requireActiveContractor(deps: Deps, caller: Caller, contra
   }
 }
 
-/**
- * Audit `meta` is short scalars only. Whatever a caller passes, secrets never reach the log: values under keys that
- * name a credential keep only their type (booleans and numbers), and strings that look like URLs, data URIs, JWTs
- * or long blobs (photo URLs, file contents) are replaced. Nothing here is expected to trigger; it is the net under
- * the redaction test (`audit.redaction.test.ts`).
- */
-const SECRET_KEY = /passw|passphrase|pin$|^pin|token|secret|credential|apikey|authorization|dataurl|base64|content|bytes/i
-const SECRET_VALUE = /https?:\/\/|data:|^eyJ|[A-Za-z0-9+/_-]{60,}/
-
-export function sanitiseMeta(meta: AuditEntry['meta']): AuditEntry['meta'] {
-  const out: AuditEntry['meta'] = {}
-  for (const [key, value] of Object.entries(meta)) {
-    if (typeof value === 'string' && (SECRET_KEY.test(key) || SECRET_VALUE.test(value) || value.length > 200)) {
-      out[key] = '[redacted]'
-    } else {
-      out[key] = value
-    }
-  }
-  return out
-}
+export { sanitiseMeta }
 
 export const audit = (
   caller: Caller,
@@ -355,8 +341,9 @@ export async function createUser(deps: Deps, caller: Caller, raw: unknown): Prom
   const input = parse(createUserSchema, raw)
   await requireActiveCaller(deps, caller)
 
+  // Admin accounts are created by the platform super admin only (`createWorkspace` / `addTenantAdmin`).
   const allowed =
-    caller.role === 'admin' || (caller.role === 'supervisor' && input.role === 'driver')
+    (caller.role === 'admin' && input.role !== 'admin') || (caller.role === 'supervisor' && input.role === 'driver')
   if (!allowed) throw fail('permission-denied', 'forbidden', 'You are not allowed to create this role')
 
   // Contractor: only supervisors and drivers belong to one. A supervisor caller is forced to their own.

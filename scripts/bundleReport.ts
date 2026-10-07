@@ -36,6 +36,7 @@ export const ROUTES: RouteSpec[] = [
   { name: 'Security vehicle view (/v/:id)', sources: ['src/features/gate/SecurityLayout.tsx', 'src/features/passes/VehicleRoute.tsx'] },
   { name: 'Security QR scanner (loaded on tap)', sources: ['src/features/gate/SecurityLayout.tsx', 'src/features/gate/GateHome.tsx', 'src/features/gate/QrScanner.tsx'] },
   { name: 'Supervisor home', sources: ['src/features/supervisor/SupervisorLayout.tsx', 'src/features/supervisor/SupervisorHome.tsx'] },
+  { name: 'Operator console (/platform/invites)', sources: ['src/features/platform/PlatformLayout.tsx', 'src/features/platform/InvitesPage.tsx'] },
   { name: 'Admin dashboard (recharts)', sources: ['src/features/admin/AdminLayout.tsx', 'src/features/dashboard/DashboardPage.tsx'] },
 ]
 

@@ -130,6 +130,10 @@ beforeEach(async () => {
     }
     await setDoc(doc(db, 'users', 'drvA1', 'devices', 'dev1'), { token: 'secret-token', enabled: true })
     await setDoc(doc(db, 'rateLimits', 'drvA1_createUser'), { windowStart: 1, count: 1 })
+    await setDoc(doc(db, 'operators', 'op1'), { name: 'Olive', email: 'olive@convoypass.test', status: 'active', createdAt: when })
+    await setDoc(doc(db, 'platformAuditLog', 'p1'), { actorUid: 'op1', action: 'invite.created', targetRef: 'abcdef12', meta: {}, createdAt: when })
+    await setDoc(doc(db, 'setupInvites', 'c'.repeat(64)), { createdAt: when, expiresAt: when, claimedAt: null, claimId: null, usedAt: null, tenantId: null })
+    await setDoc(doc(db, 'gateEvents', 'den_platform'), { tenantId: 'tenantC', vehicleId: 'veh_c1', at: when })
     await setDoc(doc(db, 'auditLog', 'a2'), { tenantId: A, action: 'pass.submit', actorUid: 'drvA1', targetType: 'pass', createdAt: when })
   })
 })
@@ -842,5 +846,62 @@ describe('setupInvites (Module 8)', () => {
       await assertFails(updateDoc(doc(db, 'setupInvites', HASH), { usedAt: new Date(), tenantId: A }))
       await assertFails(deleteDoc(doc(db, 'setupInvites', HASH)))
     }
+  })
+})
+
+describe('platform operators (Module 9)', () => {
+  const operator = () => as('op1', { role: 'platform', platformAdmin: true, email_verified: true })
+  const COLLECTIONS = ['tenants', 'users', 'contractors', 'vehicles', 'drivers', 'vehiclePlates', 'passes', 'gateEvents', 'auditLog', 'notifications', 'rateLimits', 'setupInvites', 'operators', 'platformAuditLog'] as const
+  const KNOWN_DOCS: Record<string, string[]> = {
+    tenants: [A, B], users: ['adminA', 'drvA1', 'op1'], contractors: ['c1'], vehicles: ['veh_a1'], drivers: ['drvA1'],
+    vehiclePlates: [`${A}_WPLJ4821`], passes: ['veh_a1_20260310'], gateEvents: ['den_platform'], auditLog: ['a1'], notifications: ['n_drv'],
+    rateLimits: ['drvA1_createUser'], setupInvites: ['c'.repeat(64)], operators: ['op1'], platformAuditLog: ['p1'],
+  }
+
+  it('is denied on every collection: single reads (even of its own uid), lists, tenant-filtered queries and writes', async () => {
+    const db = operator()
+    for (const col of COLLECTIONS) {
+      for (const id of KNOWN_DOCS[col] ?? []) {
+        await assertFails(getDoc(doc(db, col, id)))
+        await assertFails(setDoc(doc(db, col, id), { tenantId: A, name: 'x' }))
+        await assertFails(updateDoc(doc(db, col, id), { name: 'x' }))
+        await assertFails(deleteDoc(doc(db, col, id)))
+      }
+      await assertFails(getDocs(collection(db, col)))
+      await assertFails(getDocs(query(collection(db, col), where('tenantId', '==', A))))
+      await assertFails(addDoc(collection(db, col), { tenantId: A }))
+    }
+    await assertFails(getDocs(collection(db, 'users', 'drvA1', 'devices')))
+    await assertFails(getDoc(doc(db, 'users', 'drvA1', 'devices', 'dev1')))
+    // Even a tenantId claim of an operator-looking token with no role helps nothing, and neither does a spoofed one in the query.
+    await assertFails(getDocs(query(collection(db, 'passes'), where('tenantId', '==', A), where('driverId', '==', 'op1'))))
+  })
+  it('an operator token that somehow carried a role and a tenant is a tenant token (claims are set by functions only)', async () => {
+    // Documents the boundary: access comes from tenantId + role. The operator claim set has neither.
+    const db = as('op1', { role: 'platform', platformAdmin: true })
+    await assertFails(getDocs(query(collection(db, 'vehicles'), where('tenantId', '==', A))))
+    await assertFails(getDocs(query(collection(db, 'notifications'), where('tenantId', '==', A), where('recipientUid', '==', 'op1'))))
+  })
+  it('a tenant admin cannot read or write operators or platformAuditLog (and no tenant role can)', async () => {
+    for (const db of [adminA(), officerA(), supA1(), drvA1(), securityA(), env.unauthenticatedContext().firestore()]) {
+      for (const col of ['operators', 'platformAuditLog']) {
+        await assertFails(getDoc(doc(db, col, col === 'operators' ? 'op1' : 'p1')))
+        await assertFails(getDocs(collection(db, col)))
+        await assertFails(getDocs(query(collection(db, col), where('actorUid', '==', 'op1'))))
+        await assertFails(setDoc(doc(db, col, 'new1'), { name: 'x' }))
+        await assertFails(updateDoc(doc(db, col, col === 'operators' ? 'op1' : 'p1'), { status: 'active' }))
+        await assertFails(deleteDoc(doc(db, col, col === 'operators' ? 'op1' : 'p1')))
+      }
+    }
+  })
+  it('setupInvites stays closed to everyone', async () => {
+    for (const db of [operator(), adminA(), env.unauthenticatedContext().firestore()]) {
+      await assertFails(getDoc(doc(db, 'setupInvites', 'c'.repeat(64))))
+      await assertFails(getDocs(collection(db, 'setupInvites')))
+    }
+  })
+  it('tenant users still read their own profile (the self-read rule needs a tenantId, which they all have)', async () => {
+    await assertSucceeds(getDoc(doc(drvA1(), 'users', 'drvA1')))
+    await assertSucceeds(getDoc(doc(adminA(), 'users', 'adminA')))
   })
 })

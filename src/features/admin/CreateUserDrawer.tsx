@@ -18,7 +18,7 @@ import {
   normalisePhone,
 } from '@/lib/credentials'
 import { apiErrorMessage } from '@/lib/errors'
-import { ROLES, type Role } from '@/lib/roles'
+import { CREATABLE_ROLES, ROLES, type Role } from '@/lib/roles'
 import { strings } from '@/lib/strings'
 import { useContractors } from './queries'
 import { CredentialsReveal } from './CredentialsReveal'
@@ -122,7 +122,7 @@ function CreateUserForm({ onCreated }: { onCreated: (r: Revealed) => void }) {
       )}
 
       <Select label={t.role} {...register('role')}>
-        {ROLES.map((r) => (
+        {CREATABLE_ROLES.map((r) => (
           <option key={r} value={r}>
             {strings.roles[r]}
           </option>

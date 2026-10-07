@@ -11,10 +11,16 @@ beforeEach(() => {
 })
 
 describe('createUser: permission matrix', () => {
-  it.each(['admin', 'officer', 'security'] as const)('admin can create %s', async (role) => {
+  it.each(['officer', 'security'] as const)('admin can create %s', async (role) => {
     const { uid } = await createUser(w.deps, admin(), { ...staffInput, role })
     expect(w.users.get(uid)).toMatchObject({ role, tenantId: 'T1', contractorId: null, mustChangePassword: true, status: 'active' })
     expect(w.claims.get(uid)).toEqual({ role, tenantId: 'T1' })
+  })
+
+  it('a tenant admin can no longer create an admin (the platform super admin does)', async () => {
+    await rejects(createUser(w.deps, admin(), { ...staffInput, role: 'admin' }), 'permission-denied', 'forbidden')
+    expect(w.authUsers.size).toBe(0)
+    expect(w.users.has('new1')).toBe(false)
   })
 
   it('admin can create a supervisor for an active contractor', async () => {
@@ -99,12 +105,19 @@ describe('createUser: tenant and validation', () => {
 })
 
 describe('updateUser', () => {
-  it('admin cannot change their own status', async () => {
-    await rejects(updateUser(w.deps, admin(), { uid: 'admin', status: 'disabled' }), 'failed-precondition', 'self-status')
+  it('a tenant admin cannot update any admin account, themselves included', async () => {
+    w.users.set('admin2', userDoc({ role: 'admin', contractorId: null, email: 'a2@x.com', phone: null }))
+    for (const uid of ['admin', 'admin2']) {
+      await rejects(updateUser(w.deps, admin(), { uid, status: 'disabled' }), 'permission-denied', 'forbidden')
+      await rejects(updateUser(w.deps, admin(), { uid, name: 'New Name' }), 'permission-denied', 'forbidden')
+    }
+    expect(w.users.get('admin2')?.status).toBe('active')
+    expect(w.users.get('admin')?.name).not.toBe('New Name')
+    expect(w.revoked).toHaveLength(0)
   })
-  it('admin may rename themselves', async () => {
-    await updateUser(w.deps, admin(), { uid: 'admin', name: 'New Name' })
-    expect(w.users.get('admin')?.name).toBe('New Name')
+  it('a tenant admin still manages every other role', async () => {
+    await updateUser(w.deps, admin(), { uid: 'officer', name: 'Olga 2' })
+    expect(w.users.get('officer')?.name).toBe('Olga 2')
   })
   it('admin can disable a user: Auth disabled, tokens revoked, audit written', async () => {
     await updateUser(w.deps, admin(), { uid: 'drv1', status: 'disabled' })
@@ -175,7 +188,13 @@ describe('resetCredential', () => {
   })
   it('rejects cross-tenant targets and self reset', async () => {
     await rejects(resetCredential(w.deps, admin(), { uid: 'foreign', newPassword: '111111' }), 'permission-denied', 'tenant-mismatch')
-    await rejects(resetCredential(w.deps, admin(), { uid: 'admin', newPassword: 'a-good-password' }), 'failed-precondition', 'self-reset')
+    await rejects(resetCredential(w.deps, admin(), { uid: 'admin', newPassword: 'a-good-password' }), 'permission-denied', 'forbidden')
+  })
+  it('a tenant admin cannot reset another admin', async () => {
+    w.users.set('admin2', userDoc({ role: 'admin', contractorId: null, email: 'a2@x.com', phone: null }))
+    await rejects(resetCredential(w.deps, admin(), { uid: 'admin2', newPassword: 'a-good-password' }), 'permission-denied', 'forbidden')
+    expect(w.revoked).toHaveLength(0)
+    expect(w.users.get('admin2')?.mustChangePassword).toBe(false)
   })
   it('officer and driver cannot reset', async () => {
     await rejects(resetCredential(w.deps, caller('officer', 'officer'), { uid: 'drv1', newPassword: '111111' }), 'permission-denied')

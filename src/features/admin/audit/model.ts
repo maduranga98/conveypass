@@ -14,6 +14,8 @@ export interface AuditEntry {
   action: string
   actorUid: string
   actorRole: string
+  /** Display name of a non-tenant actor (`ConvoyPass Super Admin`). */
+  actorName?: string
   targetType: string
   targetId: string
   meta: Meta
@@ -68,6 +70,7 @@ export function toAuditEntry(id: string, data: Record<string, unknown>): AuditEn
     action: String(data.action ?? ''),
     actorUid: String(data.actorUid ?? ''),
     actorRole: String(data.actorRole ?? ''),
+    ...(typeof data.actorName === 'string' ? { actorName: data.actorName } : {}),
     targetType: String(data.targetType ?? ''),
     targetId: String(data.targetId ?? ''),
     meta,

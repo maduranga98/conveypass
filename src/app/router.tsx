@@ -3,7 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { VehicleRouteBoundary } from '@/components/RouteErrorBoundary'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { ForbiddenPage, NotFoundPage } from '@/features/auth/ErrorPages'
-import { RequireAuth, RequireRole, RoleHomeRedirect } from '@/features/auth/guards'
+import { RequireAuth, RequireOperator, RequireRole, RoleHomeRedirect } from '@/features/auth/guards'
 import { AuthedShell } from '@/features/auth/AuthedShell'
 import {
   AdminLayout,
@@ -22,6 +22,11 @@ import {
   NotificationsPage,
   OfficerLayout,
   OfficerQueue,
+  OperatorInvitesPage,
+  OperatorOverviewPage,
+  OperatorWorkspaceDetailPage,
+  OperatorWorkspacesPage,
+  PlatformLayout,
   PassesPage,
   PrivacyPage,
   QrLabelsPage,
@@ -49,6 +54,25 @@ export const router = createBrowserRouter([
   { path: '/setup', element: lazyEl(<SetupPage />) },
   { path: '/forgot-password', element: lazyEl(<ForgotPasswordPage />) },
   { path: '/auth/action', element: lazyEl(<AuthActionPage />) },
+  // `/` sends everyone home (workspace users by role, operators to /platform); it handles auth itself.
+  { path: '/', element: <RoleHomeRedirect /> },
+  {
+    // Platform operator console (Module 9): operators only, no tenant, no notifications or workspace navigation.
+    element: <RequireOperator />,
+    children: [
+      {
+        path: '/platform',
+        element: lazyEl(<PlatformLayout />),
+        children: [
+          { index: true, element: lazyEl(<OperatorOverviewPage />) },
+          { path: 'invites', element: lazyEl(<OperatorInvitesPage />) },
+          { path: 'workspaces', element: lazyEl(<OperatorWorkspacesPage />) },
+          { path: 'workspaces/:tenantId', element: lazyEl(<OperatorWorkspaceDetailPage />) },
+          { path: 'tenants', element: <Navigate to="/platform/workspaces" replace /> },
+        ],
+      },
+    ],
+  },
   {
     element: <RequireAuth />,
     children: [
@@ -56,7 +80,6 @@ export const router = createBrowserRouter([
         // Everything below shares one live notification feed (the bell, /notifications and the tab title).
         element: <AuthedShell />,
         children: [
-      { path: '/', element: <RoleHomeRedirect /> },
       { path: '/notifications', element: lazyEl(<NotificationsPage />) },
       { path: '/settings', element: lazyEl(<UserSettingsPage />) },
       { path: '/change-password', element: lazyEl(<ChangePasswordPage />) },

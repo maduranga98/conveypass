@@ -50,7 +50,19 @@ npm run dev                      # http://localhost:5173
 
 ### First-time setup of a workspace (invite link)
 
-New clients are onboarded with a one-time link, not a script run on their behalf:
+The **Super admin** (the person who runs ConvoyPass) creates company workspaces from the **Super admin console** (`/platform`):
+create the super admin account once (script only), sign in with the Staff tab, then *Workspaces > New workspace*. The admin gets a
+one-time temporary password (shown once, copy or send by WhatsApp or email) and must choose a new one at first sign-in. Tenant
+admins cannot create or reset other admins; the Super admin does that from the workspace page. For clients who should pick their
+own password, *Invites* makes a one-time link instead.
+
+```bash
+export APP_BASE_URL=http://localhost:5173      # the public https origin in staging and production
+npm run superadmin:create -- --env emulator --email you@convoypass.test --name "You"   # password (12+ chars) generated and printed once, or pass --password
+npm run dev                                    # sign in at /login (Staff tab) -> /platform/workspaces -> New workspace
+```
+
+Without the console (fallback), the script makes the same invite:
 
 ```bash
 export APP_BASE_URL=http://localhost:5173      # the public https origin in staging and production
@@ -83,7 +95,8 @@ Web push needs `VITE_FIREBASE_VAPID_KEY` (Firebase console > Cloud Messaging > W
 | `npm run emulators` | auth, firestore, functions, storage |
 | `npm run seed:demo` | demo tenant (emulator only): all roles, passes in every state, notifications, fake push devices, SLA-breaching passes |
 | `npm run sla:check` | run the SLA reminder check once on the emulator |
-| `npm run invite:create` / `invite:list` / `invite:revoke` `-- --env …` | setup invites (the link is printed once; needs `APP_BASE_URL`; `prod` needs `--confirm-prod`) |
+| `npm run superadmin:create` / `superadmin:disable` `-- --env … --email …` | the Super admin for the `/platform` console (script only; alias `operator:create|disable`; `prod` needs `--confirm-prod`; `create` needs `--name` and a 12+ character `--password`, or generates one) |
+| `npm run invite:create` / `invite:list` / `invite:revoke` `-- --env …` | setup invites, fallback to the console (the link is printed once; needs `APP_BASE_URL`; `prod` needs `--confirm-prod`) |
 | `npm run admin:reset -- --env … --email … --link\|--temp-password` | recover a locked-out admin (a reset link, or a one-time temporary password) |
 | `npm run verify:invite-access` | emulator check that no client role can read or write `setupInvites` |
 | `npm run create-tenant -- --env emulator\|staging\|prod` | a tenant and its first admin, chosen by the operator (`prod` needs `--confirm-production`) |

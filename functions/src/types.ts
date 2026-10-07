@@ -67,8 +67,10 @@ export interface AuditEntry {
   tenantId: string
   action: string
   actorUid: string
-  /** `system` for scheduled jobs (retention). */
-  actorRole: Role | 'system'
+  /** `system` for scheduled jobs (retention); `superadmin` for the platform super admin (Module 10). */
+  actorRole: Role | 'system' | 'superadmin'
+  /** Display name of a non-tenant actor (`ConvoyPass Super Admin`): the tenant's admins cannot read `operators`. */
+  actorName?: string
   targetType: 'user' | 'vehicle' | 'contractor' | 'tenant' | 'pass' | 'gateEvent' | 'notification'
   targetId: string
   meta: Record<string, string | number | boolean | null>

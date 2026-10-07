@@ -101,6 +101,8 @@ export default function UsersPage() {
   ]
 
   const actions = (u: WithId<UserDoc>) => {
+    // Admin accounts are managed by the platform super admin: no edit, reset or disable here (the functions refuse too).
+    if (u.role === 'admin') return <Badge tone="neutral">{t.managedBy}</Badge>
     const isSelf = u.id === uid
     const resetLabel = u.role === 'driver' ? strings.admin.reset.resetPin : strings.admin.reset.resetPassword
     const toggleLabel = u.status === 'active' ? strings.admin.toggle.disable : strings.admin.toggle.enable
@@ -129,6 +131,7 @@ export default function UsersPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
           {users.data && <p className="mt-1 text-sm text-slate-500">{t.count(rows.length)}</p>}
+          <p className="mt-1 text-sm text-slate-500">{t.adminNote}</p>
         </div>
         <Button icon={<Plus aria-hidden className="size-4" />} onClick={() => setCreateOpen(true)}>
           {t.create}

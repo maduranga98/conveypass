@@ -141,3 +141,45 @@ export function publicCallable<T>(name: keyof typeof IP_RATE_LIMITS, run: (data:
     }
   })
 }
+
+type OperatorAuth = { uid: string; token: Record<string, unknown> } | undefined
+
+/**
+ * One operator call with its single log line. Exported (and kept apart from `onCall`) so tests can drive it and read
+ * the log output: nothing from the payload or the response (an invite code) may ever appear there.
+ */
+export async function runOperatorCall<T>(name: string, auth: OperatorAuth, data: unknown, run: (auth: OperatorAuth, data: unknown) => Promise<T>): Promise<T> {
+  const ctx = { fn: name, uid: auth?.uid }
+  try {
+    const result = await run(auth, data)
+    logInfo(ctx, 'ok')
+    return result
+  } catch (e) {
+    if (e instanceof HttpsError) {
+      const reason = (e.details as { reason?: unknown } | undefined)?.reason
+      const outcome = e.code === 'resource-exhausted' ? 'rate-limited' : e.code === 'internal' ? 'error' : 'denied'
+      const extra = { code: e.code, reason: typeof reason === 'string' ? reason : undefined }
+      if (outcome === 'error') logError(ctx, e, extra)
+      else logWarn(ctx, outcome, extra)
+      throw e
+    }
+    logError(ctx, e)
+    throw new HttpsError('internal', 'Internal error', { reason: 'internal' })
+  }
+}
+
+/**
+ * Operator callables (Module 9): no tenant, no `callerFrom`. The platform API runs `requireOperator` itself (claims,
+ * verified email, active `operators/{uid}`, fresh sign-in for mutations), then the per-uid rate limit. One log line per
+ * call: `fn`, `uid`, `outcome`, `reason`; never the payload.
+ */
+export function operatorCallable<T>(name: string, run: (auth: OperatorAuth, data: unknown) => Promise<T>) {
+  return onCall((request) =>
+    runOperatorCall(
+      name,
+      request.auth ? { uid: request.auth.uid, token: request.auth.token as unknown as Record<string, unknown> } : undefined,
+      request.data,
+      run,
+    ),
+  )
+}
