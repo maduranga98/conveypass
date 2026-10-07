@@ -5,9 +5,11 @@ export interface QueueState {
   status: 'loading' | 'ready' | 'error'
   items: PassWithId[]
   error: FirestoreError | null
+  /** When the last snapshot arrived (ms), for "Updated HH:mm". */
+  updatedAt: number | null
 }
 
-export const LOADING: QueueState = { status: 'loading', items: [], error: null }
+export const LOADING: QueueState = { status: 'loading', items: [], error: null, updatedAt: null }
 
 interface Entry {
   state: QueueState
@@ -28,12 +30,13 @@ function start(entry: Entry): void {
         status: 'ready',
         items: snap.docs.map((d) => ({ ...(d.data() as PassDoc), id: d.id })),
         error: null,
+        updatedAt: Date.now(),
       }
       entry.listeners.forEach((l) => l())
     },
     (error) => {
       // A failed listener is dead: keep the last items on screen and let the user retry.
-      entry.state = { status: 'error', items: entry.state.items, error }
+      entry.state = { status: 'error', items: entry.state.items, error, updatedAt: entry.state.updatedAt }
       entry.listeners.forEach((l) => l())
     },
   )
