@@ -71,3 +71,26 @@ export async function oobCodes(email: string, type?: 'PASSWORD_RESET' | 'VERIFY_
   return oobCodes.filter((c) => c.email === email && (!type || c.requestType === type))
 }
 export const oobCodeFromLink = (link: string): string => new URL(link).searchParams.get('oobCode') ?? ''
+
+export interface ScriptRun {
+  code: number
+  out: string
+}
+
+/** Runs a script and keeps going on a non-zero exit (the refusals are what some tests check). */
+function scriptResult(file: string, args: string[]): ScriptRun {
+  try {
+    return { code: 0, out: script(file, args) }
+  } catch (e) {
+    const err = e as { status?: number; stdout?: string; stderr?: string }
+    return { code: err.status ?? 1, out: `${err.stdout ?? ''}${err.stderr ?? ''}` }
+  }
+}
+
+/** `npm run superadmin:create`: the generated password as printed (once) by the script. */
+export function superadminCreate(email: string, name: string, extra: string[] = []): ScriptRun & { password: string | undefined } {
+  const r = scriptResult('scripts/create-operator.ts', ['--env', 'emulator', '--email', email, '--name', name, ...extra])
+  return { ...r, password: /temporary password: (\S+)/.exec(r.out)?.[1] }
+}
+export const superadminDoctor = (email: string, extra: string[] = []): ScriptRun => scriptResult('scripts/superadmin-doctor.ts', ['--env', 'emulator', '--email', email, ...extra])
+export const breakOperator = (email: string, what: 'claims' | 'tenant-claim' | 'profile' | 'email'): void => void admin('breakOperator', { email, what })

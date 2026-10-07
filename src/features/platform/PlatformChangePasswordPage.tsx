@@ -84,7 +84,7 @@ export default function PlatformChangePasswordPage() {
           <form onSubmit={(e) => void submit(e)} className="mt-5 space-y-4" noValidate>
             <PasswordInput label={t.current} autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
             <PasswordInput label={t.new} autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
-            <ul className="space-y-1 text-sm" aria-label={t.new}>
+            <ul className="space-y-1 text-sm" aria-label={t.rulesLabel}>
               {rules.map(([ok, label]) => (
                 <li key={label} className={ok ? 'flex items-center gap-2 text-slate-900' : 'flex items-center gap-2 text-slate-600'}>
                   {ok ? <Check aria-hidden className="size-4" /> : <Circle aria-hidden className="size-4" />}

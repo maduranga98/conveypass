@@ -1461,6 +1461,7 @@ export const strings = {
       submit: 'Change password',
       submitting: 'Changing…',
       back: 'Back to the console',
+      rulesLabel: 'Password requirements',
       rules: { length: '14 or more characters', notEmail: 'Not your email address', notCommon: 'Not a common password' },
       mismatch: 'The two passwords do not match.',
       currentWrong: 'That is not your current password.',
