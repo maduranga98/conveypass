@@ -17,3 +17,6 @@ export const SupervisorLayout = lazy(() => import('@/features/supervisor/Supervi
 export const SupervisorHome = lazy(() => import('@/features/supervisor/SupervisorHome'))
 export const ApprovalsPage = lazy(() => import('@/features/supervisor/ApprovalsPage'))
 export const ReviewPage = lazy(() => import('@/features/supervisor/ReviewPage'))
+export const OfficerLayout = lazy(() => import('@/features/officer/OfficerLayout'))
+export const OfficerQueue = lazy(() => import('@/features/officer/OfficerQueue'))
+export const PassesPage = lazy(() => import('@/features/admin/PassesPage'))

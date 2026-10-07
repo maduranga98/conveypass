@@ -13,6 +13,9 @@ import {
   DriverHome,
   DriversPage,
   LoginPage,
+  OfficerLayout,
+  OfficerQueue,
+  PassesPage,
   QrLabelsPage,
   ReviewPage,
   RolePlaceholder,
@@ -27,7 +30,7 @@ import {
 
 const lazyEl = (node: ReactNode) => <Suspense fallback={<PageSpinner />}>{node}</Suspense>
 
-const placeholderRoute = (role: Exclude<Role, 'admin' | 'supervisor' | 'driver'>) => ({
+const placeholderRoute = (role: Exclude<Role, 'admin' | 'officer' | 'supervisor' | 'driver'>) => ({
   element: <RequireRole roles={[role]} />,
   children: [{ path: `/${role}`, element: lazyEl(<RolePlaceholder />) }],
 })
@@ -53,6 +56,7 @@ export const router = createBrowserRouter([
               { path: 'contractors/:contractorId', element: lazyEl(<ContractorDetailPage />) },
               { path: 'vehicles', element: lazyEl(<VehiclesPage scope="admin" />) },
               { path: 'drivers', element: lazyEl(<DriversPage scope="admin" />) },
+              { path: 'passes', element: lazyEl(<PassesPage />) },
               { path: 'qr', element: lazyEl(<QrLabelsPage scope="admin" />) },
               { path: 'settings', element: lazyEl(<SettingsPage />) },
             ],
@@ -76,7 +80,16 @@ export const router = createBrowserRouter([
           },
         ],
       },
-      placeholderRoute('officer'),
+      {
+        element: <RequireRole roles={['officer']} />,
+        children: [
+          {
+            path: '/officer',
+            element: lazyEl(<OfficerLayout />),
+            children: [{ index: true, element: lazyEl(<OfficerQueue />) }],
+          },
+        ],
+      },
       {
         element: <RequireRole roles={['driver']} />,
         children: [{ path: '/driver', element: lazyEl(<DriverHome />) }],

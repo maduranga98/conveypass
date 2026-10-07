@@ -25,11 +25,17 @@ interface Props {
   contractorName?: string
   /** `wide` lays the photos out two across (officer panel, admin drawer); `stack` is one full-width photo per row. */
   layout?: 'stack' | 'wide'
+  /** Lets a parent that has keyboard shortcuts stand down while the full-screen viewer is open. */
+  onViewerOpenChange?: (open: boolean) => void
 }
 
 /** What a reviewer looks at: photos (tap for the viewer), people and vehicle, checklist, who approved what. */
-export function PassReview({ pass, today, contractorName, layout = 'stack' }: Props) {
-  const [viewer, setViewer] = useState<number | null>(null)
+export function PassReview({ pass, today, contractorName, layout = 'stack', onViewerOpenChange }: Props) {
+  const [viewer, setViewerState] = useState<number | null>(null)
+  const setViewer = (v: number | null) => {
+    setViewerState(v)
+    onViewerOpenChange?.(v !== null)
+  }
   const items = evidenceItems(pass)
   const rejection = pass.status === 'rejected' ? pass.rejection : undefined
 

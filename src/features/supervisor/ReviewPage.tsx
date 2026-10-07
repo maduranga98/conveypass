@@ -1,18 +1,19 @@
-import { ArrowLeft, SearchX, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, SearchX } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { strings } from '@/lib/strings'
 import { useSession } from '@/features/auth/useAuth'
 import { DecisionBar } from '@/features/passes/DecisionBar'
+import { PassChangedBanner } from '@/features/passes/PassChangedBanner'
 import { PassReview } from '@/features/passes/PassReview'
 import { isExpired } from '@/features/passes/passView'
 import { useRejectionReasons } from '@/features/passes/queries'
 import { RejectSheet, type RejectChoice } from '@/features/passes/RejectSheet'
 import { useDecisions } from '@/features/passes/useDecisions'
+import { useReviewLock } from '@/features/passes/useReviewLock'
 import { usePass } from '@/features/passes/usePass'
 import { usePassQueue } from '@/features/passes/usePassQueue'
 import { useToday } from '@/features/passes/useToday'
@@ -29,16 +30,13 @@ function Review({ pass, today }: { pass: PassWithId; today: string | null }) {
   const decisions = useDecisions()
   const pending = usePassQueue({ scope: 'supervisor', status: 'submitted', ...(today ? { dateKey: today } : {}), enabled: today !== null })
 
-  // The version the reviewer is looking at. If the live pass moves on (the driver resubmitted, someone else decided),
-  // decisions stay locked until they confirm they have looked again, so stale evidence is never approved.
-  const [seen, setSeen] = useState({ status: pass.status, attempt: pass.attempt })
-  const [leaving, setLeaving] = useState(false)
   const [rejecting, setRejecting] = useState(false)
   const [rejectError, setRejectError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
 
   const busy = decisions.busyOf(pass.id)
-  const changed = !leaving && busy === null && (pass.status !== seen.status || pass.attempt !== seen.attempt)
+  const lock = useReviewLock(pass, busy)
+  const changed = lock.changed
   const expired = today !== null && isExpired(pass, today)
   const decidable = pass.status === 'submitted' && !expired
   const locked = changed || !decidable
@@ -47,7 +45,7 @@ function Review({ pass, today }: { pass: PassWithId; today: string | null }) {
   const position = queueIds.indexOf(pass.id)
 
   const goNext = () => {
-    setLeaving(true)
+    lock.leave()
     const next = pending.items.find((p) => p.id !== pass.id && !decisions.isHidden(p))
     void navigate(next ? `/supervisor/approvals/${next.id}` : '/supervisor/approvals', { replace: true })
   }
@@ -79,13 +77,7 @@ function Review({ pass, today }: { pass: PassWithId; today: string | null }) {
         {position >= 0 && <p className="text-sm font-medium text-slate-700">{t.review.position(position + 1, queueIds.length)}</p>}
       </div>
 
-      {changed && (
-        <div role="alert" className="space-y-2 rounded-xl border-2 border-amber-500 bg-amber-50 p-4">
-          <p className="flex items-center gap-2 text-base font-bold text-amber-950"><TriangleAlert aria-hidden className="size-5" />{a.decision.changedTitle}</p>
-          <p className="text-sm text-amber-950">{a.decision.changedBody}</p>
-          <Button className="h-12 w-full text-base" onClick={() => setSeen({ status: pass.status, attempt: pass.attempt })}>{a.decision.reviewAgain}</Button>
-        </div>
-      )}
+      {changed && <PassChangedBanner onAcknowledge={lock.acknowledge} />}
       {!changed && expired && <p role="status" className="rounded-xl bg-slate-200 px-4 py-3 text-base font-medium">{a.decision.expired}</p>}
       {!changed && !expired && !decidable && <p role="status" className="rounded-xl bg-slate-200 px-4 py-3 text-base font-medium">{t.review.alreadyDecided}</p>}
       {!changed && decidable && pass.checklist.some((c) => c.answer === 'no') && (

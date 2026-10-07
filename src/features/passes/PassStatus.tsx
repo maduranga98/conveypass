@@ -28,7 +28,7 @@ const when = (ms: number | null): string => (ms ? new Date(ms).toLocaleString(un
  * driver read only their own passes; otherwise it shows the summary the function returned.
  */
 export function PassStatus({ summary, plateNo, onDone, doneLabel = t.done, onRejected }: Props) {
-  const [live, setLive] = useState<Pick<PassDoc, 'status'> | null>(null)
+  const [live, setLive] = useState<Pick<PassDoc, 'status' | 'submittedAt' | 'supervisor' | 'officer'> | null>(null)
 
   useEffect(() => {
     if (!summary.mine) return
@@ -36,7 +36,14 @@ export function PassStatus({ summary, plateNo, onDone, doneLabel = t.done, onRej
       doc(db, 'passes', summary.passId),
       (snap) => {
         const data = snap.data() as PassDoc | undefined
-        if (data) setLive({ status: data.status })
+        if (data) {
+          setLive({
+            status: data.status,
+            submittedAt: data.submittedAt,
+            ...(data.supervisor ? { supervisor: data.supervisor } : {}),
+            ...(data.officer ? { officer: data.officer } : {}),
+          })
+        }
       },
       () => undefined, // keep showing the last known status
     )
@@ -66,7 +73,7 @@ export function PassStatus({ summary, plateNo, onDone, doneLabel = t.done, onRej
           {t.submittedBy(summary.driverName)} {t.submittedAt(when(summary.submittedAt))}
         </p>
       </div>
-      <div className="w-full max-w-sm"><PassTimeline status={status} tone={approved || checkedIn ? 'success' : 'neutral'} /></div>
+      <div className="w-full max-w-sm"><PassTimeline status={status} tone={approved || checkedIn ? 'success' : 'neutral'} {...(live ? { pass: live } : {})} /></div>
       {onDone && (
         <Button className={cn('h-14 w-full max-w-sm text-lg font-bold', (approved || checkedIn) && 'bg-white text-emerald-800 hover:bg-emerald-50')} onClick={onDone}>
           {doneLabel}

@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore'
+import { useEffect, useState } from 'react'
 import { dateKey, DEFAULT_TIMEZONE } from '@/lib/dates'
 import { DEFAULT_REJECTION_REASONS, type RejectionReasonDef } from '@/lib/defaultRejectionReasons'
 import { db } from '@/lib/firebase'
 import type { Tenant, Vehicle, WithId } from '@/types'
-import type { PassDoc } from '@/types/passes'
+import type { PassDoc, PassWithId } from '@/types/passes'
 
 /** The member's own tenant document (rules allow reading it). */
 export function useTenant(tenantId: string) {
@@ -39,24 +40,40 @@ export const RECENT_PASSES = 10
 /** Enough history to find today's pass for every vehicle, not just the 10 shown. */
 const PASS_FETCH = 30
 
-/** This driver's latest passes, newest first. */
-export function useMyPasses(tenantId: string, uid: string) {
-  return useQuery({
-    queryKey: ['myPasses', tenantId, uid],
-    staleTime: 0,
-    queryFn: async (): Promise<(PassDoc & { id: string })[]> => {
-      const snap = await getDocs(
-        query(
-          collection(db, 'passes'),
-          where('tenantId', '==', tenantId),
-          where('driverId', '==', uid),
-          orderBy('submittedAt', 'desc'),
-          limit(PASS_FETCH),
-        ),
-      )
-      return snap.docs.map((d) => ({ ...(d.data() as PassDoc), id: d.id }))
-    },
-  })
+export type MyPasses = { retry: () => void } & (
+  | { isPending: true; isError: false; data: undefined }
+  | { isPending: false; isError: true; data: PassWithId[] | undefined }
+  | { isPending: false; isError: false; data: PassWithId[] }
+)
+
+/**
+ * This driver's latest passes, newest first, live: an approval or a rejection shows up on the home screen by itself.
+ * The query asks for exactly what the rules allow (own passes in the own tenant) and unsubscribes on unmount.
+ */
+export function useMyPasses(tenantId: string, uid: string): MyPasses {
+  const [state, setState] = useState<{ key: string; data?: PassWithId[]; error?: boolean }>({ key: '' })
+  const [attempt, setAttempt] = useState(0)
+  const key = `${tenantId}|${uid}|${attempt}`
+
+  useEffect(() => {
+    return onSnapshot(
+      query(
+        collection(db, 'passes'),
+        where('tenantId', '==', tenantId),
+        where('driverId', '==', uid),
+        orderBy('submittedAt', 'desc'),
+        limit(PASS_FETCH),
+      ),
+      (snap) => setState({ key, data: snap.docs.map((d) => ({ ...(d.data() as PassDoc), id: d.id })) }),
+      () => setState((s) => ({ key, ...(s.data ? { data: s.data } : {}), error: true })),
+    )
+  }, [tenantId, uid, key])
+
+  const current = state.key === key
+  const retry = () => setAttempt((n) => n + 1)
+  if (current && state.error) return { isPending: false, isError: true, data: state.data, retry }
+  if (current && state.data) return { isPending: false, isError: false, data: state.data, retry }
+  return { isPending: true, isError: false, data: undefined, retry }
 }
 
 /** The tenant's rejection reasons, or the defaults when it has not set its own (or could not be read). */
