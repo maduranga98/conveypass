@@ -1,6 +1,6 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
-import { toPass } from './ports.js'
+import { dataPort, toPass } from './ports.js'
 import type { RetentionPort } from './retention.js'
 import type { TenantData } from './types.js'
 
@@ -28,8 +28,7 @@ export const retentionPort = (): RetentionPort => {
     setCursor: async (tenantId, key) => {
       await db.doc(`tenants/${tenantId}`).update({ retentionCursor: key })
     },
-    writeAudit: async (audit) => {
-      await db.collection('auditLog').doc().create({ ...audit, createdAt: FieldValue.serverTimestamp() })
-    },
+    // The one audit writer (ports.ts), so every entry has the same shape.
+    writeAudit: (audit) => dataPort().writeAudit(audit),
   }
 }

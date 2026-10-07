@@ -1,3 +1,4 @@
+import { sanitiseMeta } from './core.js'
 import { dateKey, DEFAULT_TIMEZONE } from './dates.js'
 import { logError, logInfo } from './logger.js'
 import type { AuditEntry, PassData, TenantData } from './types.js'
@@ -80,7 +81,7 @@ export async function purgeOldEvidence(port: RetentionPort, nowMs: number): Prom
         actorRole: 'system',
         targetType: 'tenant',
         targetId: tenant.id,
-        meta: { passes, files, retentionDays: days, before },
+        meta: sanitiseMeta({ passes, files, retentionDays: days, before }),
       })
     }
     // A full batch may end in the middle of a day: step back one day so the rest of it is looked at next run.
