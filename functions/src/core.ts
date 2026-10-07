@@ -276,9 +276,13 @@ async function loadTarget(deps: Deps, caller: Caller, uid: string): Promise<User
   return target
 }
 
-/** Admin: anyone in the tenant. Supervisor: drivers of their own contractor. Everyone else: nobody. */
+/**
+ * Admin: anyone in the tenant EXCEPT other admins and themselves (admin accounts are managed by the platform super admin,
+ * Module 10; a tenant admin changes their own password through `changeOwnPassword`).
+ * Supervisor: drivers of their own contractor. Everyone else: nobody.
+ */
 function assertCanManage(caller: Caller, target: UserData): void {
-  if (caller.role === 'admin') return
+  if (caller.role === 'admin' && target.role !== 'admin') return
   if (
     caller.role === 'supervisor' &&
     caller.contractorId !== null &&
@@ -337,8 +341,9 @@ export async function createUser(deps: Deps, caller: Caller, raw: unknown): Prom
   const input = parse(createUserSchema, raw)
   await requireActiveCaller(deps, caller)
 
+  // Admin accounts are created by the platform super admin only (`createWorkspace` / `addTenantAdmin`).
   const allowed =
-    caller.role === 'admin' || (caller.role === 'supervisor' && input.role === 'driver')
+    (caller.role === 'admin' && input.role !== 'admin') || (caller.role === 'supervisor' && input.role === 'driver')
   if (!allowed) throw fail('permission-denied', 'forbidden', 'You are not allowed to create this role')
 
   // Contractor: only supervisors and drivers belong to one. A supervisor caller is forced to their own.

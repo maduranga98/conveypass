@@ -15,6 +15,10 @@ import { operatorCallable, callable, publicCallable } from './runtime.js'
 import { APP_BASE_URL, IN_EMULATOR } from './config.js'
 import { createPlatformApi } from './platform/platform.js'
 import { platformPort } from './platform/platformPort.js'
+import { createWorkspaceApi } from './platform/workspaces.js'
+import { workspaceAuthPort, workspacePort } from './platform/workspacesPort.js'
+import { generateTempPassword } from './auth/tempPassword.js'
+import { supportedTimezones } from './setup.js'
 import { enforceRateLimit, firestoreRateLimitPort } from './rateLimit.js'
 import { newTenantId } from './tenants/tenantDefaults.js'
 import * as setup from './setup.js'
@@ -93,6 +97,26 @@ export const getOperatorOverview = operatorCallable('getOperatorOverview', (a) =
 export const createSetupInvite = operatorCallable('createSetupInvite', (a, d) => platformApi().createSetupInvite(a, d))
 export const listSetupInvites = operatorCallable('listSetupInvites', (a, d) => platformApi().listSetupInvites(a, d))
 export const revokeSetupInvite = operatorCallable('revokeSetupInvite', (a, d) => platformApi().revokeSetupInvite(a, d))
+// Module 10: the super admin creates workspaces and manages their admins (temporary password returned once).
+const workspaceApi = () =>
+  createWorkspaceApi({
+    port: platformPort(),
+    now: () => Date.now(),
+    rateLimit: (uid, fn) => enforceRateLimit(firestoreRateLimitPort(), uid, fn),
+    appBaseUrl: APP_BASE_URL,
+    inEmulator: IN_EMULATOR,
+    auth: workspaceAuthPort(),
+    workspaces: workspacePort(),
+    newTenantId,
+    newTempPassword: () => generateTempPassword(),
+    timezones: supportedTimezones,
+  })
+export const createWorkspace = operatorCallable('createWorkspace', (a, d) => workspaceApi().createWorkspace(a, d))
+export const addTenantAdmin = operatorCallable('addTenantAdmin', (a, d) => workspaceApi().addTenantAdmin(a, d))
+export const resetTenantAdminCredential = operatorCallable('resetTenantAdminCredential', (a, d) => workspaceApi().resetTenantAdminCredential(a, d))
+export const setTenantAdminStatus = operatorCallable('setTenantAdminStatus', (a, d) => workspaceApi().setTenantAdminStatus(a, d))
+export const updateTenantAdmin = operatorCallable('updateTenantAdmin', (a, d) => workspaceApi().updateTenantAdmin(a, d))
+export const getWorkspace = operatorCallable('getWorkspace', (a, d) => workspaceApi().getWorkspace(a, d))
 export const listTenants = operatorCallable('listTenants', (a, d) => platformApi().listTenants(a, d))
 
 // Browsers report crashes here: signed-in users only, rate limited per user, scrubbed and truncated, logs only.

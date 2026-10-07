@@ -44,6 +44,10 @@ export interface TenantRow {
   adminEmail: string | null
   userCount: number
   vehicleCount: number
+  adminCount: number
+  activeAdminCount: number
+  /** At least one admin of the workspace has signed in. */
+  adminSignedIn: boolean
 }
 
 export type RevokeOutcome = 'deleted' | 'not-found' | 'used' | 'claimed'
@@ -97,6 +101,9 @@ export interface TenantView {
   adminEmail: string | null
   userCount: number
   vehicleCount: number
+  adminCount: number
+  activeAdminCount: number
+  adminSignedIn: boolean
 }
 
 const linkBase = (deps: PlatformDeps): string => {
@@ -112,12 +119,16 @@ const linkBase = (deps: PlatformDeps): string => {
   return `${u.origin}${u.pathname.replace(/\/+$/, '')}`
 }
 
-export function createPlatformApi(deps: PlatformDeps) {
-  const guarded = async <T>(auth: AuthLike | undefined, fn: string, mutating: boolean, run: (op: OperatorCaller) => Promise<T>): Promise<T> => {
+/** `requireOperator` (fresh login for mutations), then the per-uid rate limit: the front door of every super admin call. */
+export const makeGuard = (deps: Pick<PlatformDeps, 'port' | 'now' | 'rateLimit'>) =>
+  async <T>(auth: AuthLike | undefined, fn: string, mutating: boolean, run: (op: OperatorCaller) => Promise<T>): Promise<T> => {
     const op = await requireOperator(auth, deps.port, { mutating, nowSeconds: Math.floor(deps.now() / 1000) })
     await deps.rateLimit(op.uid, fn)
     return run(op)
   }
+
+export function createPlatformApi(deps: PlatformDeps) {
+  const guarded = makeGuard(deps)
 
   const toView = (r: InviteRecord, nowMs: number, names: Map<string, string>): InviteView => ({
     hashPrefix: hashPrefixOf(r.hash),
@@ -210,6 +221,7 @@ export function createPlatformApi(deps: PlatformDeps) {
         const tenants: TenantView[] = page.map((t) => ({
           tenantId: t.tenantId, name: t.name, createdAt: t.createdAtMs, timezone: t.timezone,
           adminName: t.adminName, adminEmail: t.adminEmail, userCount: t.userCount, vehicleCount: t.vehicleCount,
+          adminCount: t.adminCount, activeAdminCount: t.activeAdminCount, adminSignedIn: t.adminSignedIn,
         }))
         return { tenants, nextCursor: rows.length > PAGE_SIZE ? String(page[page.length - 1]!.createdAtMs) : null }
       })

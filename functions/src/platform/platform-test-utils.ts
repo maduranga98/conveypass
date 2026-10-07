@@ -84,7 +84,7 @@ export const addTenant = (f: Fake, n: number, over: Partial<TenantRow> = {}) => 
   const id = `ten_${String(n).padStart(10, 'a')}`
   f.tenants.set(id, {
     tenantId: id, name: `Workspace ${n}`, createdAtMs: T0 - n * 1000, timezone: 'Asia/Colombo',
-    adminName: `Admin ${n}`, adminEmail: `admin${n}@w${n}.test`, userCount: n, vehicleCount: n * 2, ...over,
+    adminName: `Admin ${n}`, adminEmail: `admin${n}@w${n}.test`, userCount: n, vehicleCount: n * 2, adminCount: 1, activeAdminCount: 1, adminSignedIn: false, ...over,
   })
   return id
 }

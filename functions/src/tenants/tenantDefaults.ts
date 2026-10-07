@@ -53,7 +53,7 @@ export interface ProvisionInput {
     createdBy: string
   }
   /** Audit actor for both entries (`system` for the setup flow and the operator scripts). */
-  actor: { uid: string; role: 'system' | 'admin' }
+  actor: { uid: string; role: 'system' | 'admin' | 'superadmin'; /** Display name shown in the tenant's audit viewer. */ name?: string }
   /** Extra short scalars for the `tenant.created` entry (never secrets). */
   meta?: AuditMeta
   /** `FieldValue.serverTimestamp()` from the caller's own firebase-admin (so this file needs no Firebase import). */
@@ -94,11 +94,11 @@ export function buildTenantDocs(input: ProvisionInput): {
     },
     audits: [
       {
-        tenantId, action: 'tenant.created', actorUid: actor.uid, actorRole: actor.role, targetType: 'tenant', targetId: tenantId,
+        tenantId, action: 'tenant.created', actorUid: actor.uid, actorRole: actor.role, ...(actor.name ? { actorName: actor.name } : {}), targetType: 'tenant', targetId: tenantId,
         meta: { timezone: input.timezone, ...(input.meta ?? {}) }, createdAt,
       },
       {
-        tenantId, action: 'user.created', actorUid: actor.uid, actorRole: actor.role, targetType: 'user', targetId: admin.uid,
+        tenantId, action: 'user.created', actorUid: actor.uid, actorRole: actor.role, ...(actor.name ? { actorName: actor.name } : {}), targetType: 'user', targetId: admin.uid,
         meta: { role: 'admin', createdBy: admin.createdBy }, createdAt,
       },
     ],

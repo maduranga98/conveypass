@@ -8,6 +8,12 @@ export type PlatformAction =
   | 'invite.revoked'
   | 'operator.created'
   | 'operator.disabled'
+  | 'workspace.created'
+  | 'admin.created'
+  | 'admin.credentialReset'
+  | 'admin.updated'
+  | 'admin.disabled'
+  | 'admin.enabled'
 
 export interface PlatformAuditEntry {
   /** The operator's uid, or `script` for the operator scripts. */

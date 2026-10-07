@@ -1,6 +1,8 @@
 // Firestore side of the platform callables (Admin SDK). `setupInvites`, `operators` and `platformAuditLog` have no
 // client access in the rules; `tenants` and `users` are read here only for names and `count()`s.
+import { getAuth } from 'firebase-admin/auth'
 import { FieldPath, FieldValue, getFirestore, Timestamp, type DocumentData } from 'firebase-admin/firestore'
+import { lastSignInTimes } from './workspacesPort.js'
 import { inviteStatus, type InviteTimes } from '../tenants/inviteCode.js'
 import type { InviteRecord, PlatformPort, TenantRow } from './platform.js'
 import type { PlatformAuditEntry } from './platformAudit.js'
@@ -105,9 +107,12 @@ export const platformPort = (): PlatformPort => {
           const [users, vehicles, admins] = await Promise.all([
             db.collection('users').where('tenantId', '==', doc.id).count().get(),
             db.collection('vehicles').where('tenantId', '==', doc.id).count().get(),
-            db.collection('users').where('tenantId', '==', doc.id).where('role', '==', 'admin').limit(1).get(),
+            db.collection('users').where('tenantId', '==', doc.id).where('role', '==', 'admin').get(),
           ])
-          const admin = admins.docs[0]?.data()
+          // Oldest admin first: the "primary" one shown in the table.
+          const adminDocs = admins.docs.sort((a, b) => (ms(a.data().createdAt) ?? 0) - (ms(b.data().createdAt) ?? 0))
+          const admin = adminDocs[0]?.data()
+          const signIns = await lastSignInTimes(getAuth(), adminDocs.map((a) => a.id))
           return {
             tenantId: doc.id,
             name: typeof d.name === 'string' ? d.name : '',
@@ -117,6 +122,9 @@ export const platformPort = (): PlatformPort => {
             adminEmail: typeof admin?.email === 'string' ? admin.email : null,
             userCount: users.data().count,
             vehicleCount: vehicles.data().count,
+            adminCount: adminDocs.length,
+            activeAdminCount: adminDocs.filter((a) => a.data().status === 'active').length,
+            adminSignedIn: [...signIns.values()].some((t) => t !== null),
           }
         }),
       )

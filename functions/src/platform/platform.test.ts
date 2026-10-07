@@ -164,7 +164,7 @@ describe('createSetupInvite', () => {
         if (!i || i.usedAtMs !== null || i.claimId !== claimId) throw new ClaimLostError()
         tenants.set(input.tenantId, buildTenantDocs({ ...input, createdAt: { stamp: true } } as ProvisionInput).tenant)
         i.usedAtMs = f.clock.t; i.tenantId = input.tenantId; i.claimId = null
-        f.tenants.set(input.tenantId, { tenantId: input.tenantId, name: input.tenantName, createdAtMs: f.clock.t, timezone: input.timezone, adminName: input.admin.name, adminEmail: input.admin.email, userCount: 1, vehicleCount: 0 })
+        f.tenants.set(input.tenantId, { tenantId: input.tenantId, name: input.tenantName, createdAtMs: f.clock.t, timezone: input.timezone, adminName: input.admin.name, adminEmail: input.admin.email, userCount: 1, vehicleCount: 0, adminCount: 1, activeAdminCount: 1, adminSignedIn: false })
       },
     }
     const deps: SetupDeps = { auth: w.deps.auth, port: setupPort, now: () => f.clock.t, newTenantId: () => 'ten_zzzzzzzzzz', newClaimId: () => 'claim-1', timezones: supportedTimezones }
@@ -294,7 +294,7 @@ describe('listTenants and getOperatorOverview', () => {
     f.port.listTenants = async (p) => (await leaky(p)).map((t) => ({ ...t, driverNames: ['Dan'], photoPath: 'tenants/x/a.jpg', passes: [1] }) as typeof t)
     const first = await f.api.listTenants(opToken(), {})
     expect(first.tenants).toHaveLength(25)
-    expect(Object.keys(first.tenants[0]!).sort()).toEqual(['adminEmail', 'adminName', 'createdAt', 'name', 'tenantId', 'timezone', 'userCount', 'vehicleCount'])
+    expect(Object.keys(first.tenants[0]!).sort()).toEqual(['activeAdminCount', 'adminCount', 'adminEmail', 'adminName', 'adminSignedIn', 'createdAt', 'name', 'tenantId', 'timezone', 'userCount', 'vehicleCount'])
     expect(JSON.stringify(first)).not.toMatch(/driverNames|photoPath|passes|\.jpg/)
     expect(first.tenants[0]!.name).toBe('Workspace 1') // newest first
     const second = await f.api.listTenants(opToken(), { cursor: first.nextCursor! })

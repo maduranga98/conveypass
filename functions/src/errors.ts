@@ -61,6 +61,8 @@ export type Reason =
   | 'timezone-invalid'
   | 'device-invalid'
   | 'reauth-required'
+  | 'workspace-not-found'
+  | 'last-admin'
   | 'invite-not-found'
   | 'invite-not-revocable'
   | 'config-missing'
