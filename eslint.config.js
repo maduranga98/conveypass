@@ -1,5 +1,6 @@
 import js from '@eslint/js'
 import globals from 'globals'
+import jsxA11y from 'eslint-plugin-jsx-a11y'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
@@ -14,9 +15,14 @@ export default defineConfig([
       tseslint.configs.recommended,
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
+      jsxA11y.flatConfigs.recommended,
     ],
     languageOptions: { globals: globals.browser },
-    rules: { '@typescript-eslint/no-explicit-any': 'error' },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      // Our field labels wrap the input and a two-line text block (label > span > span > text).
+      'jsx-a11y/label-has-associated-control': ['error', { assert: 'either', depth: 4 }],
+    },
   },
   {
     files: ['scripts/**/*.ts', 'tests/**/*.ts', 'functions/**/*.ts', '*.config.ts'],

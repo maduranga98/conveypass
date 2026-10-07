@@ -35,8 +35,11 @@ export function CheckInSuccess({ info, next, onNext }: { info: SuccessInfo; next
   }, [left, stayed, onNext])
 
   return (
+    // Any tap or key press means "I am still reading this": it stops the auto-advance. The real actions are the buttons below.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <main
       onClick={() => setStayed(true)}
+      onKeyDown={() => setStayed(true)}
       className="flex min-h-dvh flex-col items-center justify-between gap-6 bg-emerald-700 px-6 pt-12 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center text-white"
     >
       <div role="status" className="flex flex-col items-center gap-4">

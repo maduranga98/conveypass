@@ -1,0 +1,78 @@
+name: Deploy to a Firebase alias
+description: Build, then deploy rules/indexes/storage rules first, functions second, hosting last.
+
+inputs:
+  alias: { description: 'Firebase alias from .firebaserc (staging or prod)', required: true }
+  credentials: { description: 'Deployment service account key (JSON)', required: true }
+  region: { description: 'FUNCTIONS_REGION', required: true }
+  app-base-url: { description: 'Public https origin of the app', required: true }
+  enforce-app-check: { description: 'true or false', required: false, default: 'false' }
+  min-instances: { description: 'Warm instances for the gate callables', required: false, default: '0' }
+  firebase-api-key: { required: true, description: 'VITE_FIREBASE_API_KEY (public web config)' }
+  firebase-auth-domain: { required: true, description: 'VITE_FIREBASE_AUTH_DOMAIN' }
+  firebase-project-id: { required: true, description: 'VITE_FIREBASE_PROJECT_ID' }
+  firebase-storage-bucket: { required: true, description: 'VITE_FIREBASE_STORAGE_BUCKET' }
+  firebase-messaging-sender-id: { required: true, description: 'VITE_FIREBASE_MESSAGING_SENDER_ID' }
+  firebase-app-id: { required: true, description: 'VITE_FIREBASE_APP_ID' }
+  vapid-key: { required: false, default: '', description: 'VITE_FIREBASE_VAPID_KEY' }
+  app-check-site-key: { required: false, default: '', description: 'VITE_APP_CHECK_SITE_KEY' }
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: npm
+        cache-dependency-path: |
+          package-lock.json
+          functions/package-lock.json
+
+    - name: Install
+      shell: bash
+      run: npm ci
+
+    # A service account key is a long-lived secret: workload identity federation is preferable (docs/ops.md).
+    - uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ inputs.credentials }}
+
+    - name: Functions environment for this alias (read by firebase deploy as functions/.env.<alias>)
+      shell: bash
+      run: |
+        cat > "functions/.env.${{ inputs.alias }}" <<EOF2
+        FUNCTIONS_REGION=${{ inputs.region }}
+        APP_BASE_URL=${{ inputs.app-base-url }}
+        ENFORCE_APP_CHECK=${{ inputs.enforce-app-check }}
+        MIN_INSTANCES=${{ inputs.min-instances }}
+        EOF2
+
+    - name: Build the web app
+      shell: bash
+      env:
+        VITE_FUNCTIONS_REGION: ${{ inputs.region }}
+        VITE_APP_BASE_URL: ${{ inputs.app-base-url }}
+        VITE_FIREBASE_API_KEY: ${{ inputs.firebase-api-key }}
+        VITE_FIREBASE_AUTH_DOMAIN: ${{ inputs.firebase-auth-domain }}
+        VITE_FIREBASE_PROJECT_ID: ${{ inputs.firebase-project-id }}
+        VITE_FIREBASE_STORAGE_BUCKET: ${{ inputs.firebase-storage-bucket }}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ inputs.firebase-messaging-sender-id }}
+        VITE_FIREBASE_APP_ID: ${{ inputs.firebase-app-id }}
+        VITE_FIREBASE_VAPID_KEY: ${{ inputs.vapid-key }}
+        VITE_APP_CHECK_SITE_KEY: ${{ inputs.app-check-site-key }}
+      run: npm run build
+
+    # 1. Data layer first: a new function or page must never meet old rules or a missing index.
+    - name: Deploy rules, indexes and storage rules
+      shell: bash
+      run: npx firebase-tools deploy --only firestore:rules,firestore:indexes,storage --project "${{ inputs.alias }}" --non-interactive
+
+    # 2. Then the functions (their predeploy builds them).
+    - name: Deploy functions
+      shell: bash
+      run: npx firebase-tools deploy --only functions --project "${{ inputs.alias }}" --non-interactive --force
+
+    # 3. Hosting last: the new web app only goes live once the backend it calls is in place.
+    - name: Deploy hosting
+      shell: bash
+      run: npx firebase-tools deploy --only hosting --project "${{ inputs.alias }}" --non-interactive
