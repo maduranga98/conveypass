@@ -8,7 +8,17 @@ import { pageCount, type Sort } from './sort'
 
 const t = strings.reports.table
 
-const align = (c: ReportColumn): string => (c.type === 'number' || c.type === 'percent' || c.type === 'minutes' ? 'text-right tabular-nums' : 'text-left')
+/** Free text that may be long: it wraps when printed, every other column stays on one line. */
+const LONG_TEXT = new Set(['note', 'reason', 'rejections', 'offline'])
+
+const align = (c: ReportColumn): string =>
+  c.type === 'number' || c.type === 'percent' || c.type === 'minutes'
+    ? 'whitespace-nowrap text-right tabular-nums'
+    : c.type === 'datetime' || c.type === 'date'
+      ? 'whitespace-nowrap text-left'
+      : LONG_TEXT.has(c.key)
+        ? 'text-left print:max-w-[26rem]'
+        : 'text-left print:whitespace-nowrap'
 
 /** A plain table (no sorting): summary breakdowns and the table version of a chart. */
 export function SimpleTable({ columns, rows, timeZone, caption }: { columns: ReportColumn[]; rows: ReportRow[]; timeZone: string; caption: string }) {
@@ -62,17 +72,22 @@ export function ReportTable({ columns, rows, totals, total, page, sort, onSort, 
                 const active = sort?.key === c.key
                 return (
                   <th key={c.key} scope="col" aria-sort={active ? (sort?.dir === 'asc' ? 'ascending' : 'descending') : 'none'} className={cn('whitespace-nowrap px-3 py-2', align(c))}>
-                    <button
-                      type="button"
-                      onClick={() => onSort(c.key)}
-                      aria-label={t.sortBy(c.label)}
-                      className="inline-flex items-center gap-1 font-medium uppercase tracking-wide focus-visible:outline-2 focus-visible:outline-accent print:pointer-events-none"
-                    >
-                      {c.label}
-                      <span aria-hidden className="print:hidden">
-                        {active ? (sort?.dir === 'asc' ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />) : <ChevronsUpDown className="size-3 text-slate-400" />}
-                      </span>
-                    </button>
+                    {all ? (
+                      // While printing the header is plain text: it repeats on every page.
+                      c.label
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onSort(c.key)}
+                        aria-label={t.sortBy(c.label)}
+                        className="inline-flex items-center gap-1 font-medium uppercase tracking-wide focus-visible:outline-2 focus-visible:outline-accent"
+                      >
+                        {c.label}
+                        <span aria-hidden>
+                          {active ? (sort?.dir === 'asc' ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />) : <ChevronsUpDown className="size-3 text-slate-400" />}
+                        </span>
+                      </button>
+                    )}
                   </th>
                 )
               })}

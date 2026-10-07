@@ -3,10 +3,10 @@ import { byText, median, percentile, round1 } from './stats.js'
 import { contractorName, type ReportColumn, type ReportInput, type ReportResult, type ReportRow } from './types.js'
 
 export const METRICS = [
-  { key: 'supervisor', label: 'Submit → supervisor' },
-  { key: 'officer', label: 'Supervisor → officer' },
-  { key: 'gate', label: 'Officer → check-in' },
-  { key: 'total', label: 'Submit → check-in' },
+  { key: 'supervisor', label: 'Submit → supervisor', short: 'To supervisor' },
+  { key: 'officer', label: 'Supervisor → officer', short: 'To officer' },
+  { key: 'gate', label: 'Officer → check-in', short: 'To check-in' },
+  { key: 'total', label: 'Submit → check-in', short: 'Total' },
 ] as const
 type MetricKey = (typeof METRICS)[number]['key']
 type Minutes = Record<MetricKey, number | null>
@@ -33,8 +33,8 @@ const COLUMNS: ReportColumn[] = [
   { key: 'contractor', label: 'Contractor', type: 'text' },
   { key: 'passes', label: 'Passes', type: 'number' },
   ...METRICS.flatMap((m): ReportColumn[] => [
-    { key: `${m.key}Median`, label: `${m.label} median (min)`, type: 'minutes' },
-    { key: `${m.key}P90`, label: `${m.label} p90 (min)`, type: 'minutes' },
+    { key: `${m.key}Median`, label: `${m.short} median (min)`, type: 'minutes' },
+    { key: `${m.key}P90`, label: `${m.short} p90 (min)`, type: 'minutes' },
   ]),
 ]
 
