@@ -134,12 +134,12 @@ function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'veh
       </section>
 
       <div className="flex flex-col gap-2 border-t border-slate-100 pt-5 sm:flex-row">
-        <Button variant="secondary" className="flex-1" icon={<Pencil aria-hidden className="size-4" />} onClick={() => onEdit(vehicle)}>
+        <Button variant="secondary" className="sm:flex-1" icon={<Pencil aria-hidden className="size-4" />} onClick={() => onEdit(vehicle)}>
           {strings.common.edit}
         </Button>
         <Button
           variant={suspending ? 'danger' : 'secondary'}
-          className="flex-1"
+          className="sm:flex-1"
           icon={suspending ? <Pause aria-hidden className="size-4" /> : <Play aria-hidden className="size-4" />}
           onClick={() => setConfirming(true)}
         >

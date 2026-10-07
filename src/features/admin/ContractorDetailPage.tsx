@@ -91,7 +91,7 @@ export default function ContractorDetailPage() {
     [t.notes, contractor.notes ? <span className="whitespace-pre-line">{contractor.notes}</span> : strings.common.none],
     [t.columns.vehicles, myVehicles.length],
     [t.columns.drivers, myDrivers.length],
-    ...(contractor.createdAt ? ([[t.created, format(contractor.createdAt.toDate(), 'd MMM yyyy')]] as [string, ReactNode][]) : []),
+    ...(contractor.createdAt ? ([[t.createdOn, format(contractor.createdAt.toDate(), 'd MMM yyyy')]] as [string, ReactNode][]) : []),
   ]
 
   return (

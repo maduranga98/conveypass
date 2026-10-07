@@ -53,7 +53,7 @@ function EditUserForm({ user, onClose }: { user: WithId<UserDoc>; onClose: () =>
       await updateUser({
         uid: user.id,
         ...(v.name !== user.name ? { name: v.name } : {}),
-        ...(phone && phone !== user.phone ? { phone } : {}),
+        ...(phone && phone !== user.phone ? { phone: v.phone } : {}), // as typed; the server normalises it
       })
       await queryClient.invalidateQueries({ queryKey: ['users'] })
       toast.success(t.updated)

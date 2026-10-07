@@ -152,7 +152,7 @@ function DriverForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'>
       const { uid } = await createUser({
         role: 'driver',
         name: v.name.trim(),
-        phone,
+        phone: v.phone, // as typed: the server normalises it (it does not accept the 94… form)
         password: v.pin,
         contractorId,
         ...(licenseNo ? { licenseNo } : {}),

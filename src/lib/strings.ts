@@ -410,6 +410,7 @@ export const strings = {
       back: 'Contractors',
       notFound: 'Contractor not found.',
       summary: 'Summary',
+      createdOn: 'Created',
       supervisors: 'Supervisors',
       noSupervisors: 'No supervisors yet.',
       noVehicles: 'No vehicles yet.',

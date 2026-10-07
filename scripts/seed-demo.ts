@@ -169,7 +169,7 @@ async function main(): Promise<void> {
   console.log(`    admin       admin@demo.convoypass.test            ${PASSWORD.admin}`)
   for (const s of supervisors) {
     const c = contractors.find((x) => x.key === s.contractor)
-    console.log(`    supervisor  ${s.email.padEnd(38)}${PASSWORD.supervisor}   (${c?.name})`)
+    console.log(`    supervisor  ${s.email.padEnd(42)}${PASSWORD.supervisor}   (${c?.name})`)
   }
   console.log('\n  Drivers (phone / PIN)')
   for (const d of drivers) {
