@@ -20,16 +20,28 @@ import type {
   ContractorData,
   ContractorStatus,
   DriverData,
+  PassData,
+  PassSettings,
+  PassWrite,
   Role,
+  StoredFile,
+  TenantData,
   UserData,
   VehicleData,
   VehiclePatch,
+  ChecklistItemDef,
 } from './types.js'
 
 /** Thrown by the data port when the plate guard document already exists. */
 export class PlateTakenError extends Error {}
 /** Thrown by the data port when a generated vehicle id is already in use (retry with a new id). */
 export class VehicleIdTakenError extends Error {}
+/** Thrown by the data port when the stored pass no longer allows the submission (lost a race, or state changed). */
+export class PassConflictError extends Error {
+  constructor(readonly kind: 'exists' | 'attempt' | 'driver') {
+    super(`pass conflict: ${kind}`)
+  }
+}
 
 /** Max age of the caller's sign-in for changeOwnPassword. */
 export const RECENT_LOGIN_SECONDS = 5 * 60
@@ -88,13 +100,33 @@ export interface DataPort {
   }): Promise<void>
   setContractorStatusWithAudit(contractorId: string, status: ContractorStatus, audit: AuditEntry): Promise<void>
   writeAudit(audit: AuditEntry): Promise<void>
+  getTenant(tenantId: string): Promise<TenantData | null>
+  getPass(passId: string): Promise<PassData | null>
+  /**
+   * One transaction on `passes/{passId}`: creates it (`status: submitted`) when it does not exist, or moves a
+   * `rejected` pass of the same driver back to `submitted` with `attempt` (moving `rejection` into
+   * `rejectionHistory`). Throws PassConflictError when the stored pass does not allow that. Writes the audit entry.
+   */
+  submitPassTx(p: { passId: string; pass: PassWrite; audit: AuditEntry }): Promise<void>
+  /** Merges the given settings into `tenants/{tenantId}` (+ audit) in one batch. */
+  updateTenantSettingsWithAudit(
+    tenantId: string,
+    patch: { passSettings?: PassSettings; checklist?: ChecklistItemDef[] },
+    audit: AuditEntry,
+  ): Promise<void>
   /** Auth uids of every `users` doc of this contractor. */
   listUserIdsByContractor(tenantId: string, contractorId: string): Promise<string[]>
+}
+
+export interface StoragePort {
+  /** Metadata plus the first bytes of the object, or null when it does not exist. */
+  readFile(path: string, headBytes: number): Promise<StoredFile | null>
 }
 
 export interface Deps {
   auth: AuthPort
   data: DataPort
+  storage: StoragePort
   /** `veh_` + 10 random chars. */
   newVehicleId: () => string
   /** Seconds since epoch. */
@@ -114,7 +146,11 @@ const authErrorCode = (e: unknown): string | undefined =>
 
 
 /** The token is only a hint; the caller must also exist, be active, and match the token's role/tenant. */
-export async function requireActiveCaller(deps: Deps, caller: Caller): Promise<UserData> {
+export async function requireActiveCaller(
+  deps: Deps,
+  caller: Caller,
+  opts: { checkContractor?: boolean } = {},
+): Promise<UserData> {
   const doc = await deps.data.getUser(caller.uid)
   if (
     !doc ||
@@ -126,7 +162,7 @@ export async function requireActiveCaller(deps: Deps, caller: Caller): Promise<U
     throw fail('permission-denied', 'caller-not-active', 'Caller is not an active member of this tenant')
   }
   // Tokens outlive a contractor suspension by up to an hour, so contractor users are re-checked on every call.
-  if (caller.contractorId !== null) {
+  if (caller.contractorId !== null && opts.checkContractor !== false) {
     const contractor = await deps.data.getContractor(caller.contractorId)
     if (!contractor || contractor.tenantId !== caller.tenantId || contractor.status !== 'active') {
       throw fail('permission-denied', 'caller-not-active', 'Your contractor is not active')

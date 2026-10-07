@@ -90,3 +90,58 @@ export const importVehiclesSchema = z.object({
 })
 
 export const setContractorStatusSchema = z.object({ contractorId: id, status: z.enum(['active', 'suspended']) })
+
+// ---- Module 3: passes ------------------------------------------------------------------------
+
+export const MAX_ATTEMPTS = 5
+export const MAX_CHECKLIST_ITEMS = 12
+export const CHECKLIST_ID_PATTERN = /^[a-z0-9_]{2,40}$/
+
+export const resolveVehicleSchema = z.object({ vehicleId: z.string().max(128) })
+
+const isoString = z.string().max(40).refine((v) => !Number.isNaN(Date.parse(v)), 'invalid date')
+
+export const submitPassSchema = z.object({
+  vehicleId,
+  attempt: z.number().int().min(1).max(MAX_ATTEMPTS),
+  checklist: z
+    .array(
+      z.object({
+        id: z.string().max(60),
+        answer: z.enum(['yes', 'no']),
+        note: z.string().max(300).optional(),
+      }),
+    )
+    .max(MAX_CHECKLIST_ITEMS),
+  extraCount: z.number().int().min(0).max(2),
+  captureMeta: z.object({
+    method: z.enum(['live', 'file']),
+    clientCapturedAt: z.object({ gps: isoString, dashcam: isoString }),
+    location: z
+      .object({
+        lat: z.number().min(-90).max(90),
+        lng: z.number().min(-180).max(180),
+        accuracy: z.number().min(0).max(100_000),
+      })
+      .optional(),
+  }),
+})
+
+export const updateTenantSettingsSchema = z
+  .object({
+    passSettings: z
+      .object({ requireLocation: z.boolean(), maxExtraPhotos: z.number().int().min(0).max(2) })
+      .optional(),
+    checklist: z
+      .array(
+        z.object({
+          id: z.string().regex(CHECKLIST_ID_PATTERN),
+          label: z.string().trim().min(3).max(60),
+          failBlocks: z.boolean(),
+        }),
+      )
+      .min(1)
+      .max(MAX_CHECKLIST_ITEMS)
+      .optional(),
+  })
+  .refine((v) => v.passSettings !== undefined || v.checklist !== undefined, { message: 'Nothing to update' })
