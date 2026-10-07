@@ -1,107 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import {
-  changeOwnPassword,
-  createUser,
-  resetCredential,
-  updateUser,
-  type Deps,
-} from './core.js'
-import type { AuditEntry, Caller, Claims, ContractorData, UserData } from './types.js'
-
-const NOW = 1_700_000_000
-
-const userDoc = (over: Partial<UserData> = {}): UserData => ({
-  tenantId: 'T1',
-  role: 'driver',
-  contractorId: 'C1',
-  name: 'Name',
-  email: null,
-  phone: '94771234567',
-  status: 'active',
-  mustChangePassword: false,
-  ...over,
-})
-
-interface World {
-  deps: Deps
-  users: Map<string, UserData>
-  contractors: Map<string, ContractorData>
-  authUsers: Map<string, { email: string; password: string; disabled: boolean; displayName: string }>
-  claims: Map<string, Claims>
-  audits: AuditEntry[]
-  revoked: string[]
-  failFirestoreCreate: boolean
-}
-
-function makeWorld(): World {
-  const w: World = {
-    users: new Map(),
-    contractors: new Map(),
-    authUsers: new Map(),
-    claims: new Map(),
-    audits: [],
-    revoked: [],
-    failFirestoreCreate: false,
-    deps: undefined as unknown as Deps,
-  }
-  let n = 0
-  w.deps = {
-    now: () => NOW,
-    auth: {
-      createUser: async (p) => {
-        if ([...w.authUsers.values()].some((u) => u.email === p.email)) {
-          throw Object.assign(new Error('exists'), { code: 'auth/email-already-exists' })
-        }
-        const uid = `new${++n}`
-        w.authUsers.set(uid, { email: p.email, password: p.password, disabled: false, displayName: p.displayName })
-        return { uid }
-      },
-      deleteUser: async (uid) => void w.authUsers.delete(uid),
-      updateUser: async (uid, p) => {
-        const u = w.authUsers.get(uid) ?? { email: '', password: '', disabled: false, displayName: '' }
-        w.authUsers.set(uid, { ...u, ...p })
-      },
-      setCustomUserClaims: async (uid, c) => void w.claims.set(uid, c),
-      revokeRefreshTokens: async (uid) => void w.revoked.push(uid),
-    },
-    data: {
-      getUser: async (uid) => w.users.get(uid) ?? null,
-      getContractor: async (id) => w.contractors.get(id) ?? null,
-      createUserWithAudit: async (uid, data, _actor, audit) => {
-        if (w.failFirestoreCreate) throw new Error('boom')
-        w.users.set(uid, data)
-        w.audits.push(audit)
-      },
-      updateUserWithAudit: async (uid, patch, audit) => {
-        w.users.set(uid, { ...(w.users.get(uid) as UserData), ...patch })
-        w.audits.push(audit)
-      },
-    },
-  }
-  w.contractors.set('C1', { tenantId: 'T1', status: 'active' })
-  w.contractors.set('C2', { tenantId: 'T1', status: 'active' })
-  w.contractors.set('CX', { tenantId: 'T2', status: 'active' })
-  w.contractors.set('CS', { tenantId: 'T1', status: 'suspended' })
-  w.users.set('admin', userDoc({ role: 'admin', contractorId: null, email: 'a@x.com', phone: null }))
-  w.users.set('admin2', userDoc({ role: 'admin', contractorId: null, email: 'a2@x.com', phone: null }))
-  w.users.set('sup1', userDoc({ role: 'supervisor', contractorId: 'C1', email: 's1@x.com', phone: null }))
-  w.users.set('officer', userDoc({ role: 'officer', contractorId: null, email: 'o@x.com', phone: null }))
-  w.users.set('drv1', userDoc({ contractorId: 'C1' }))
-  w.users.set('drv2', userDoc({ contractorId: 'C2', phone: '94770000002' }))
-  w.users.set('foreign', userDoc({ tenantId: 'T2', contractorId: 'CX', phone: '94770000009' }))
-  return w
-}
-
-const caller = (uid: string, role: Caller['role'], contractorId: string | null = null, over: Partial<Caller> = {}): Caller => ({
-  uid,
-  role,
-  tenantId: 'T1',
-  contractorId,
-  authTime: NOW - 10,
-  ...over,
-})
-const admin = () => caller('admin', 'admin')
-const sup1 = () => caller('sup1', 'supervisor', 'C1')
+import { changeOwnPassword, createUser, resetCredential, updateUser } from './core.js'
+import { admin, caller, makeWorld, NOW, rejects, sup1, userDoc, type World } from './test-utils.js'
 
 const staffInput = { role: 'officer', name: 'Off', email: 'new@x.com', password: 'longenough1' }
 const driverInput = { role: 'driver', name: 'Drv', phone: '0779998888', contractorId: 'C1', password: '123456' }
@@ -110,9 +9,6 @@ let w: World
 beforeEach(() => {
   w = makeWorld()
 })
-
-const rejects = (p: Promise<unknown>, code: string, reason?: string) =>
-  expect(p).rejects.toMatchObject({ code, ...(reason ? { details: { reason } } : {}) })
 
 describe('createUser: permission matrix', () => {
   it.each(['admin', 'officer', 'security'] as const)('admin can create %s', async (role) => {
@@ -311,5 +207,88 @@ describe('changeOwnPassword', () => {
     await changeOwnPassword(w.deps, admin(), { newPassword: 'a-good-password', uid: 'drv1' })
     expect(w.authUsers.has('drv1')).toBe(false)
     expect(w.authUsers.get('admin')?.password).toBe('a-good-password')
+  })
+})
+
+describe('Module 2: drivers doc', () => {
+  it('createUser(driver) also creates drivers/{uid}, with optional licenseNo', async () => {
+    const { uid } = await createUser(w.deps, admin(), { ...driverInput, licenseNo: ' B1234567 ' })
+    expect(w.drivers.get(uid)).toEqual({
+      tenantId: 'T1',
+      contractorId: 'C1',
+      name: 'Drv',
+      phone: '94779998888',
+      status: 'active',
+      licenseNo: 'B1234567',
+    })
+  })
+  it('createUser(driver) without licenseNo omits it; staff get no drivers doc and cannot have a licence', async () => {
+    const { uid } = await createUser(w.deps, sup1(), driverInput)
+    expect(w.drivers.get(uid)).not.toHaveProperty('licenseNo')
+    const staff = await createUser(w.deps, admin(), staffInput)
+    expect(w.drivers.has(staff.uid)).toBe(false)
+    await rejects(createUser(w.deps, admin(), { ...staffInput, email: 'o2@x.com', licenseNo: 'X1' }), 'invalid-argument')
+  })
+  it('updateUser mirrors name, phone and status into drivers', async () => {
+    await updateUser(w.deps, admin(), { uid: 'drv1', name: 'New', phone: '0712223333' })
+    expect(w.drivers.get('drv1')).toMatchObject({ name: 'New', phone: '94712223333' })
+    await updateUser(w.deps, admin(), { uid: 'drv1', status: 'disabled' })
+    expect(w.drivers.get('drv1')?.status).toBe('disabled')
+    await updateUser(w.deps, admin(), { uid: 'drv1', status: 'active' })
+    expect(w.drivers.get('drv1')?.status).toBe('active')
+  })
+  it('updateUser sets and clears licenseNo for drivers only', async () => {
+    await updateUser(w.deps, sup1(), { uid: 'drv1', licenseNo: 'L-99' })
+    expect(w.drivers.get('drv1')?.licenseNo).toBe('L-99')
+    await updateUser(w.deps, sup1(), { uid: 'drv1', licenseNo: null })
+    expect(w.drivers.get('drv1')?.licenseNo).toBeNull()
+    await rejects(updateUser(w.deps, admin(), { uid: 'officer', licenseNo: 'L-99' }), 'invalid-argument', 'invalid-input')
+  })
+  it('accepts only the canonical photo path of that driver', async () => {
+    const good = 'tenants/T1/contractors/C1/drivers/drv1.jpg'
+    await updateUser(w.deps, sup1(), { uid: 'drv1', photoPath: good })
+    expect(w.drivers.get('drv1')?.photoPath).toBe(good)
+    for (const bad of [
+      'tenants/T1/contractors/C2/drivers/drv1.jpg',
+      'tenants/T2/contractors/C1/drivers/drv1.jpg',
+      'tenants/T1/contractors/C1/drivers/drv1b.jpg',
+      'tenants/T1/contractors/C1/drivers/drv1.png',
+      'tenants/T1/contractors/C1/drivers/drv1.jpg/../x.jpg',
+      '/tenants/T1/contractors/C1/drivers/drv1.jpg',
+      'tenants/T1/contractors/C1/drivers/drv1.jpg ',
+    ]) {
+      await rejects(updateUser(w.deps, admin(), { uid: 'drv1', photoPath: bad }), 'invalid-argument', 'photo-path-invalid')
+    }
+    await rejects(updateUser(w.deps, admin(), { uid: 'officer', photoPath: good }), 'invalid-argument')
+  })
+  it('supervisor still cannot touch another contractor’s driver photo', async () => {
+    await rejects(
+      updateUser(w.deps, sup1(), { uid: 'drv2', photoPath: 'tenants/T1/contractors/C2/drivers/drv2.jpg' }),
+      'permission-denied',
+      'forbidden',
+    )
+  })
+  it('backfills the drivers doc for drivers that predate Module 2', async () => {
+    w.drivers.delete('drv1')
+    await updateUser(w.deps, admin(), { uid: 'drv1', licenseNo: 'L-1' })
+    expect(w.drivers.get('drv1')).toEqual({
+      tenantId: 'T1',
+      contractorId: 'C1',
+      name: 'Name',
+      phone: '94771234567',
+      status: 'active',
+      licenseNo: 'L-1',
+    })
+  })
+})
+
+describe('Module 2: suspended contractors lock their users out server-side', () => {
+  it('a supervisor or driver of a suspended contractor is rejected on every call', async () => {
+    w.contractors.set('C1', { tenantId: 'T1', status: 'suspended' })
+    await rejects(updateUser(w.deps, sup1(), { uid: 'drv1', name: 'x' }), 'permission-denied', 'caller-not-active')
+    await rejects(changeOwnPassword(w.deps, caller('drv1', 'driver', 'C1'), { newPassword: '246810' }), 'permission-denied', 'caller-not-active')
+  })
+  it('rejects a caller whose users doc contractor differs from the token', async () => {
+    await rejects(updateUser(w.deps, caller('sup1', 'supervisor', 'C2'), { uid: 'drv2', name: 'x' }), 'permission-denied', 'caller-not-active')
   })
 })

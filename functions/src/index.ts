@@ -4,8 +4,10 @@ import { setGlobalOptions } from 'firebase-functions/v2'
 import { REGION } from './config.js'
 import * as core from './core.js'
 import { fail } from './errors.js'
+import { newVehicleId } from './ids.js'
 import { authPort, dataPort } from './ports.js'
 import { ROLES, type Caller, type Role } from './types.js'
+import * as vehicles from './vehicles.js'
 
 initializeApp()
 setGlobalOptions({ region: REGION, maxInstances: 10 })
@@ -37,6 +39,7 @@ function callerFrom(request: CallableRequest<unknown>): Caller {
 const deps = (): core.Deps => ({
   auth: authPort(),
   data: dataPort(),
+  newVehicleId,
   now: () => Math.floor(Date.now() / 1000),
 })
 
@@ -47,4 +50,20 @@ export const resetCredential = onCall((request) =>
 )
 export const changeOwnPassword = onCall((request) =>
   core.changeOwnPassword(deps(), callerFrom(request), request.data),
+)
+
+export const createVehicle = onCall((request) => vehicles.createVehicle(deps(), callerFrom(request), request.data))
+export const updateVehicle = onCall((request) => vehicles.updateVehicle(deps(), callerFrom(request), request.data))
+export const setVehicleStatus = onCall((request) =>
+  vehicles.setVehicleStatus(deps(), callerFrom(request), request.data),
+)
+export const setVehicleDrivers = onCall((request) =>
+  vehicles.setVehicleDrivers(deps(), callerFrom(request), request.data),
+)
+// 200 rows, one transaction each.
+export const importVehicles = onCall({ timeoutSeconds: 180 }, (request) =>
+  vehicles.importVehicles(deps(), callerFrom(request), request.data),
+)
+export const setContractorStatus = onCall({ timeoutSeconds: 120 }, (request) =>
+  vehicles.setContractorStatus(deps(), callerFrom(request), request.data),
 )
