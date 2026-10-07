@@ -5,6 +5,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing'
 import { readFileSync } from 'node:fs'
+import { doc, setDoc } from 'firebase/firestore'
 import { deleteObject, getBytes, ref, uploadBytes } from 'firebase/storage'
 import { afterAll, beforeAll, describe, it } from 'vitest'
 
@@ -15,6 +16,10 @@ const path = (tenant: string, contractor: string, uid: string, ext = 'jpg') =>
 
 let env: RulesTestEnvironment
 
+const DAY = '20260310'
+const evidence = (tenant: string, vehicleId: string, attempt: number | string, file: string, day = DAY) =>
+  `tenants/${tenant}/passes/${vehicleId}/${day}/${attempt}/${file}`
+
 const jpeg = (bytes = 1000) => new Uint8Array(bytes).fill(7)
 const JPEG = { contentType: 'image/jpeg' }
 
@@ -22,9 +27,26 @@ beforeAll(async () => {
   env = await initializeTestEnvironment({
     projectId: 'demo-conveypass-rules',
     storage: { rules: readFileSync('storage.rules', 'utf8') },
+    firestore: { rules: readFileSync('firestore.rules', 'utf8') },
   })
   await env.withSecurityRulesDisabled(async (ctx) => {
+    // Vehicles and passes the evidence rules look up (storage rules use firestore.get).
+    const db = ctx.firestore()
+    const vehicle = (tenantId: string, contractorId: string, assignedDriverIds: string[]) => ({
+      tenantId, contractorId, assignedDriverIds, plateNo: 'X', plateKey: 'X', type: 'Tipper', status: 'active',
+    })
+    await setDoc(doc(db, 'vehicles', 'veh_open'), vehicle(A, 'c1', ['drvA1']))
+    await setDoc(doc(db, 'vehicles', 'veh_shared'), vehicle(A, 'c1', ['drvA1', 'drvA1b']))
+    await setDoc(doc(db, 'vehicles', 'veh_other'), vehicle(A, 'c2', ['drvA2']))
+    await setDoc(doc(db, 'vehicles', 'veh_sub'), vehicle(A, 'c1', ['drvA1']))
+    await setDoc(doc(db, 'vehicles', 'veh_rej'), vehicle(A, 'c1', ['drvA1', 'drvA1b']))
+    await setDoc(doc(db, 'vehicles', 'veh_b'), vehicle(B, 'cB', ['drvB1']))
+    await setDoc(doc(db, 'passes', `veh_sub_${DAY}`), { tenantId: A, contractorId: 'c1', driverId: 'drvA1', status: 'submitted', attempt: 1 })
+    await setDoc(doc(db, 'passes', `veh_rej_${DAY}`), { tenantId: A, contractorId: 'c1', driverId: 'drvA1', status: 'rejected', attempt: 1 })
     const storage = ctx.storage()
+    for (const p of [evidence(A, 'veh_open', 1, 'gps.jpg'), evidence(A, 'veh_other', 1, 'gps.jpg'), evidence(A, 'veh_sub', 1, 'gps.jpg'), evidence(B, 'veh_b', 1, 'gps.jpg')]) {
+      await uploadBytes(ref(storage, p), jpeg(), JPEG)
+    }
     for (const p of [path(A, 'c1', 'drvA1'), path(A, 'c1', 'drvA1b'), path(A, 'c2', 'drvA2'), path(B, 'cB', 'drvB1')]) {
       await uploadBytes(ref(storage, p), jpeg(), JPEG)
     }
@@ -39,6 +61,8 @@ const adminA = () => as('adminA', { role: 'admin', tenantId: A })
 const supA1 = () => as('supA1', { role: 'supervisor', tenantId: A, contractorId: 'c1' })
 const supA2 = () => as('supA2', { role: 'supervisor', tenantId: A, contractorId: 'c2' })
 const drvA1 = () => as('drvA1', { role: 'driver', tenantId: A, contractorId: 'c1' })
+const drvA1b = () => as('drvA1b', { role: 'driver', tenantId: A, contractorId: 'c1' })
+const drvA2 = () => as('drvA2', { role: 'driver', tenantId: A, contractorId: 'c2' })
 const officerA = () => as('offA', { role: 'officer', tenantId: A })
 const securityA = () => as('secA', { role: 'security', tenantId: A })
 
@@ -117,5 +141,85 @@ describe('everything else stays denied', () => {
     await assertFails(uploadBytes(ref(s, `tenants/${A}/contractors/c1/logo.jpg`), jpeg(), JPEG))
     await assertFails(uploadBytes(ref(s, `tenants/${A}/contractors/c1/drivers/sub/x.jpg`), jpeg(), JPEG))
     await assertFails(getBytes(ref(s, 'misc/photo.jpg')))
+  })
+})
+
+describe('pass evidence: driver upload', () => {
+  const PNG = { contentType: 'image/png' }
+  it('an assigned driver can upload the four allowed files for attempt 1..5 of a new pass', async () => {
+    for (const f of ['gps.jpg', 'dashcam.jpg', 'extra1.jpg', 'extra2.jpg']) {
+      await assertSucceeds(uploadBytes(ref(drvA1(), evidence(A, 'veh_open', 1, f)), jpeg(50_000), JPEG))
+    }
+    await assertSucceeds(uploadBytes(ref(drvA1(), evidence(A, 'veh_open', 1, 'gps.jpg')), jpeg(60_000), JPEG)) // retake before submit
+  })
+  it('a driver not assigned to the vehicle cannot upload', async () => {
+    await assertFails(uploadBytes(ref(drvA1b(), evidence(A, 'veh_open', 1, 'gps.jpg')), jpeg(), JPEG))
+    await assertFails(uploadBytes(ref(drvA1(), evidence(A, 'veh_other', 1, 'dashcam.jpg')), jpeg(), JPEG))
+    await assertFails(uploadBytes(ref(drvA1(), evidence(A, 'veh_missing', 1, 'gps.jpg')), jpeg(), JPEG))
+  })
+  it('cross-tenant uploads are denied', async () => {
+    await assertFails(uploadBytes(ref(drvA1(), evidence(B, 'veh_b', 1, 'gps.jpg')), jpeg(), JPEG))
+    await assertFails(uploadBytes(ref(drvA1(), evidence(B, 'veh_open', 1, 'gps.jpg')), jpeg(), JPEG))
+    await assertFails(uploadBytes(ref(as('drvB1', { role: 'driver', tenantId: B, contractorId: 'cB' }), evidence(A, 'veh_open', 1, 'gps.jpg')), jpeg(), JPEG))
+  })
+  it('only the allowed file names', async () => {
+    for (const f of ['extra3.jpg', 'gps.png', 'other.jpg', 'gps.jpeg', 'GPS.jpg']) {
+      await assertFails(uploadBytes(ref(drvA1(), evidence(A, 'veh_open', 1, f)), jpeg(), JPEG))
+    }
+  })
+  it('only attempts 1 to 5, and a bad dateKey is denied', async () => {
+    for (const a of [0, 6, 10, '01', 'x']) {
+      await assertFails(uploadBytes(ref(drvA1(), evidence(A, 'veh_open', a, 'gps.jpg')), jpeg(), JPEG))
+    }
+    await assertFails(uploadBytes(ref(drvA1(), evidence(A, 'veh_open', 1, 'gps.jpg', '2026-03-10')), jpeg(), JPEG))
+  })
+  it('only JPEG, and under 700 KB', async () => {
+    await assertFails(uploadBytes(ref(drvA1(), evidence(A, 'veh_open', 1, 'dashcam.jpg')), jpeg(), PNG))
+    await assertFails(uploadBytes(ref(drvA1(), evidence(A, 'veh_open', 1, 'dashcam.jpg')), jpeg()))
+    await assertSucceeds(uploadBytes(ref(drvA1(), evidence(A, 'veh_open', 1, 'dashcam.jpg')), jpeg(700 * 1024 - 1), JPEG))
+    await assertFails(uploadBytes(ref(drvA1(), evidence(A, 'veh_open', 1, 'dashcam.jpg')), jpeg(700 * 1024), JPEG))
+    await assertFails(uploadBytes(ref(drvA1(), evidence(A, 'veh_open', 1, 'dashcam.jpg')), jpeg(2 * 1024 * 1024), JPEG))
+  })
+  it('is locked once the pass is submitted (not rejected)', async () => {
+    await assertFails(uploadBytes(ref(drvA1(), evidence(A, 'veh_sub', 1, 'gps.jpg')), jpeg(), JPEG))
+    await assertFails(uploadBytes(ref(drvA1(), evidence(A, 'veh_sub', 2, 'gps.jpg')), jpeg(), JPEG))
+  })
+  it('after a rejection, only the same driver can upload, only for the next attempt', async () => {
+    await assertSucceeds(uploadBytes(ref(drvA1(), evidence(A, 'veh_rej', 2, 'gps.jpg')), jpeg(), JPEG))
+    await assertFails(uploadBytes(ref(drvA1(), evidence(A, 'veh_rej', 1, 'gps.jpg')), jpeg(), JPEG)) // never overwrite earlier evidence
+    await assertFails(uploadBytes(ref(drvA1(), evidence(A, 'veh_rej', 3, 'gps.jpg')), jpeg(), JPEG))
+    await assertFails(uploadBytes(ref(drvA1b(), evidence(A, 'veh_rej', 2, 'gps.jpg')), jpeg(), JPEG))
+  })
+  it('staff and signed-out users cannot upload evidence', async () => {
+    for (const s of [adminA(), supA1(), officerA(), securityA(), env.unauthenticatedContext().storage()]) {
+      await assertFails(uploadBytes(ref(s, evidence(A, 'veh_open', 1, 'extra1.jpg')), jpeg(), JPEG))
+    }
+  })
+  it('nobody can delete evidence', async () => {
+    for (const s of [drvA1(), adminA(), supA1(), officerA()]) {
+      await assertFails(deleteObject(ref(s, evidence(A, 'veh_open', 1, 'gps.jpg'))))
+      await assertFails(deleteObject(ref(s, evidence(A, 'veh_sub', 1, 'gps.jpg'))))
+    }
+  })
+})
+
+describe('pass evidence: read', () => {
+  it('admin, officer and security read the tenant’s evidence', async () => {
+    for (const s of [adminA(), officerA(), securityA()]) await assertSucceeds(getBytes(ref(s, evidence(A, 'veh_open', 1, 'gps.jpg'))))
+  })
+  it('a supervisor reads only their contractor’s evidence', async () => {
+    await assertSucceeds(getBytes(ref(supA1(), evidence(A, 'veh_open', 1, 'gps.jpg'))))
+    await assertFails(getBytes(ref(supA1(), evidence(A, 'veh_other', 1, 'gps.jpg'))))
+    await assertSucceeds(getBytes(ref(supA2(), evidence(A, 'veh_other', 1, 'gps.jpg'))))
+    await assertFails(getBytes(ref(supA2(), evidence(A, 'veh_open', 1, 'gps.jpg'))))
+  })
+  it('a driver reads evidence only for vehicles they are assigned to', async () => {
+    await assertSucceeds(getBytes(ref(drvA1(), evidence(A, 'veh_open', 1, 'gps.jpg'))))
+    await assertFails(getBytes(ref(drvA1(), evidence(A, 'veh_other', 1, 'gps.jpg'))))
+    await assertFails(getBytes(ref(drvA2(), evidence(A, 'veh_open', 1, 'gps.jpg'))))
+  })
+  it('cross-tenant and signed-out reads are denied', async () => {
+    for (const s of [adminA(), officerA(), securityA(), supA1(), drvA1()]) await assertFails(getBytes(ref(s, evidence(B, 'veh_b', 1, 'gps.jpg'))))
+    await assertFails(getBytes(ref(env.unauthenticatedContext().storage(), evidence(A, 'veh_open', 1, 'gps.jpg'))))
   })
 })
