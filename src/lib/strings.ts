@@ -240,7 +240,7 @@ export const strings = {
     loadFailed: "Couldn't load your vehicles.",
     attempt: (n: number) => `Attempt ${n}`,
     chips: {
-      none: 'No pass today',
+      none: 'No pass from you today',
       submitted: 'Submitted',
       supervisor_approved: 'Supervisor approved',
       officer_approved: 'Approved',
