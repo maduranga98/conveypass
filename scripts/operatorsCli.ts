@@ -1,6 +1,6 @@
-// Platform operators (Module 9), script-only: there is no signup, callable or UI that can create or promote one.
-//   npm run operator:create  -- --env staging --email olive@convoypass.com --name "Olive" [--password …]
-//   npm run operator:disable -- --env prod --confirm-prod --email olive@convoypass.com
+// Super admins (Module 9 "operators", Module 10 wording), script-only: there is no signup, callable or UI that can create or promote one.
+//   npm run superadmin:create -- --env staging --email olive@convoypass.com --name "Olive" [--password …]
+//   npm run superadmin:disable -- --env prod --confirm-prod --email olive@convoypass.com
 // Logic only; `create-operator.ts` / `disable-operator.ts` wire the Admin SDK to it.
 // An operator has custom claims { role: 'platform', platformAdmin: true } and NO tenantId, an `operators/{uid}` doc and no
 // `users` doc, so every tenant rule denies them. Output is the only place a generated password ever appears.
@@ -72,8 +72,8 @@ export async function runCreateOperator(argv: string[], io: OperatorIo): Promise
     assertOperatorPassword(password, email)
 
     // Never turn an existing account into an operator: not a tenant user, not another operator, not anyone.
-    if (await io.auth.getUserByEmail(email)) throw new UsageError('an account with that email already exists (a tenant user or another account): operators need their own mailbox')
-    if (await io.db.tenantUserExistsWithEmail(email)) throw new UsageError('that email belongs to a tenant user: operators need their own mailbox')
+    if (await io.auth.getUserByEmail(email)) throw new UsageError('an account with that email already exists (a tenant user or another account): a super admin needs their own mailbox')
+    if (await io.db.tenantUserExistsWithEmail(email)) throw new UsageError('that email belongs to a tenant user: a super admin needs their own mailbox')
 
     const { uid } = await io.auth.createUser({ email, password, displayName: name, emailVerified: true })
     try {
@@ -83,17 +83,17 @@ export async function runCreateOperator(argv: string[], io: OperatorIo): Promise
       await io.auth.deleteUser(uid).catch(() => undefined) // no half-made operator
       throw e
     }
-    io.out(`operator:create (${target.env}): created ${email}`)
+    io.out(`superadmin:create (${target.env}): created super admin ${email}`)
     if (generated) {
       io.out('')
       io.out(`  password: ${password}`)
       io.out('')
-      io.out('This password is shown ONCE. Store it in a password manager now, then sign in with the Staff tab and change nothing else.')
+      io.out('This password is shown ONCE. Store it in a password manager now, then sign in with the Staff tab: you land on the Super admin console.')
     }
     io.out('Recommended before the first paying client: enable MFA through Identity Platform (docs/ops.md).')
     return 0
   } catch (e) {
-    io.out(`operator:create: ${e instanceof Error ? e.message : String(e)}`)
+    io.out(`superadmin:create: ${e instanceof Error ? e.message : String(e)}`)
     return 1
   }
 }
@@ -107,14 +107,14 @@ export async function runDisableOperator(argv: string[], io: OperatorIo): Promis
     const user = await io.auth.getUserByEmail(email)
     // Only operators: this script must never be a way to lock a tenant user out.
     const operator = user ? await io.db.getOperator(user.uid) : null
-    if (!user || !operator) throw new UsageError(`no operator with ${email}`)
+    if (!user || !operator) throw new UsageError(`no super admin with ${email}`)
     await io.auth.disableUser(user.uid)
     await io.auth.revokeRefreshTokens(user.uid)
     await io.db.disableOperator(user.uid, platformAudit('script', 'operator.disabled', user.uid, { env: target.env }))
-    io.out(`operator:disable (${target.env}): ${email} is disabled and signed out everywhere.`)
+    io.out(`superadmin:disable (${target.env}): ${email} is disabled and signed out everywhere.`)
     return 0
   } catch (e) {
-    io.out(`operator:disable: ${e instanceof Error ? e.message : String(e)}`)
+    io.out(`superadmin:disable: ${e instanceof Error ? e.message : String(e)}`)
     return 1
   }
 }
