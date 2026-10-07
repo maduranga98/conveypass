@@ -6,6 +6,8 @@ import type { GateEventData, PassData, Role, TenantData } from './types.js'
 
 export const NOTIFICATION_TTL_DAYS = 30
 export const MAX_DEVICES_PER_USER = 5
+/** An event older than this is not announced (a seed, a backfill or a very late retry): nobody acts on a stale alert. */
+export const MAX_EVENT_AGE_MS = 6 * 3_600_000
 /** Approval pushes expire after an hour: a stale "approve this" is worse than none. */
 export const APPROVAL_PUSH_TTL_SECONDS = 3600
 
@@ -211,6 +213,9 @@ export function planDenial(eventId: string, event: GateEventData): PlannedNotifi
     },
   ]
 }
+
+/** True when an event happened too long ago to be worth a notification. */
+export const isStaleEvent = (atMs: number, nowMs: number): boolean => nowMs - atMs > MAX_EVENT_AGE_MS
 
 // ---- Delivery ------------------------------------------------------------------------------
 

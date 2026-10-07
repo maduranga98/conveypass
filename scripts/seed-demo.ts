@@ -23,6 +23,7 @@ import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
 import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { randomInt, randomUUID } from 'node:crypto'
 import { dateKey } from '../src/lib/dates.ts'
 import { DEFAULT_CHECKLIST, DEFAULT_PASS_SETTINGS } from '../src/lib/defaultChecklist.ts'
@@ -148,7 +149,8 @@ const demoPasses: readonly DemoPass[] = [
   { plate: 'WP CBA-5521', driver: 'd2', state: 'submitted', daysAgo: 0, minutes: 55 },
   { plate: 'NP LC-3030', driver: 'd1', state: 'submitted', daysAgo: 0, minutes: 3 },
   { plate: 'NP KA 1234', driver: 'd2', state: 'rejected_supervisor', daysAgo: 0, no: ['dashcam_lens'], minutes: 40 },
-  { plate: '250-1234', driver: 'd3', state: 'supervisor_approved', daysAgo: 0, minutes: 25 },
+  // Waiting for the officer since 47 minutes ago (the supervisor approved 5 minutes after submission): past the 30 minute target.
+  { plate: '250-1234', driver: 'd3', state: 'supervisor_approved', daysAgo: 0, minutes: 52 },
   { plate: 'SP KB-9087', driver: 'd4', state: 'supervisor_approved', daysAgo: 0, no: ['gps_mounted'], minutes: 18 }, // has issues
   { plate: 'CAD-5566', driver: 'd3', state: 'officer_approved', daysAgo: 0, minutes: 55 },
   { plate: 'SP CAA-1001', driver: 'd4', state: 'rejected_officer', daysAgo: 0, minutes: 70 },
@@ -424,6 +426,9 @@ async function main(): Promise<void> {
   const byStatus = (s: HistoryPass['data']['status']) => history.passes.filter((p) => p.data.status === s).length
   console.log(`seed:demo: history seed ${SEED}: ${history.passes.length} passes over ${HISTORY_DAYS} days (${byStatus('checked_in')} checked in, ${byStatus('rejected')} rejected), ${history.events.length} denied entries`)
 
+  // Module 7: notifications (made by the real planner from the passes above) and fake push devices.
+  execFileSync('npx', ['tsx', 'functions/src/cli/seedDemoNotifications.ts', TENANT], { stdio: 'inherit', env: process.env })
+
   const bucketName = process.env.FIREBASE_STORAGE_BUCKET ?? envFile().VITE_FIREBASE_STORAGE_BUCKET ?? `${projectId}.appspot.com`
   const bucket = getStorage().bucket(bucketName)
   for (const u of uploads) await bucket.file(u.path).save(readFileSync(u.file), { contentType: 'image/jpeg', resumable: false })
@@ -478,6 +483,9 @@ async function main(): Promise<void> {
   console.log(`  The gate (sign in as ${SECURITY.email} / ${PASSWORD.security}, pick a gate, then open):`)
   for (const [what, plate] of gate) console.log(`    ${url(plate).padEnd(20)} ${plate.padEnd(12)} ${what}`)
   console.log('  Admin, officer and supervisors can open the same URLs read only. /admin/gate-log redirects to the gate log report.\n')
+  console.log('  Module 7: every role except security has a few notifications in the bell (older ones read), and the supervisor, officers, admin and drivers')
+  console.log('  have a fake push device. Two passes are past their SLA (WP CBA-5521 waits for a supervisor, 250-1234 for an officer): run')
+  console.log('  `npm run sla:check` to run the reminder check once; each gets exactly one reminder (a second run finds nothing new).\n')
   console.log('  Module 6 (admin or officer): /admin/dashboard (or /officer/overview) shows today live: WP CBA-5521 has waited past the 30 minute')
   console.log('  target, so it is in the attention panel until a supervisor approves it. /admin/reports (or /officer/reports) runs every')
   console.log(`  report over the 30 days of history (seed ${SEED}); the gate log is /admin/reports?type=gate_log.\n`)

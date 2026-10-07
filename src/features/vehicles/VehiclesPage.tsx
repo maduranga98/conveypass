@@ -73,7 +73,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
         <button
           type="button"
           onClick={() => setOpenId(v.id)}
-          className="rounded font-mono text-base font-semibold tracking-wide text-slate-900 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="inline-flex min-h-11 items-center rounded font-mono text-base font-semibold tracking-wide text-slate-900 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           {v.plateNo}
         </button>

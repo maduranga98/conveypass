@@ -2,7 +2,7 @@ import { onDocumentCreated, onDocumentWritten } from 'firebase-functions/v2/fire
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 import { APP_BASE_URL, REGION } from './config.js'
 import { logInfo } from './logger.js'
-import { actorOf, deliver, planDenial, planPassChange, type NotifyDeps } from './notifications.js'
+import { actorOf, deliver, isStaleEvent, planDenial, planPassChange, type NotifyDeps } from './notifications.js'
 import { messagingPort, notifyPort, slaPort } from './notifyPorts.js'
 import { purgeOldEvidence } from './retention.js'
 import { retentionPort } from './retentionPort.js'
@@ -36,6 +36,11 @@ export const onPassWritten = onDocumentWritten({ document: 'passes/{passId}', re
 export const onGateEventCreated = onDocumentCreated({ document: 'gateEvents/{eventId}', region: TRIGGER_REGION, retry: true }, async (event) => {
   const data = event.data?.data() as GateEventData | undefined
   if (!data || data.type !== 'denied') return
+  const at = (data.at as unknown as { toMillis?: () => number } | undefined)?.toMillis?.() ?? Date.now()
+  if (isStaleEvent(at, Date.now())) {
+    logInfo({ fn: 'onGateEventCreated', tenantId: data.tenantId }, 'skipped', { reason: 'stale' })
+    return
+  }
   await deliver(notifyDeps(), data.tenantId, planDenial(event.params.eventId, data), data.byUid, {
     fn: 'onGateEventCreated',
     tenantId: data.tenantId,

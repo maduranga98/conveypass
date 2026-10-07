@@ -8,7 +8,7 @@ const compact = fieldClass.replace('w-full', 'w-auto')
 /** Compact select for list toolbars. The label is announced but not shown. */
 export function FilterSelect({ label, className, children, ...rest }: ComponentProps<'select'> & { label: string }) {
   return (
-    <select aria-label={label} className={cn(compact, 'h-10 border-slate-300 text-sm', className)} {...rest}>
+    <select aria-label={label} className={cn(compact, 'h-11 border-slate-300 text-sm', className)} {...rest}>
       {children}
     </select>
   )

@@ -49,7 +49,7 @@ test.describe('accessibility: supervisor', () => {
     await loginStaff(page, 'supervisor')
     await audit(page, 'supervisor home')
     await page.getByRole('button', { name: /Notifications/ }).click()
-    await expect(page.getByRole('region', { name: 'Notifications' })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Notifications', exact: true })).toBeVisible()
     await audit(page, 'supervisor bell panel')
     await page.keyboard.press('Escape')
     await page.goto('/supervisor/approvals')
@@ -78,3 +78,13 @@ test.describe('accessibility: security', () => {
   })
 })
 
+
+test.describe('accessibility: supervisor lists', () => {
+  test('drivers, QR labels, approvals tabs and the settings page', async ({ page }) => {
+    await loginStaff(page, 'supervisor')
+    for (const [path, what] of [['/supervisor/drivers', 'supervisor drivers'], ['/supervisor/qr', 'supervisor qr'], ['/settings', 'supervisor settings'], ['/notifications', 'supervisor notifications']] as const) {
+      await page.goto(path)
+      await audit(page, what)
+    }
+  })
+})

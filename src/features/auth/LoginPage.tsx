@@ -71,8 +71,8 @@ export default function LoginPage() {
                   setError(null)
                 }}
                 className={cn(
-                  'h-10 rounded-md text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-accent',
-                  mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700',
+                  'h-11 rounded-md text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-accent',
+                  mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900',
                 )}
               >
                 {m === 'staff' ? strings.auth.staffTab : strings.auth.driverTab}

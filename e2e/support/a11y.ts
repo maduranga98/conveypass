@@ -18,7 +18,7 @@ export async function smallTouchTargets(page: Page): Promise<string[]> {
       const style = getComputedStyle(el)
       if (style.visibility === 'hidden' || style.display === 'none' || el.closest('[aria-hidden=true]')) continue
       const r = el.getBoundingClientRect()
-      if (r.width === 0 || r.height === 0) continue
+      if (r.width <= 1 || r.height <= 1) continue // visually hidden (a file input behind a visible button)
       // A label that wraps the control is the real target (custom radios and checkboxes).
       const label = el.closest('label')
       const box = label ? label.getBoundingClientRect() : r

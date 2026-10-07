@@ -23,7 +23,7 @@ function Tile({ to, icon, label, value }: { to: string; icon: ReactNode; label: 
 }
 
 const actionClass =
-  'inline-flex h-11 flex-1 items-center justify-center rounded-lg px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+  'inline-flex h-11 w-full items-center sm:w-auto sm:flex-1 justify-center rounded-lg px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
 
 export default function SupervisorHome() {
   const { profile } = useSession()

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { dateKey } from './dates.js'
 import { DEFAULT_CHECKLIST } from './defaultChecklist.js'
-import { actorOf, deliver, notificationId, planDenial, planPassChange } from './notifications.js'
+import { actorOf, deliver, isStaleEvent, MAX_EVENT_AGE_MS, notificationId, planDenial, planPassChange } from './notifications.js'
 import { makeNotifyWorld, type NotifyWorld } from './notify-test-utils.js'
 import { makeWorld, NOW, userDoc, type World } from './test-utils.js'
 import type { GateEventData, PassData, PassStatus } from './types.js'
@@ -136,6 +136,13 @@ describe('pass notifications: who is skipped', () => {
     nw.failCreateFor.clear()
     const retry = await run(null, pass('submitted'))
     expect(retry).toMatchObject({ created: 1, duplicates: 1 })
+  })
+})
+
+describe('stale events', () => {
+  it('an event older than six hours is not announced (a seed or a backfill must not flood the bell)', () => {
+    expect(isStaleEvent(NOW_MS - MAX_EVENT_AGE_MS + 1000, NOW_MS)).toBe(false)
+    expect(isStaleEvent(NOW_MS - MAX_EVENT_AGE_MS - 1000, NOW_MS)).toBe(true)
   })
 })
 

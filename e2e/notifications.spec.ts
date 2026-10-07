@@ -14,7 +14,7 @@ test.describe('notifications (real Firestore trigger, rules and client)', () => 
     expect(notificationsFor(uids().supervisor!).map((n) => n.id)).toEqual([`submitted_${passId}_1_${uids().supervisor}`])
 
     await page.getByRole('button', { name: /notifications, 1 unread/i }).click()
-    const panel = page.getByRole('region', { name: 'Notifications' })
+    const panel = page.getByRole('region', { name: 'Notifications', exact: true })
     await expect(panel.getByText('Approval needed')).toBeVisible()
     await expect(panel.getByText('WP LJ-4821 is waiting for your approval')).toBeVisible()
 
