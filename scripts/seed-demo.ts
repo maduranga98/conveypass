@@ -18,7 +18,7 @@
  * the same data, so report numbers are repeatable. History passes carry evidence paths but no photo files.
  * Re-running needs a clean emulator (the script stops if the tenant already exists).
  */
-import { initializeApp } from 'firebase-admin/app'
+import { getApps, initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
@@ -30,42 +30,41 @@ import { DEFAULT_CHECKLIST } from '../src/lib/defaultChecklist.ts'
 import { DEFAULT_REJECTION_REASONS } from '../src/lib/defaultRejectionReasons.ts'
 import { tenantDefaults } from '../functions/src/tenants/tenantDefaults.ts'
 import { normalisePlate } from '../src/lib/plate.ts'
+import { realDeps, runScript, type Target } from './lib/env.ts'
 import { generateHistory, rng, type FleetVehicle, type HistoryPass } from './demoHistory.ts'
 
+const HELP = `
+Demo data for local work. EMULATOR ONLY.
+
+  npm run emulators      (one terminal)
+  npm run seed:demo      (another; adds --env emulator)  [-- --seed=N]
+
+  --env emulator   required; staging and prod are refused. Never creates a super admin (npm run dev:superadmin does that).
+  --seed=N         random seed for the 30-day history (same seed, same data)
+  --help           this text
+`
+let targetOf: Target | undefined
 const die = (msg: string): never => {
   console.error(`seed:demo: ${msg}`)
   process.exit(1)
 }
 
-const readJson = (path: string): Record<string, unknown> => {
-  try {
-    return JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>
-  } catch {
-    return {}
-  }
-}
-
-const firebaseJson = readJson('firebase.json') as { emulators?: Record<string, { port?: number }> }
-const firebaserc = readJson('.firebaserc') as { projects?: { default?: string } }
-
-process.env.FIREBASE_AUTH_EMULATOR_HOST ??= `127.0.0.1:${firebaseJson.emulators?.auth?.port ?? 9099}`
-process.env.FIRESTORE_EMULATOR_HOST ??= `127.0.0.1:${firebaseJson.emulators?.firestore?.port ?? 8080}`
-process.env.FIREBASE_STORAGE_EMULATOR_HOST ??= `127.0.0.1:${firebaseJson.emulators?.storage?.port ?? 9199}`
-
-const loopback = (hostPort: string): boolean => /^(127\.\d+\.\d+\.\d+|localhost|\[::1\]):\d+$/.test(hostPort)
-for (const [name, value] of [
-  ['FIREBASE_AUTH_EMULATOR_HOST', process.env.FIREBASE_AUTH_EMULATOR_HOST],
-  ['FIRESTORE_EMULATOR_HOST', process.env.FIRESTORE_EMULATOR_HOST],
-  ['FIREBASE_STORAGE_EMULATOR_HOST', process.env.FIREBASE_STORAGE_EMULATOR_HOST],
-] as const) {
-  if (!value || !loopback(value)) die(`refusing to run: ${name}=${value ?? '(unset)'} is not a local emulator`)
-}
+// Environment: the shared resolver (scripts/lib/env.ts). --env emulator is required; any other value is refused.
+const envRun = await (async () => {
+  const lines: string[] = []
+  const code = await runScript(
+    { name: 'seed:demo', help: HELP, allowed: ['emulator'], action: () => 'fill the emulator with demo data (tenant "demo", all roles, passes, history)', run: async (_argv, target) => { targetOf = target; return 0 } },
+    process.argv.slice(2),
+    { ...realDeps(), out: (l) => { lines.push(l); console.log(l) } },
+  )
+  return { code, lines }
+})()
+if (envRun.code !== 0 || !targetOf) process.exit(envRun.code || 1)
 if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
   console.warn('seed:demo: ignoring GOOGLE_APPLICATION_CREDENTIALS (emulator only)')
   delete process.env.GOOGLE_APPLICATION_CREDENTIALS
 }
-
-const projectId = process.env.FIREBASE_PROJECT_ID ?? firebaserc.projects?.default ?? 'demo-conveypass'
+const projectId = (targetOf as Target).projectId
 const TENANT = 'demo'
 const PASSWORD = { admin: 'DemoAdmin123', supervisor: 'DemoSuper123', officer: 'DemoOfficer123', security: 'DemoGate123' }
 const GATES = [{ id: 'main', name: 'Main Gate' }, { id: 'north', name: 'North Gate' }]
@@ -176,7 +175,7 @@ const newVehicleId = (): string => `veh_${Array.from({ length: 10 }, () => ID_CH
 const normalisePhone = (p: string): string => `94${p.slice(1)}`
 
 async function main(): Promise<void> {
-  initializeApp({ projectId })
+  if (getApps().length === 0) initializeApp({ projectId })
   const auth = getAuth()
   const db = getFirestore()
   const ts = FieldValue.serverTimestamp()

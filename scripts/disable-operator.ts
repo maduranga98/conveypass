@@ -5,15 +5,25 @@
  *   npm run superadmin:disable -- --env staging --email olive@convoypass.com
  *   npm run superadmin:disable -- --env prod --confirm-prod --email olive@convoypass.com
  */
-import { runDisableOperator, type OperatorIo } from './operatorsCli.ts'
+import { main } from './lib/env.ts'
 import { operatorIo } from './operatorIo.ts'
+import { runDisableOperator } from './operatorsCli.ts'
 
-const argv = process.argv.slice(2)
-const io: OperatorIo = operatorIo(argv)
+const HELP = `
+Disable a Super admin: sign-in blocked, every session revoked, profile marked disabled, audit entry written.
 
-runDisableOperator(argv, io)
-  .then((code) => process.exit(code))
-  .catch((e: unknown) => {
-    console.error('superadmin:disable failed:', e instanceof Error ? e.message : e)
-    process.exit(1)
-  })
+  npm run superadmin:disable -- --env <env> --email <email>
+
+  --env <emulator|staging|prod>   required; prod also needs --confirm-prod and the project id typed back
+                                  (or --confirm-project <id> in CI)
+  --help                          this text
+
+Only super admins: a tenant user is refused. To re-enable on purpose: superadmin:create ... --repair --enable.
+`
+
+main({
+  name: 'superadmin:disable',
+  help: HELP,
+  action: () => 'disable a super admin account and sign it out everywhere',
+  run: (argv, target) => runDisableOperator(argv, operatorIo(target)),
+})

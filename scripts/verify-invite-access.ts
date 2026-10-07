@@ -7,30 +7,39 @@
  *
  * Exits 1 if anything is allowed. Emulator only.
  */
-import { initializeApp as initAdmin } from 'firebase-admin/app'
+import { getApps, initializeApp as initAdmin } from 'firebase-admin/app'
 import { getAuth as getAdminAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore as getAdminDb, Timestamp } from 'firebase-admin/firestore'
 import { initializeApp } from 'firebase/app'
 import { connectAuthEmulator, getAuth, signInWithCustomToken, signOut } from 'firebase/auth'
 import { collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, initializeFirestore, setDoc, setLogLevel, updateDoc } from 'firebase/firestore'
-import { readFileSync } from 'node:fs'
-import { loopback } from './envTarget.ts'
+import { runScript, type Target } from './lib/env.ts'
 
-const PROJECT = process.env.FIREBASE_PROJECT_ID ?? 'demo-conveypass'
-const firebaseJson = JSON.parse(readFileSync('firebase.json', 'utf8')) as { emulators?: Record<string, { port?: number }> }
-process.env.FIREBASE_AUTH_EMULATOR_HOST ??= `127.0.0.1:${firebaseJson.emulators?.auth?.port ?? 9099}`
-process.env.FIRESTORE_EMULATOR_HOST ??= `127.0.0.1:${firebaseJson.emulators?.firestore?.port ?? 8080}`
-if (!loopback(process.env.FIREBASE_AUTH_EMULATOR_HOST) || !loopback(process.env.FIRESTORE_EMULATOR_HOST)) {
-  console.error('verify-invite-access: emulator hosts must be loopback addresses (this script never touches a real project)')
-  process.exit(1)
-}
-const [authHost, authPort] = process.env.FIREBASE_AUTH_EMULATOR_HOST.split(':') as [string, string]
-const [fsHost, fsPort] = process.env.FIRESTORE_EMULATOR_HOST.split(':') as [string, string]
+// Environment: the shared resolver (scripts/lib/env.ts). Emulator only; --env emulator is required.
+let resolved: Target | undefined
+const envCode = await runScript(
+  {
+    name: 'verify:invite-access',
+    help: 'Proves no client role can read or write setupInvites (emulators only).\n\n  firebase emulators:exec --only auth,firestore --project demo-conveypass "npm run verify:invite-access"\n\n  --env emulator   required; any other value is refused',
+    allowed: ['emulator'],
+    action: () => 'check the Firestore rules for setupInvites against every role (emulator, creates test users)',
+    run: async (_argv, target) => {
+      resolved = target
+      return 0
+    },
+  },
+  process.argv.slice(2),
+)
+if (envCode !== 0 || !resolved) process.exit(envCode || 1)
+
+const PROJECT = resolved.projectId
+const [authHost, authPort] = (process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '').split(':') as [string, string]
+const [fsHost, fsPort] = (process.env.FIRESTORE_EMULATOR_HOST ?? '').split(':') as [string, string]
 
 const HASH = 'f'.repeat(64)
 const ROLES = ['admin', 'officer', 'supervisor', 'driver', 'security'] as const
 
-initAdmin({ projectId: PROJECT })
+if (getApps().length === 0) initAdmin({ projectId: PROJECT })
 const adminDb = getAdminDb()
 const adminAuth = getAdminAuth()
 

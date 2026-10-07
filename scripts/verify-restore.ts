@@ -8,77 +8,71 @@
  *
  * Read only. Exits 1 when a collection differs by more than --tolerance (default 0).
  */
-import { initializeApp } from 'firebase-admin/app'
+import { getApp } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { parseArgs } from 'node:util'
-import { loopback, resolveTarget, type Firebaserc, type Target } from './envTarget.ts'
+import { COMMON_OPTIONS, connect, main } from './lib/env.ts'
 import { COLLECTIONS, compareCounts, formatComparison, type Counts } from './restoreCheck.ts'
 
-const { values } = parseArgs({
-  options: {
-    env: { type: 'string' },
-    'confirm-production': { type: 'boolean', default: false },
-    database: { type: 'string' },
-    against: { type: 'string', default: '(default)' },
-    tolerance: { type: 'string', default: '0' },
-    expect: { type: 'string' },
-    save: { type: 'string' },
-  },
-})
-const die = (msg: string): never => {
-  console.error(`verify-restore: ${msg}`)
-  process.exit(1)
-}
-const rc = ((): Firebaserc => {
-  try {
-    return JSON.parse(readFileSync('.firebaserc', 'utf8')) as Firebaserc
-  } catch {
-    return {}
-  }
-})()
-const target = ((): Target => {
-  try {
-    return resolveTarget({ env: values.env, confirmProduction: values['confirm-production'], firebaserc: rc, projectOverride: process.env.FIREBASE_PROJECT_ID })
-  } catch (e) {
-    return die(e instanceof Error ? e.message : String(e))
-  }
-})()
-if (target.env === 'emulator') {
-  process.env.FIRESTORE_EMULATOR_HOST ??= '127.0.0.1:8080'
-  if (!loopback(process.env.FIRESTORE_EMULATOR_HOST)) die('emulator host must be loopback')
-} else {
-  delete process.env.FIRESTORE_EMULATOR_HOST
-}
-const app = initializeApp({ projectId: target.projectId ?? process.env.GCLOUD_PROJECT ?? rc.projects?.default ?? 'demo-conveypass' })
+const HELP = `
+Counts documents per collection in a database and compares them (restore drill, docs/ops.md). Read only.
+
+  npm run verify-restore -- --env staging --database restore-drill [--against "(default)"] [--tolerance 25]
+  npm run verify-restore -- --env emulator --expect .drill/counts.json
+  npm run verify-restore -- --env emulator --save .drill/counts.json
+
+  --env <emulator|staging|prod>   required; prod also needs --confirm-prod and the project id typed back
+                                  (or --confirm-project <id> in CI)
+  --help                          this text
+`
+
+const OPTIONS = {
+  ...COMMON_OPTIONS,
+  database: { type: 'string' },
+  against: { type: 'string', default: '(default)' },
+  tolerance: { type: 'string', default: '0' },
+  expect: { type: 'string' },
+  save: { type: 'string' },
+} as const
 
 async function count(databaseId: string): Promise<Counts> {
-  const db = databaseId === '(default)' ? getFirestore(app) : getFirestore(app, databaseId)
+  const db = databaseId === '(default)' ? getFirestore(getApp()) : getFirestore(getApp(), databaseId)
   const out: Counts = {}
   for (const c of COLLECTIONS) out[c] = (await db.collection(c).count().get()).data().count
   return out
 }
 
-async function main(): Promise<void> {
+async function verify(argv: string[]): Promise<number> {
+  const { values } = parseArgs({ args: argv, options: OPTIONS })
   const tolerance = Number(values.tolerance)
-  if (!Number.isInteger(tolerance) || tolerance < 0) die('--tolerance must be a whole number')
+  if (!Number.isInteger(tolerance) || tolerance < 0) {
+    console.error('verify-restore: --tolerance must be a whole number')
+    return 1
+  }
   const database = values.database ?? '(default)'
   const actual = await count(database)
   if (values.save) {
     mkdirSync(dirname(values.save), { recursive: true })
     writeFileSync(values.save, JSON.stringify(actual, null, 2))
     console.log(`verify-restore: saved counts of ${database} to ${values.save}`)
-    return
+    return 0
   }
   const expected: Counts = values.expect ? (JSON.parse(readFileSync(values.expect, 'utf8')) as Counts) : await count(values.against ?? '(default)')
   const result = compareCounts(expected, actual, tolerance)
   console.log(`verify-restore: ${database} (restored) against ${values.expect ?? values.against} (expected)\n`)
   console.log(formatComparison(result))
   console.log(result.ok ? '\nverify-restore: OK' : '\nverify-restore: MISMATCH (see above)')
-  process.exit(result.ok ? 0 : 1)
+  return result.ok ? 0 : 1
 }
-main().catch((e: unknown) => {
-  console.error('verify-restore failed:', e instanceof Error ? e.message : e)
-  process.exit(1)
+
+main({
+  name: 'verify-restore',
+  help: HELP,
+  action: () => 'read document counts per collection (read only) and compare them',
+  run: (argv, target) => {
+    connect(target)
+    return verify(argv)
+  },
 })

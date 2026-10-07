@@ -6,20 +6,30 @@
  *   npm run invite:revoke -- --env prod --confirm-prod 1a2b3c4d
  *
  * Needs APP_BASE_URL (the public origin, e.g. https://app.convoypass.com; read from the environment or `.env`).
- * Staging and production use Application Default Credentials. The link is printed once; only its hash is stored.
+ * The link is printed once; only its hash is stored. Environment handling: scripts/lib/env.ts.
  */
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
-import { confirmedProd, connect, loadDotEnv, readJson, targetFrom } from './adminSdk.ts'
-import type { Firebaserc } from './envTarget.ts'
+import { connect, loadDotEnv, main, readJson, type Firebaserc, type Target } from './lib/env.ts'
 import { runInvitesCli, type InviteStore, type StoredInvite } from './invitesCli.ts'
 
 loadDotEnv()
-const argv = process.argv.slice(2)
-const envFlag = argv.find((_a, i) => argv[i - 1] === '--env')
 
-const lazyStore = (): InviteStore => {
-  // Connect only once the CLI has accepted the target (so a refused production call never initialises anything).
-  const { db } = connect(targetFrom(envFlag, confirmedProd({ 'confirm-prod': argv.includes('--confirm-prod'), 'confirm-production': argv.includes('--confirm-production') })))
+const HELP = `
+Setup invites: create, list or revoke the one-time workspace setup links.
+
+  npm run invite:create -- --env <env> [--company "Name"] [--lock-email a@b.co] [--expires-days 1-30]
+  npm run invite:list   -- --env <env>
+  npm run invite:revoke -- --env <env> <hash-prefix>
+
+  --env <emulator|staging|prod>   required; prod also needs --confirm-prod and the project id typed back
+                                  (or --confirm-project <id> in CI)
+  --help                          this text
+
+The link is printed once and cannot be recovered. APP_BASE_URL must be set (environment or .env).
+`
+
+const storeFor = (target: Target): InviteStore => {
+  const { db } = connect(target)
   const col = db.collection('setupInvites')
   const ms = (v: unknown): number | null => (v instanceof Timestamp ? v.toMillis() : null)
   return {
@@ -57,18 +67,12 @@ const lazyStore = (): InviteStore => {
   }
 }
 
-let cached: InviteStore | undefined
-const store: InviteStore = {
-  create: (h, i, a) => (cached ??= lazyStore()).create(h, i, a),
-  list: () => (cached ??= lazyStore()).list(),
-  delete: (h, a) => (cached ??= lazyStore()).delete(h, a),
-}
-
-runInvitesCli(argv, {
-  store, now: () => Date.now(), out: (l) => console.log(l), appBaseUrl: process.env.APP_BASE_URL, firebaserc: readJson<Firebaserc>('.firebaserc'),
+main({
+  name: 'invites',
+  help: HELP,
+  action: (argv) => ({ create: 'create a one-time workspace setup link (printed once)', list: 'list setup invites (hash prefixes only)', revoke: 'revoke an unused setup invite' })[argv[0] ?? ''] ?? 'manage setup invites',
+  run: (argv, target) =>
+    runInvitesCli(argv, {
+      store: storeFor(target), now: () => Date.now(), out: (l) => console.log(l), appBaseUrl: process.env.APP_BASE_URL, firebaserc: readJson<Firebaserc>('.firebaserc'),
+    }),
 })
-  .then((code) => process.exit(code))
-  .catch((e: unknown) => {
-    console.error('invites failed:', e instanceof Error ? e.message : e)
-    process.exit(1)
-  })

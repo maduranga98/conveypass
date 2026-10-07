@@ -1,109 +1,99 @@
 /**
- * Bootstrap a tenant and its first admin.
+ * Bootstrap a tenant and its first admin (the older single-admin bootstrap; `create-tenant` is the same with more options).
+ * Never creates a super admin: those come only from `superadmin:create`.
  *
- *   npm run seed:emulator -- --email a@b.com --password '...' [--name "Admin"] [--tenant-name "Acme"]
- *   npm run seed:prod -- --confirm-production --email a@b.com --password '...'
+ *   npm run seed:emulator -- --email a@b.com [--name "Admin"] [--tenant-name "Acme"] [--password-stdin]
+ *   npm run seed:prod -- --confirm-prod --email a@b.com
  *
- * Credentials come from CLI args or SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD (never hard-coded).
- * Emulator ports come from firebase.json (override with FIREBASE_AUTH_EMULATOR_HOST / FIRESTORE_EMULATOR_HOST).
- * Production uses Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS) and the project in
- * FIREBASE_PROJECT_ID or .firebaserc.
+ * The password is generated and printed once, or piped in with --password-stdin (never an argument). Environment
+ * handling (banner, prod confirmation, credentials): scripts/lib/env.ts.
  */
-import { initializeApp } from 'firebase-admin/app'
-import { getAuth } from 'firebase-admin/auth'
-import { FieldValue, getFirestore } from 'firebase-admin/firestore'
-import { readFileSync } from 'node:fs'
+import { FieldValue } from 'firebase-admin/firestore'
 import { parseArgs } from 'node:util'
 import { DEFAULT_TIMEZONE, provisionTenant } from '../functions/src/tenants/tenantDefaults.ts'
+import { COMMON_OPTIONS, connect, main } from './lib/env.ts'
+import { assertPassword, generatePassword, readPasswordFromStdin, WHY_NO_PASSWORD_FLAG } from './lib/secrets.ts'
 
-const { values } = parseArgs({
-  options: {
-    target: { type: 'string' },
-    'confirm-production': { type: 'boolean', default: false },
-    email: { type: 'string' },
-    password: { type: 'string' },
-    name: { type: 'string' },
-    'tenant-name': { type: 'string' },
-    'tenant-id': { type: 'string' },
-    'keep-password': { type: 'boolean', default: false },
+const HELP = `
+Bootstrap one tenant and its first admin.
+
+  npm run seed:emulator -- --email a@b.com [--name "Admin"] [--tenant-name "Acme"] [--tenant-id acme] [--password-stdin]
+  npm run seed:prod     -- --confirm-prod --email a@b.com ...
+
+  --env <emulator|staging|prod>   required (the npm shortcuts seed:emulator and seed:prod add it); prod also needs
+                                  --confirm-prod and the project id typed back (or --confirm-project <id> in CI)
+  --password-stdin                read the admin password from stdin (10+ characters); otherwise one is generated
+                                  and printed once. There is no --password argument.
+  --help                          this text
+`
+
+const OPTIONS = {
+  ...COMMON_OPTIONS,
+  email: { type: 'string' },
+  password: { type: 'string' },
+  'password-stdin': { type: 'boolean', default: false },
+  name: { type: 'string' },
+  'tenant-name': { type: 'string' },
+  'tenant-id': { type: 'string' },
+  'keep-password': { type: 'boolean', default: false },
+} as const
+
+const slug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40)
+
+main({
+  name: 'seed',
+  help: HELP,
+  action: () => 'create one tenant and its first admin (never a super admin)',
+  run: async (argv, target) => {
+    const { values } = parseArgs({ args: argv, options: OPTIONS })
+    const fail = (msg: string): number => {
+      console.error(`seed: ${msg}`)
+      return 1
+    }
+    if (values.password !== undefined) return fail(WHY_NO_PASSWORD_FLAG)
+    const email = (values.email ?? process.env.SEED_ADMIN_EMAIL ?? '').trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('admin email required (--email or SEED_ADMIN_EMAIL)')
+
+    let password: string
+    let generated: boolean
+    try {
+      const supplied = values['password-stdin'] ? await readPasswordFromStdin() : process.env.SEED_ADMIN_PASSWORD
+      generated = !supplied
+      password = supplied || generatePassword(20)
+      assertPassword(password, email, 10)
+    } catch (e) {
+      return fail(e instanceof Error ? e.message : String(e))
+    }
+
+    const { auth, db } = connect(target)
+    const tenantName = values['tenant-name'] ?? 'ConvoyPass'
+    const tenantId = values['tenant-id'] ?? (slug(tenantName) || 'default')
+    if ((await db.doc(`tenants/${tenantId}`).get()).exists) return fail(`tenant "${tenantId}" already exists (use --tenant-id for another)`)
+    if (await auth.getUserByEmail(email).catch(() => null)) return fail(`an Auth user with ${email} already exists`)
+
+    const user = await auth.createUser({ email, password, displayName: values.name ?? 'Admin' })
+    try {
+      await auth.setCustomUserClaims(user.uid, { role: 'admin', tenantId })
+      const batch = db.batch()
+      // Defaults, the admin doc and the audit entries come from provisionTenant: the same code the setup link runs.
+      provisionTenant(db, batch, {
+        tenantId, tenantName, timezone: DEFAULT_TIMEZONE,
+        admin: { uid: user.uid, name: values.name ?? 'Admin', email, mustChangePassword: !values['keep-password'], createdBy: 'seed' },
+        actor: { uid: 'seed', role: 'system' }, meta: { env: target.env }, createdAt: FieldValue.serverTimestamp(),
+      })
+      await batch.commit()
+    } catch (e) {
+      await auth.deleteUser(user.uid).catch(() => undefined)
+      throw e
+    }
+    console.log(`seed: ${target.env} ready. tenant="${tenantId}" admin=${email} uid=${user.uid}`)
+    if (generated) {
+      console.log('')
+      console.log(`  temporary password: ${password}`)
+      console.log('')
+      console.log('Shown ONCE. Store it in a password manager.')
+    }
+    if (!values['keep-password']) console.log('seed: admin must change the password on first login')
+    return 0
   },
-})
-
-const die = (msg: string): never => {
-  console.error(`seed: ${msg}`)
-  process.exit(1)
-}
-
-const readJson = (path: string): Record<string, unknown> => {
-  try {
-    return JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>
-  } catch {
-    return {}
-  }
-}
-
-const target = values.target ?? process.env.SEED_TARGET
-if (target !== 'emulator' && target !== 'prod') die('--target must be "emulator" or "prod"')
-if (target === 'prod' && !values['confirm-production']) {
-  die('refusing to touch production without --confirm-production')
-}
-
-const email = (values.email ?? process.env.SEED_ADMIN_EMAIL ?? '').trim().toLowerCase()
-const password = values.password ?? process.env.SEED_ADMIN_PASSWORD ?? ''
-if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) die('admin email required (--email or SEED_ADMIN_EMAIL)')
-if (password.length < 8) die('admin password (min 8 chars) required (--password or SEED_ADMIN_PASSWORD)')
-
-const firebaseJson = readJson('firebase.json') as { emulators?: Record<string, { port?: number }> }
-const firebaserc = readJson('.firebaserc') as { projects?: { default?: string } }
-const projectId = process.env.FIREBASE_PROJECT_ID ?? firebaserc.projects?.default
-if (!projectId) die('project id not found (set FIREBASE_PROJECT_ID or .firebaserc)')
-
-if (target === 'emulator') {
-  process.env.FIREBASE_AUTH_EMULATOR_HOST ??= `127.0.0.1:${firebaseJson.emulators?.auth?.port ?? 9099}`
-  process.env.FIRESTORE_EMULATOR_HOST ??= `127.0.0.1:${firebaseJson.emulators?.firestore?.port ?? 8080}`
-} else {
-  delete process.env.FIREBASE_AUTH_EMULATOR_HOST
-  delete process.env.FIRESTORE_EMULATOR_HOST
-}
-
-initializeApp({ projectId })
-const auth = getAuth()
-const db = getFirestore()
-
-const slug = (s: string): string =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40)
-
-async function main(): Promise<void> {
-  const tenantName = values['tenant-name'] ?? 'ConvoyPass'
-  const tenantId = values['tenant-id'] ?? (slug(tenantName) || 'default')
-
-  const tenantRef = db.doc(`tenants/${tenantId}`)
-  if ((await tenantRef.get()).exists) die(`tenant "${tenantId}" already exists (use --tenant-id for another)`)
-
-  const existing = await auth.getUserByEmail(email).catch(() => null)
-  if (existing) die(`an Auth user with ${email} already exists`)
-
-  const user = await auth.createUser({ email, password, displayName: values.name ?? 'Admin' })
-  try {
-    await auth.setCustomUserClaims(user.uid, { role: 'admin', tenantId })
-    const batch = db.batch()
-    // Defaults, the admin doc and the audit entries come from provisionTenant: the same code the setup link runs.
-    provisionTenant(db, batch, {
-      tenantId, tenantName, timezone: DEFAULT_TIMEZONE,
-      admin: { uid: user.uid, name: values.name ?? 'Admin', email, mustChangePassword: !values['keep-password'], createdBy: 'seed' },
-      actor: { uid: 'seed', role: 'system' }, meta: { target: target as string }, createdAt: FieldValue.serverTimestamp(),
-    })
-    await batch.commit()
-  } catch (e) {
-    await auth.deleteUser(user.uid).catch(() => undefined)
-    throw e
-  }
-
-  console.log(`seed: ${target} ready. tenant="${tenantId}" admin=${email} uid=${user.uid}`)
-  if (!values['keep-password']) console.log('seed: admin must change the password on first login')
-}
-
-main().catch((e: unknown) => {
-  console.error('seed failed:', e instanceof Error ? e.message : e)
-  process.exit(1)
 })
