@@ -1,7 +1,7 @@
 import { FirebaseError } from 'firebase/app'
 import { signInWithCustomToken } from 'firebase/auth'
 import type { FunctionsError } from 'firebase/functions'
-import { Delete, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Delete, Eye, EyeOff, Loader2, Mail } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
@@ -170,57 +170,57 @@ export function PinScreen({ notice, staffHref }: { notice: string | null; staffH
         className="peer sr-only"
       />
 
-      <div
-        key={shake}
-        role="img"
-        aria-label={`${t.boxesLabel}: ${digits.length} of ${PIN_LENGTH}`}
-        className={cn(
-          'mt-2 flex w-full items-center gap-1.5 rounded-xl sm:gap-2 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-focus',
-          shake > 0 && 'motion-safe:animate-shake',
-        )}
-        data-testid="pin-boxes"
-      >
-        {Array.from({ length: PIN_LENGTH }, (_, i) => {
-          const d = digits[i]
-          return (
-            <span
-              key={i}
-              data-filled={d !== undefined}
-              className={cn(
-                'grid h-14 min-w-0 flex-1 place-items-center rounded-xl border-2 text-2xl font-extrabold text-brand transition-colors sm:h-16',
-                i === 4 && 'ml-3 sm:ml-4',
-                d !== undefined
-                  ? 'border-brand bg-surface'
-                  : i === digits.length && !disabled
-                    ? 'border-accent-hover bg-accent-soft'
-                    : 'border-slate-200 bg-slate-100',
-              )}
-            >
-              {d === undefined ? '' : reveal ? d : '•'}
-            </span>
-          )
-        })}
-      </div>
-
-      <div className="flex h-14 items-center justify-between gap-3" aria-live="polite">
-        <span className="min-w-0 flex-1">
-          {sending && (
-            <span role="status" className="inline-flex items-center gap-2 font-semibold text-slate-700">
-              <Loader2 aria-hidden className="size-5 animate-spin" />
-              {t.checking}
-            </span>
+      <div className="mt-2 flex items-center gap-2 sm:gap-3">
+        <div
+          key={shake}
+          role="img"
+          aria-label={`${t.boxesLabel}: ${digits.length} of ${PIN_LENGTH}`}
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-1 rounded-xl sm:gap-2 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-focus',
+            shake > 0 && 'motion-safe:animate-shake',
           )}
-        </span>
+          data-testid="pin-boxes"
+        >
+          {Array.from({ length: PIN_LENGTH }, (_, i) => {
+            const d = digits[i]
+            return (
+              <span
+                key={i}
+                data-filled={d !== undefined}
+                className={cn(
+                  'grid aspect-square min-w-0 flex-1 place-items-center rounded-xl border-2 text-xl font-extrabold text-brand transition-colors sm:text-2xl',
+                  i === 4 && 'ml-2 sm:ml-4',
+                  d !== undefined
+                    ? 'border-brand bg-surface'
+                    : i === digits.length && !disabled
+                      ? 'border-accent-hover bg-accent-soft'
+                      : 'border-slate-200 bg-slate-100',
+                )}
+              >
+                {d === undefined ? '' : reveal ? d : '•'}
+              </span>
+            )
+          })}
+        </div>
         <button
           type="button"
           onClick={() => setReveal((r) => !r)}
           aria-pressed={reveal}
           aria-label={reveal ? t.hide : t.show}
           title={reveal ? t.hide : t.show}
-          className="grid size-14 shrink-0 place-items-center rounded-xl text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          className="grid size-11 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-700 transition-colors hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus sm:size-12"
         >
-          {reveal ? <EyeOff aria-hidden className="size-6" /> : <Eye aria-hidden className="size-6" />}
+          {reveal ? <EyeOff aria-hidden className="size-5" /> : <Eye aria-hidden className="size-5" />}
         </button>
+      </div>
+
+      <div className="flex h-10 items-center justify-center" aria-live="polite">
+        {sending && (
+          <span role="status" className="inline-flex items-center gap-2 text-base font-semibold text-slate-700">
+            <Loader2 aria-hidden className="size-5 animate-spin" />
+            {t.checking}
+          </span>
+        )}
       </div>
 
       <div role="group" aria-label={t.keypadLabel} className="grid grid-cols-3 gap-2.5 sm:gap-3">
@@ -248,14 +248,20 @@ export function PinScreen({ notice, staffHref }: { notice: string | null; staffH
         )}
       </div>
 
-      <p className="mt-auto pt-4 text-center lg:mt-4 lg:text-left">
+      <div className="mt-auto pt-4 lg:mt-6">
+        <div className="mb-3 flex items-center gap-3 text-sm text-slate-600" aria-hidden>
+          <span className="h-px flex-1 bg-slate-200" />
+          {t.or}
+          <span className="h-px flex-1 bg-slate-200" />
+        </div>
         <Link
           to={staffHref}
-          className="inline-flex min-h-14 items-center rounded-lg px-3 text-base font-medium text-slate-700 underline underline-offset-4 hover:text-brand focus-visible:outline-2 focus-visible:outline-focus lg:-ml-3"
+          className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-surface px-4 text-base font-semibold text-brand transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
+          <Mail aria-hidden className="size-5 text-slate-600" />
           {t.staffLink}
         </Link>
-      </p>
+      </div>
     </AuthSplit>
   )
 }

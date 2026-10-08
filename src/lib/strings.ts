@@ -234,6 +234,7 @@ export const strings = {
     redirecting: 'Signing you in…',
     forgotPassword: 'Forgot password?',
     staffTitle: 'Office staff sign in',
+    backToPin: 'Back to PIN sign in',
     staffIntro: 'Use your work email and password.',
     back: 'Back',
     heroTitle: 'Every contractor vehicle, approved before it reaches the gate.',
@@ -291,6 +292,7 @@ export const strings = {
     again: 'Please enter your PIN again.',
     somethingWrong: 'Something went wrong. Please try again.',
     staffLink: 'Office staff? Sign in with email',
+    or: 'or',
   },
 
   forgot: {
