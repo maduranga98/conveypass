@@ -172,31 +172,43 @@ export function PinScreen({ notice, staffHref }: { notice: string | null; staffH
         className="peer sr-only"
       />
 
-      <div className="mt-4 flex items-center justify-center gap-2 rounded-xl peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus">
-        <div
-          key={shake}
-          role="img"
-          aria-label={`${t.boxesLabel}: ${digits.length} of ${PIN_LENGTH}`}
-          className={cn('flex items-center gap-1.5 p-1', shake > 0 && 'motion-safe:animate-shake')}
-          data-testid="pin-boxes"
-        >
-          {Array.from({ length: PIN_LENGTH }, (_, i) => {
-            const d = digits[i]
-            return (
-              <span
-                key={i}
-                data-filled={d !== undefined}
-                className={cn(
-                  'grid h-14 w-9 place-items-center rounded-lg border-2 text-2xl font-extrabold text-brand',
-                  i === 4 && 'ml-3',
-                  d !== undefined ? 'border-brand bg-surface' : i === digits.length && !disabled ? 'border-brand bg-slate-50' : 'border-slate-400 bg-slate-50',
-                )}
-              >
-                {d === undefined ? '' : reveal ? d : '•'}
-              </span>
-            )
-          })}
-        </div>
+      <div
+        key={shake}
+        role="img"
+        aria-label={`${t.boxesLabel}: ${digits.length} of ${PIN_LENGTH}`}
+        className={cn(
+          'mt-4 flex w-full items-center gap-1.5 rounded-xl peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-focus',
+          shake > 0 && 'motion-safe:animate-shake',
+        )}
+        data-testid="pin-boxes"
+      >
+        {Array.from({ length: PIN_LENGTH }, (_, i) => {
+          const d = digits[i]
+          return (
+            <span
+              key={i}
+              data-filled={d !== undefined}
+              className={cn(
+                'grid h-14 min-w-0 flex-1 place-items-center rounded-lg border-2 text-2xl font-extrabold text-brand',
+                i === 4 && 'ml-3',
+                d !== undefined ? 'border-brand bg-surface' : i === digits.length && !disabled ? 'border-brand bg-slate-50' : 'border-slate-300 bg-slate-50',
+              )}
+            >
+              {d === undefined ? '' : reveal ? d : '•'}
+            </span>
+          )
+        })}
+      </div>
+
+      <div className="mt-2 flex h-14 items-center justify-between gap-3" aria-live="polite">
+        <span className="min-w-0 flex-1">
+          {sending && (
+            <span role="status" className="inline-flex items-center gap-2 font-semibold text-slate-700">
+              <Loader2 aria-hidden className="size-5 animate-spin" />
+              {t.checking}
+            </span>
+          )}
+        </span>
         <button
           type="button"
           onClick={() => setReveal((r) => !r)}
@@ -205,17 +217,8 @@ export function PinScreen({ notice, staffHref }: { notice: string | null; staffH
           title={reveal ? t.hide : t.show}
           className="grid size-14 shrink-0 place-items-center rounded-xl text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
-          {reveal ? <EyeOff aria-hidden className="size-7" /> : <Eye aria-hidden className="size-7" />}
+          {reveal ? <EyeOff aria-hidden className="size-6" /> : <Eye aria-hidden className="size-6" />}
         </button>
-      </div>
-
-      <div className="mt-2 flex h-8 items-center justify-center" aria-live="polite">
-        {sending && (
-          <span role="status" className="inline-flex items-center gap-2 font-semibold text-slate-700">
-            <Loader2 aria-hidden className="size-5 animate-spin" />
-            {t.checking}
-          </span>
-        )}
       </div>
 
       <div role="group" aria-label={t.keypadLabel} className="mt-2 grid grid-cols-3 gap-3">

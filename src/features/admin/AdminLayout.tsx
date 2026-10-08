@@ -1,10 +1,10 @@
 import { Building2, ClipboardList, FileBarChart, History, LayoutDashboard, LogOut, Menu, QrCode, Settings, Truck, UserRound, Users, X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
-import { Button } from '@/components/ui/Button'
-import { cn } from '@/lib/cn'
 import { BrandMark } from '@/components/BrandMark'
+import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
+import { useMediaQuery } from '@/lib/useMediaQuery'
 import { useAuth, useSession } from '@/features/auth/useAuth'
 import { Bell } from '@/features/notifications/Bell'
 import { PushOptInCard } from '@/features/notifications/PushOptInCard'
@@ -22,6 +22,8 @@ const nav = [
   { to: '/admin/settings', label: strings.admin.nav.settings, icon: Settings },
 ] as const
 
+const darkFocus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-solid'
+
 function NavItems({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav aria-label={strings.admin.panel} className="space-y-1">
@@ -32,12 +34,13 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
           onClick={onNavigate}
           className={({ isActive }) =>
             cn(
-              'flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-focus',
-              isActive ? 'bg-accent-soft text-brand' : 'text-slate-600 hover:bg-slate-100',
+              'flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold',
+              darkFocus,
+              isActive ? 'bg-accent text-brand' : 'text-slate-300 hover:bg-brand-hover hover:text-on-solid',
             )
           }
         >
-          <Icon aria-hidden className="size-4" />
+          <Icon aria-hidden className="size-5 shrink-0" />
           {label}
         </NavLink>
       ))}
@@ -45,66 +48,108 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
   )
 }
 
-function Account() {
-  const { profile } = useSession()
+function SignOutButton({ iconOnly }: { iconOnly?: boolean }) {
   const { signOut } = useAuth()
   return (
-    <div className="space-y-2 border-t border-slate-100 pt-4">
-      <p className="truncate px-3 text-sm font-medium">{profile.name}</p>
-      <Button variant="ghost" size="sm" className="w-full justify-start" icon={<LogOut aria-hidden className="size-4" />} onClick={() => void signOut()}>
-        {strings.common.signOut}
-      </Button>
-    </div>
+    <button
+      type="button"
+      onClick={() => void signOut()}
+      aria-label={iconOnly ? strings.common.signOut : undefined}
+      title={iconOnly ? strings.common.signOut : undefined}
+      className={cn(
+        'flex items-center text-sm font-medium text-slate-300 hover:bg-brand-hover hover:text-on-solid',
+        darkFocus,
+        iconOnly ? 'size-11 justify-center rounded-lg' : 'h-11 w-full gap-3 rounded-lg px-3',
+      )}
+    >
+      <LogOut aria-hidden className="size-5" />
+      {!iconOnly && strings.common.signOut}
+    </button>
   )
 }
 
+/**
+ * Responsive shell, the same family as the supervisor and officer. Desktop (lg): a fixed brand navy sidebar whose
+ * navigation scrolls on its own, so the account and sign out stay pinned to the bottom of the screen however long the
+ * list is. Below lg: a navy top bar (bell, sign out, menu) and a scrollable menu sheet.
+ */
 export default function AdminLayout() {
+  const { profile } = useSession()
   const [open, setOpen] = useState(false)
+  // One bell on the page: sidebar on desktop, top bar below.
+  const desktop = useMediaQuery('(min-width: 1024px)')
+
+  useEffect(() => {
+    if (!open) return undefined
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [open])
 
   return (
-    <div className="min-h-dvh md:flex">
-      <aside className="hidden w-60 shrink-0 flex-col justify-between border-r border-slate-200 bg-surface p-4 md:flex print:hidden">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between pl-3">
-            <p className="flex items-center gap-2 text-base font-semibold tracking-tight"><BrandMark className="size-8" />{strings.app.name}</p>
-            <Bell align="left" />
+    <div className="min-h-dvh bg-slate-50">
+      {/* Desktop sidebar */}
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col bg-brand text-on-solid lg:flex print:hidden">
+        <div className="flex items-center gap-3 px-5 pb-4 pt-5">
+          <BrandMark className="size-10 bg-surface" />
+          <div className="min-w-0">
+            <p className="truncate text-base font-bold tracking-tight">{strings.app.name}</p>
+            <p className="truncate text-xs text-slate-300">{strings.admin.panel}</p>
           </div>
+          {desktop && <Bell tone="dark" align="left" className="ml-auto" />}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
           <NavItems />
         </div>
-        <Account />
+        <div className="space-y-1 border-t border-slate-700 p-3">
+          <div className="px-3 pb-1">
+            <p className="truncate text-sm font-semibold">{profile.name}</p>
+            <p className="truncate text-xs text-slate-300">{strings.admin.panel}</p>
+          </div>
+          <SignOutButton />
+        </div>
       </aside>
 
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-surface md:hidden print:hidden">
-        <div className="flex h-14 items-center justify-between px-4">
-          <p className="flex items-center gap-2 font-semibold tracking-tight"><BrandMark className="size-8" />{strings.app.name}</p>
-          <div className="flex items-center gap-1">
-          <Bell />
-          <Button
-            variant="ghost"
-            size="icon"
+      {/* Phone and tablet top bar */}
+      <header className="sticky top-0 z-30 bg-brand text-on-solid lg:hidden print:hidden">
+        <div className="flex h-14 items-center gap-2 px-4">
+          <BrandMark className="size-9 bg-surface" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold tracking-tight">{strings.app.name}</p>
+            <p className="truncate text-xs text-slate-300">{profile.name}</p>
+          </div>
+          {!desktop && <Bell tone="dark" />}
+          <SignOutButton iconOnly />
+          <button
+            type="button"
             aria-expanded={open}
             aria-controls="admin-mobile-menu"
             aria-label={open ? strings.common.closeMenu : strings.common.openMenu}
             onClick={() => setOpen((o) => !o)}
+            className={cn('inline-flex size-11 items-center justify-center rounded-lg hover:bg-brand-hover', darkFocus)}
           >
             {open ? <X aria-hidden className="size-5" /> : <Menu aria-hidden className="size-5" />}
-          </Button>
-          </div>
+          </button>
         </div>
         {open && (
-          <div id="admin-mobile-menu" className="space-y-4 border-t border-slate-100 p-4">
+          <div id="admin-mobile-menu" className="absolute inset-x-0 top-full max-h-[calc(100dvh-3.5rem)] overflow-y-auto overscroll-contain border-t border-slate-700 bg-brand p-3 shadow-lg">
             <NavItems onNavigate={() => setOpen(false)} />
-            <Account />
           </div>
         )}
       </header>
 
-      <main className="min-w-0 flex-1 px-4 py-6 md:px-10 md:py-10 print:p-0">
-        <div className="mx-auto max-w-5xl print:max-w-none">
-          <div className="pb-6 empty:hidden"><PushOptInCard /></div>
-          <Outlet />
-        </div>
-      </main>
+      <div className="lg:pl-64 print:p-0">
+        <main className="min-w-0 px-4 py-6 lg:px-10 lg:py-10 print:p-0">
+          <div className="mx-auto max-w-5xl print:max-w-none">
+            <div className="pb-6 empty:hidden print:hidden"><PushOptInCard /></div>
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   )
 }
