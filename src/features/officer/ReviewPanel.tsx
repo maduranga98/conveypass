@@ -13,6 +13,7 @@ import type { useDecisions } from '@/features/passes/useDecisions'
 import { useReviewLock } from '@/features/passes/useReviewLock'
 import type { RejectionReasonDef } from '@/lib/defaultRejectionReasons'
 import type { PassWithId } from '@/types/passes'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.officer.panel
 const a = strings.approvals
@@ -87,7 +88,7 @@ export function ReviewPanel({ pass, today, contractorName, reasons, decisions, p
   })
 
   return (
-    <aside aria-label={t.title} className="flex h-full min-h-0 flex-col bg-white">
+    <aside aria-label={t.title} className="flex h-full min-h-0 flex-col bg-surface">
       <header className="flex items-center gap-2 border-b border-slate-300 px-4 py-3">
         <h2 className="flex-1 text-base font-semibold">{t.title}</h2>
         <p className="text-sm text-slate-600">{t.position(position.index + 1, position.total)}</p>
@@ -101,12 +102,12 @@ export function ReviewPanel({ pass, today, contractorName, reasons, decisions, p
         {!lock.changed && expired && <p role="status" className="rounded-lg bg-slate-200 px-3 py-2 text-sm font-medium">{a.decision.expired}</p>}
         {!lock.changed && !expired && !decidable && <p role="status" className="rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700">{t.readOnly}</p>}
         {!lock.changed && decidable && pass.checklist.some((x) => x.answer === 'no') && (
-          <p role="note" className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-900">{a.decision.issuesWarning}</p>
+          <NotificationBanner tone="error" role="note">{a.decision.issuesWarning}</NotificationBanner>
         )}
         <PassReview pass={pass} today={today} contractorName={contractorName} {...(today ? { historyHref: vehicleHistoryLink('officer', pass.vehicleId, today) } : {})} layout="wide" onViewerOpenChange={setViewerOpen} />
       </div>
 
-      <footer className="space-y-2 border-t border-slate-300 bg-white p-3">
+      <footer className="space-y-2 border-t border-slate-300 bg-surface p-3">
         {decidable && (
           <DecisionBar layout="inline" busy={busy} disabled={locked} onApprove={() => void approve()} onReject={() => { setRejectError(null); setRejecting(true) }} className="border-0 p-0" />
         )}

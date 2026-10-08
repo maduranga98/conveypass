@@ -28,6 +28,18 @@ export const strings = {
     closeMenu: 'Close menu',
     somethingWrong: 'Something went wrong. Please try again.',
     loadFailed: 'Could not load data.',
+    dismiss: 'Dismiss',
+  },
+
+  /** Why a list or page could not load, chosen from the Firestore / Functions error code (see describeLoadError). */
+  loadErrors: {
+    permission: "This account isn't allowed to read this data. Sign out and back in. If it keeps happening, ask your ConvoyPass administrator to check that the Firestore security rules are deployed.",
+    index: "This view needs a database index that hasn't been built yet. Ask your ConvoyPass administrator to deploy the Firestore indexes (it can take a few minutes to finish building).",
+    network: "Can't reach the server. Check your connection and try again.",
+    session: 'Your session has expired. Please sign in again.',
+    quota: 'The service is busy right now. Wait a moment and try again.',
+    missingConfig: 'The app is not connected to a Firebase project. Add the VITE_FIREBASE_* settings to the build, then rebuild and redeploy.',
+    missingConfigKeys: (keys: string) => `Missing settings: ${keys}.`,
   },
 
   updates: { ready: 'Update ready, reload when convenient', reload: 'Reload' },

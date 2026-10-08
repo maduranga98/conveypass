@@ -24,7 +24,7 @@ export function GatesEditor({ items, onChange, showErrors, usingDefaults }: {
       </div>
       <ul className="space-y-3">
         {items.map((g, i) => (
-          <li key={g.id} className="flex items-end gap-2 rounded-xl border border-slate-200 bg-white p-4">
+          <li key={g.id} className="flex items-end gap-2 rounded-xl border border-slate-200 bg-surface p-4">
             <div className="flex-1">
               <Input
                 label={t.name}
@@ -47,7 +47,7 @@ export function GatesEditor({ items, onChange, showErrors, usingDefaults }: {
           </li>
         ))}
       </ul>
-      {items.length < MIN_GATES && <p role="alert" className="text-sm text-red-600">{t.min}</p>}
+      {items.length < MIN_GATES && <p role="alert" className="text-sm text-danger">{t.min}</p>}
       <Button
         variant="secondary"
         icon={<Plus aria-hidden className="size-4" />}

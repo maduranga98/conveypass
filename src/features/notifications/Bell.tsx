@@ -65,14 +65,14 @@ export function Bell({ align = 'right', className }: Props) {
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         onClick={toggle}
-        className="relative inline-flex size-11 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="relative inline-flex size-11 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
         <BellIcon aria-hidden className="size-5" />
         {unread > 0 && (
           <span
             aria-hidden
             data-testid="bell-badge"
-            className="absolute right-0.5 top-0.5 grid min-w-5 place-items-center rounded-full bg-red-700 px-1 text-[11px] font-bold leading-5 text-white"
+            className="absolute right-0.5 top-0.5 grid min-w-5 place-items-center rounded-full bg-danger-strong px-1 text-[11px] font-bold leading-5 text-on-solid"
           >
             {unread >= 50 ? '50+' : unread}
           </span>
@@ -85,7 +85,7 @@ export function Bell({ align = 'right', className }: Props) {
           role="region"
           aria-label={t.panelTitle}
           className={cn(
-            'fixed inset-x-2 top-14 z-40 max-h-[80dvh] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg',
+            'fixed inset-x-2 top-14 z-40 max-h-[80dvh] overflow-hidden rounded-xl border border-slate-200 bg-surface shadow-lg',
             'sm:absolute sm:inset-x-auto sm:top-full sm:mt-2 sm:w-96',
             align === 'right' ? 'sm:right-0' : 'sm:left-0',
           )}
@@ -103,7 +103,7 @@ export function Bell({ align = 'right', className }: Props) {
           </div>
           <div className="max-h-[60dvh] overflow-y-auto">
             {status === 'error' ? (
-              <p role="alert" className="px-4 py-6 text-sm text-red-800">{t.loadFailed}</p>
+              <p role="alert" className="px-4 py-6 text-sm text-danger-ink">{t.loadFailed}</p>
             ) : status === 'loading' ? (
               <p role="status" className="px-4 py-6 text-sm text-slate-600">{strings.common.loading}</p>
             ) : shown.length === 0 ? (
@@ -117,10 +117,10 @@ export function Bell({ align = 'right', className }: Props) {
             )}
           </div>
           <div className="flex items-center justify-between border-t border-slate-100 px-4 py-2 text-sm">
-            <Link to="/notifications" className="inline-flex min-h-11 items-center font-medium text-accent underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-accent">
+            <Link to="/notifications" className="inline-flex min-h-11 items-center font-medium text-brand underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-focus">
               {t.seeAll}
             </Link>
-            <Link to="/settings" className="inline-flex min-h-11 items-center text-slate-700 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-accent">
+            <Link to="/settings" className="inline-flex min-h-11 items-center text-slate-700 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-focus">
               {t.settings}
             </Link>
           </div>

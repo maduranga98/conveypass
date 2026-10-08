@@ -62,15 +62,15 @@ export function DenySheet({ open, plateNo, loading, onConfirm, onCancel }: {
       <div className="space-y-5">
         <p className="text-sm text-slate-700">{t.denyIntro}</p>
         <fieldset disabled={loading} className="space-y-2">
-          <legend className="text-sm font-semibold text-slate-900">{t.denyReason}</legend>
+          <legend className="text-sm font-semibold text-brand">{t.denyReason}</legend>
           <div role="radiogroup" aria-labelledby={groupId} className="flex flex-col gap-2">
             <span id={groupId} className="sr-only">{t.denyReason}</span>
             {DENY_REASONS.map((r) => (
               <label
                 key={r.id}
                 className={cn(
-                  'flex min-h-14 cursor-pointer items-center rounded-xl border-2 px-4 py-2 text-base font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent',
-                  code === r.id ? 'border-red-700 bg-red-50 text-red-900' : 'border-slate-300 bg-white text-slate-900',
+                  'flex min-h-14 cursor-pointer items-center rounded-xl border-2 px-4 py-2 text-base font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus',
+                  code === r.id ? 'border-danger-strong bg-danger-soft text-danger-ink' : 'border-slate-300 bg-surface text-brand',
                 )}
               >
                 <input type="radio" name={groupId} value={r.id} checked={code === r.id} onChange={() => setCode(r.id)} className="sr-only" />
@@ -78,11 +78,11 @@ export function DenySheet({ open, plateNo, loading, onConfirm, onCancel }: {
               </label>
             ))}
           </div>
-          {tried && !code && <p role="alert" className="text-sm font-semibold text-red-700">{t.denyPick}</p>}
+          {tried && !code && <p role="alert" className="text-sm font-semibold text-danger-strong">{t.denyPick}</p>}
         </fieldset>
         {code && (
           <div className="space-y-1.5">
-            <label htmlFor={noteId} className="text-sm font-semibold text-slate-900">{noteRequired ? t.denyNoteRequired : t.denyNoteOptional}</label>
+            <label htmlFor={noteId} className="text-sm font-semibold text-brand">{noteRequired ? t.denyNoteRequired : t.denyNoteOptional}</label>
             <textarea
               id={noteId}
               value={note}
@@ -92,9 +92,9 @@ export function DenySheet({ open, plateNo, loading, onConfirm, onCancel }: {
               aria-invalid={tried && noteMissing ? true : undefined}
               aria-describedby={tried && noteMissing ? `${noteId}-err` : undefined}
               onChange={(e) => setNote(e.target.value)}
-              className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-accent"
+              className="block w-full rounded-lg border border-slate-300 bg-surface px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-focus"
             />
-            {tried && noteMissing && <p id={`${noteId}-err`} role="alert" className="text-sm font-semibold text-red-700">{t.denyNoteError}</p>}
+            {tried && noteMissing && <p id={`${noteId}-err`} role="alert" className="text-sm font-semibold text-danger-strong">{t.denyNoteError}</p>}
           </div>
         )}
       </div>

@@ -8,11 +8,11 @@ import { strings } from '@/lib/strings'
 const t = strings.platform.overview
 
 const linkClass =
-  'inline-flex h-11 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+  'inline-flex h-11 items-center rounded-lg border border-slate-300 bg-surface px-4 text-sm font-medium text-brand hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus'
 
 function Tile({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-xl border border-slate-200 bg-surface p-4">
       <dt className="text-sm text-slate-500">{label}</dt>
       <dd className="mt-1 text-2xl font-semibold tabular-nums">{value}</dd>
     </div>
@@ -27,7 +27,7 @@ export default function OverviewPage() {
       {q.isPending ? (
         <PageSpinner />
       ) : q.isError ? (
-        <ErrorState onRetry={() => void q.refetch()} />
+        <ErrorState error={q.error} onRetry={() => void q.refetch()} />
       ) : (
         <>
           <section aria-labelledby="ov-invites" className="space-y-3">

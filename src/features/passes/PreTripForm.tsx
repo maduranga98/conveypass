@@ -131,19 +131,19 @@ export function PreTripForm({ ctx, rejection, previous, onSubmitted, onReload }:
 
   return (
     <div className="pb-40">
-      <header className="space-y-1 border-b border-slate-300 bg-white px-4 py-5">
+      <header className="space-y-1 border-b border-slate-300 bg-surface px-4 py-5">
         <p className="text-sm font-medium text-slate-600">{t.title}</p>
         <h1 className="text-4xl font-extrabold tracking-tight">{vehicle.plateNo}</h1>
         <p className="text-base text-slate-700">{vehicle.type}</p>
         <p className="text-sm text-slate-600">
-          {t.driver}: <span className="font-semibold text-slate-900">{profile.name}</span> · {t.today}:{' '}
-          <span className="font-semibold text-slate-900">{formatDay(dateKey)}</span>
+          {t.driver}: <span className="font-semibold text-brand">{profile.name}</span> · {t.today}:{' '}
+          <span className="font-semibold text-brand">{formatDay(dateKey)}</span>
         </p>
       </header>
 
       <div className="mx-auto max-w-md space-y-8 px-4 py-6">
         {rejection && (
-          <div role="alert" className="rounded-2xl border-2 border-red-700 bg-red-50 p-4 text-red-900">
+          <div role="alert" className="rounded-2xl border-2 border-danger-strong bg-danger-soft p-4 text-danger-ink">
             <p className="flex items-center gap-2 font-bold"><TriangleAlert aria-hidden className="size-5" /> {t.reasonBanner}</p>
             <p className="mt-1 text-base">{rejection.reason}</p>
           </div>
@@ -186,13 +186,13 @@ export function PreTripForm({ ctx, rejection, previous, onSubmitted, onReload }:
         )}
 
         {passSettings.requireLocation && (
-          <section className="space-y-2 rounded-2xl border border-slate-300 bg-white p-4" aria-label={t.locationNote}>
+          <section className="space-y-2 rounded-2xl border border-slate-300 bg-surface p-4" aria-label={t.locationNote}>
             <p className="flex items-start gap-2 text-sm text-slate-700">
               <MapPin aria-hidden className="mt-0.5 size-4 shrink-0" /> {t.locationNote}
             </p>
             {location.state.status === 'unavailable' && (
               <div className="space-y-2">
-                <p role="alert" className="text-sm font-semibold text-red-700">{t.locationFailed}</p>
+                <p role="alert" className="text-sm font-semibold text-danger-strong">{t.locationFailed}</p>
                 <Button variant="secondary" className="h-12" onClick={location.retry}>{t.locationRetry}</Button>
               </div>
             )}
@@ -200,10 +200,10 @@ export function PreTripForm({ ctx, rejection, previous, onSubmitted, onReload }:
         )}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-300 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-300 bg-surface px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto max-w-md space-y-2">
           {error && (
-            <div role="alert" className="flex items-center justify-between gap-3 rounded-lg bg-red-100 px-3 py-2 text-sm font-semibold text-red-900">
+            <div role="alert" className="flex items-center justify-between gap-3 rounded-lg bg-danger-soft px-3 py-2 text-sm font-semibold text-danger-ink">
               <span>{error.message}</span>
               {error.stale && <Button variant="secondary" size="sm" onClick={onReload}>{strings.pass.status.reopen}</Button>}
             </div>

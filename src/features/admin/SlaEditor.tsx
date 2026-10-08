@@ -32,7 +32,7 @@ export function SlaEditor({ value, onChange, showErrors, usingDefaults }: {
         <p className="text-sm text-slate-500">{t.hint}</p>
         {usingDefaults && <p className="mt-1 text-sm text-slate-500">{t.usingDefaults}</p>}
       </div>
-      <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
+      <div className="grid gap-3 rounded-xl border border-slate-200 bg-surface p-4 sm:grid-cols-2">
         {field(t.supervisor, 'supervisorMinutes')}
         {field(t.officer, 'officerMinutes')}
       </div>

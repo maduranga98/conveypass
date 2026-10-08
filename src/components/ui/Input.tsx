@@ -3,8 +3,8 @@ import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
 
 export const fieldClass =
-  'block w-full rounded-lg border bg-white px-3 text-base text-slate-900 placeholder:text-slate-500 ' +
-  'focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-accent disabled:bg-slate-50 disabled:text-slate-500'
+  'block w-full rounded-lg border bg-surface px-3 text-base text-brand placeholder:text-slate-500 ' +
+  'focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-focus disabled:bg-slate-50 disabled:text-slate-500'
 
 interface FieldProps {
   label: string
@@ -34,7 +34,7 @@ function FieldShell({
         </p>
       )}
       {error && (
-        <p id={`${id}-error`} role="alert" className="text-xs text-red-600">
+        <p id={`${id}-error`} role="alert" className="text-xs text-danger">
           {error}
         </p>
       )}
@@ -59,7 +59,7 @@ export function Input({ label, error, hint, optional, trailing, className, ...re
           className={cn(
             fieldClass,
             'h-11',
-            error ? 'border-red-400' : 'border-slate-300',
+            error ? 'border-danger' : 'border-slate-300',
             trailing ? 'pr-11' : '',
             className,
           )}
@@ -82,7 +82,7 @@ export function Select({ label, error, hint, optional, className, children, ...r
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        className={cn(fieldClass, 'h-11', error ? 'border-red-400' : 'border-slate-300', className)}
+        className={cn(fieldClass, 'h-11', error ? 'border-danger' : 'border-slate-300', className)}
         {...rest}
       >
         {children}
@@ -103,7 +103,7 @@ export function Textarea({ label, error, hint, optional, className, ...rest }: T
         rows={3}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        className={cn(fieldClass, 'min-h-20 resize-y py-2', error ? 'border-red-400' : 'border-slate-300', className)}
+        className={cn(fieldClass, 'min-h-20 resize-y py-2', error ? 'border-danger' : 'border-slate-300', className)}
         {...rest}
       />
     </FieldShell>

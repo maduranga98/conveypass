@@ -66,7 +66,7 @@ export default function WorkspacesPage() {
       primary: true,
       cell: (r) => (
         <>
-          <Link className="font-medium text-accent underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-accent" to={`/platform/workspaces/${encodeURIComponent(r.tenantId)}`}>{r.name}</Link>
+          <Link className="font-medium text-brand underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-focus" to={`/platform/workspaces/${encodeURIComponent(r.tenantId)}`}>{r.name}</Link>
           {!r.adminSignedIn && <span className="ml-2 align-middle"><Badge tone="neutral">{t.notSignedIn}</Badge></span>}
         </>
       ),
@@ -95,7 +95,7 @@ export default function WorkspacesPage() {
       {q.isPending ? (
         <PageSpinner />
       ) : q.isError ? (
-        <ErrorState message={t.loadFailed} onRetry={() => void q.refetch()} />
+        <ErrorState message={t.loadFailed} error={q.error} onRetry={() => void q.refetch()} />
       ) : all.length === 0 ? (
         <EmptyState title={t.empty} />
       ) : rows.length === 0 ? (

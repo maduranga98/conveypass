@@ -66,7 +66,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="mx-auto min-h-dvh max-w-2xl px-4 py-6">
-      <Link to={ROLE_HOME[claims.role]} className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-slate-700 hover:underline focus-visible:outline-2 focus-visible:outline-accent">
+      <Link to={ROLE_HOME[claims.role]} className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-slate-700 hover:underline focus-visible:outline-2 focus-visible:outline-focus">
         <ArrowLeft aria-hidden className="size-4" />
         {t.back}
       </Link>
@@ -85,12 +85,12 @@ export default function NotificationsPage() {
       {pages.isPending ? (
         <div role="status" className="grid place-items-center py-16"><Spinner /></div>
       ) : pages.isError ? (
-        <ErrorState message={t.loadFailed} onRetry={() => void pages.refetch()} />
+        <ErrorState message={t.loadFailed} error={pages.error} onRetry={() => void pages.refetch()} />
       ) : items.length === 0 ? (
-        <p className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-600">{t.empty}</p>
+        <p className="rounded-xl border border-slate-200 bg-surface px-4 py-10 text-center text-sm text-slate-600">{t.empty}</p>
       ) : (
         <>
-          <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-surface">
             {items.map((n) => (
               <NotificationItem key={n.id} item={n} onOpen={open} />
             ))}

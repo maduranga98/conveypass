@@ -7,7 +7,7 @@ import { EntitySearch } from './EntitySearch'
 import { filterProblem, PRESETS, presetRange, type Preset, type ReportFilters } from './filters'
 
 const t = strings.reports.filters
-const field = 'h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm focus-visible:outline-2 focus-visible:outline-accent'
+const field = 'h-10 rounded-lg border border-slate-300 bg-surface px-3 text-sm focus-visible:outline-2 focus-visible:outline-focus'
 const label = 'flex flex-col gap-1 text-sm font-medium text-slate-700'
 
 function VehicleField({ value, onChange }: { value: string; onChange: (id: string) => void }) {
@@ -38,7 +38,7 @@ export function FilterBar({ applied, today, onApply }: { applied: ReportFilters;
   return (
     <form
       aria-label={t.title}
-      className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 print:hidden"
+      className="space-y-4 rounded-xl border border-slate-200 bg-surface p-4 print:hidden"
       onSubmit={(e) => {
         e.preventDefault()
         if (!problem) onApply(draft)
@@ -53,7 +53,7 @@ export function FilterBar({ applied, today, onApply }: { applied: ReportFilters;
               type="button"
               aria-pressed={draft.preset === p}
               onClick={() => pickPreset(p)}
-              className={`h-9 rounded-full border px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-accent ${draft.preset === p ? 'border-accent bg-accent-soft text-accent' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
+              className={`h-9 rounded-full border px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-focus ${draft.preset === p ? 'border-brand bg-accent-soft text-brand' : 'border-slate-300 bg-surface text-slate-700 hover:bg-slate-50'}`}
             >
               {t.presets[p]}
             </button>
@@ -83,7 +83,7 @@ export function FilterBar({ applied, today, onApply }: { applied: ReportFilters;
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={problem !== null}>{t.apply}</Button>
-        {message && <p role="alert" className="text-sm text-red-700">{message}</p>}
+        {message && <p role="alert" className="text-sm text-danger-strong">{message}</p>}
       </div>
     </form>
   )

@@ -54,7 +54,7 @@ function FilterBar({ applied, onApply, tz }: { applied: AuditFilters; onApply: (
         e.preventDefault()
         if (!invalid) onApply(draft)
       }}
-      className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-3"
+      className="grid gap-3 rounded-xl border border-slate-200 bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3"
       aria-label={t.title}
     >
       <Input type="date" label={t.from} value={draft.from} max={today(tz)} onChange={(e) => set({ from: e.target.value })} />
@@ -199,12 +199,12 @@ export default function AuditPage() {
       {pages.isPending ? (
         <div role="status" className="grid place-items-center py-16"><Spinner /></div>
       ) : pages.isError ? (
-        <ErrorState message={t.loadFailed} onRetry={() => void pages.refetch()} />
+        <ErrorState message={t.loadFailed} error={pages.error} onRetry={() => void pages.refetch()} />
       ) : !page || page.entries.length === 0 ? (
-        <p className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-600">{t.empty}</p>
+        <p className="rounded-xl border border-slate-200 bg-surface px-4 py-10 text-center text-sm text-slate-600">{t.empty}</p>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-surface">
             <table className="w-full text-left text-sm">
               <caption className="sr-only">{t.title}</caption>
               <thead className="border-b border-slate-200 text-xs font-medium uppercase tracking-wide text-slate-600">
@@ -222,14 +222,14 @@ export default function AuditPage() {
                   <tr key={e.id}>
                     <td className="whitespace-nowrap px-4 py-3 tabular-nums text-slate-700">{formatInZone(e.createdAt, tz)}</td>
                     <td className="px-4 py-3">
-                      <span className="font-medium text-slate-900">{actorLabel(e)}</span>
+                      <span className="font-medium text-brand">{actorLabel(e)}</span>
                       <span className="block text-xs text-slate-600">{e.actorRole === 'superadmin' ? t.superAdminRole : (strings.roles[e.actorRole as keyof typeof strings.roles] ?? e.actorRole)}</span>
                     </td>
                     <td className="px-4 py-3 text-slate-800">{actionLabel(e.action)}</td>
                     <td className="px-4 py-3 text-slate-700">
                       {targetLabel(e.targetType)}
                       {e.targetType === 'pass' ? (
-                        <Link to={`/admin/passes?pass=${encodeURIComponent(e.targetId)}`} className="block max-w-40 truncate text-xs text-accent underline">{e.targetId}</Link>
+                        <Link to={`/admin/passes?pass=${encodeURIComponent(e.targetId)}`} className="block max-w-40 truncate text-xs text-brand underline">{e.targetId}</Link>
                       ) : (
                         <span className="block max-w-40 truncate text-xs text-slate-600">{e.targetId}</span>
                       )}

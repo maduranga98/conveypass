@@ -20,6 +20,7 @@ import { useContractorList } from '@/features/shared/queries'
 import type { BulkItemResult, PassStatus, PassWithId } from '@/types/passes'
 import { PassTable } from './PassTable'
 import { ReviewPanel } from './ReviewPanel'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.officer
 const a = strings.approvals
@@ -148,7 +149,7 @@ export default function OfficerQueue() {
             id="contractor-filter"
             value={contractorId}
             onChange={(e) => setContractorId(e.target.value)}
-            className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm focus-visible:outline-2 focus-visible:outline-accent"
+            className="h-10 rounded-lg border border-slate-300 bg-surface px-3 text-sm focus-visible:outline-2 focus-visible:outline-focus"
           >
             <option value="">{t.allContractors}</option>
             {(contractors.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -168,14 +169,14 @@ export default function OfficerQueue() {
               aria-controls="officer-panel"
               onClick={() => setTab(id)}
               className={cn(
-                '-mb-px flex h-11 items-center gap-2 border-b-2 px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent',
-                tab === id ? 'border-accent text-accent' : 'border-transparent text-slate-700 hover:text-slate-900',
+                '-mb-px flex h-11 items-center gap-2 border-b-2 px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus',
+                tab === id ? 'border-brand text-brand' : 'border-transparent text-slate-700 hover:text-brand',
               )}
             >
               {t.tabs[id]}
               <span
                 aria-label={`${n}`}
-                className={cn('min-w-6 rounded-full px-1.5 py-0.5 text-center text-xs font-bold', id === 'awaiting' && n > 0 ? 'bg-accent text-white' : 'bg-slate-200 text-slate-800')}
+                className={cn('min-w-6 rounded-full px-1.5 py-0.5 text-center text-xs font-bold', id === 'awaiting' && n > 0 ? 'bg-brand text-on-solid' : 'bg-slate-200 text-slate-800')}
               >
                 {n >= QUEUE_LIMIT ? `${QUEUE_LIMIT - 1}+` : n}
               </span>
@@ -189,19 +190,19 @@ export default function OfficerQueue() {
         {tab === 'approved' && rows.length > 0 && <p className="text-sm text-slate-600">{t.revokeNote}</p>}
 
         {selectingAllowed && sel.selected.size > 0 && (
-          <div className="flex items-center gap-3 rounded-lg border border-accent bg-accent-soft px-4 py-2">
+          <div className="flex items-center gap-3 rounded-lg border border-brand bg-accent-soft px-4 py-2">
             <p aria-live="polite" className="flex-1 text-sm font-semibold">{a.bulk.selectedCount(sel.selected.size)}</p>
             <Button variant="ghost" size="sm" onClick={sel.clear}>{a.bulk.clear}</Button>
-            <Button className="bg-emerald-700 hover:bg-emerald-800" onClick={() => setConfirming(true)}>{t.approveSelected(sel.selected.size)}</Button>
+            <Button className="bg-success-strong hover:bg-success-hover" onClick={() => setConfirming(true)}>{t.approveSelected(sel.selected.size)}</Button>
           </div>
         )}
 
         {queue.isError && queue.items.length === 0 ? (
-          <ErrorState message={a.queue.loadFailed} onRetry={queue.retry} />
+          <ErrorState message={a.queue.loadFailed} error={queue.error} onRetry={queue.retry} />
         ) : queue.isLoading || !today ? (
           <ListSkeleton rows={6} />
         ) : rows.length === 0 ? (
-          <div className="rounded-xl border border-slate-300 bg-white">
+          <div className="rounded-xl border border-slate-300 bg-surface">
             <EmptyState
               icon={allCaughtUp ? <CheckCheck aria-hidden /> : <Inbox aria-hidden />}
               title={contractorId && queue.items.length > 0 ? t.noMatch : EMPTY[tab].title}
@@ -210,7 +211,7 @@ export default function OfficerQueue() {
           </div>
         ) : (
           <>
-            {queue.isError && <p role="alert" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{a.queue.loadFailed}</p>}
+            {queue.isError && <NotificationBanner tone="warning" role="alert">{a.queue.loadFailed}</NotificationBanner>}
             <PassTable
               rows={rows}
               now={now}

@@ -48,7 +48,7 @@ export default function ContractorsPage() {
       cell: (c) => (
         <Link
           to={`/admin/contractors/${c.id}`}
-          className="inline-flex min-h-11 items-center rounded font-medium text-slate-900 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="inline-flex min-h-11 items-center rounded font-medium text-brand hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
           {c.name}
         </Link>
@@ -76,7 +76,7 @@ export default function ContractorsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
         <Button icon={<Plus aria-hidden className="size-4" />} onClick={() => setFormFor('new')}>
           {t.create}
@@ -86,7 +86,7 @@ export default function ContractorsPage() {
       {contractors.isPending ? (
         <ListSkeleton />
       ) : contractors.isError ? (
-        <ErrorState onRetry={() => void contractors.refetch()} />
+        <ErrorState error={contractors.error} onRetry={() => void contractors.refetch()} />
       ) : items.length === 0 ? (
         <EmptyState icon={<Building2 aria-hidden />} title={t.emptyTitle} body={t.emptyBody} action={<Button onClick={() => setFormFor('new')}>{t.create}</Button>} />
       ) : (

@@ -20,6 +20,7 @@ import type { Driver, WithId } from '@/types'
 import { DriverCredentials } from './DriverCredentials'
 import { uploadDriverPhoto } from './photo'
 import { PhotoField } from './PhotoField'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.drivers.form
 
@@ -169,9 +170,7 @@ function DriverForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'>
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-4" noValidate>
       {formError && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700">
-          {formError}
-        </p>
+        <NotificationBanner tone="error">{formError}</NotificationBanner>
       )}
 
       <Input label={t.name} autoComplete="off" error={errors.name?.message} {...register('name')} />

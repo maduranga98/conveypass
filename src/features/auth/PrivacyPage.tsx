@@ -6,7 +6,7 @@ import { strings } from '@/lib/strings'
 export default function PrivacyPage() {
   return (
     <main className="mx-auto min-h-dvh max-w-2xl px-4 py-10">
-      <Link to="/login" className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-slate-700 hover:underline focus-visible:outline-2 focus-visible:outline-accent">
+      <Link to="/login" className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-slate-700 hover:underline focus-visible:outline-2 focus-visible:outline-focus">
         <ArrowLeft aria-hidden className="size-4" />
         {strings.userSettings.back}
       </Link>

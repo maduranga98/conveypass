@@ -5,7 +5,7 @@ import { strings } from '@/lib/strings'
 export function Spinner({ className, label = strings.common.loading }: { className?: string; label?: string }) {
   return (
     <span role="status" className="inline-flex items-center">
-      <Loader2 aria-hidden className={cn('size-5 animate-spin text-slate-400', className)} />
+      <Loader2 aria-hidden className={cn('size-5 animate-spin text-slate-500', className)} />
       <span className="sr-only">{label}</span>
     </span>
   )

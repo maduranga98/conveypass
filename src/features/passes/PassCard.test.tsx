@@ -56,7 +56,7 @@ describe('ChecklistSummary', () => {
     expect(rows).toHaveLength(2)
     expect(rows[0]?.getAttribute('data-answer')).toBe('yes')
     expect(rows[1]?.getAttribute('data-answer')).toBe('no')
-    expect(rows[1]?.className).toContain('bg-red-50')
+    expect(rows[1]?.className).toContain('bg-danger-soft')
     expect(within(rows[1] as HTMLElement).getByText(/Loose cable/)).toBeTruthy()
     expect(screen.queryByText('All answers are Yes')).toBeNull()
   })

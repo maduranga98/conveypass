@@ -63,20 +63,20 @@ export function PassStatus({ summary, plateNo, onDone, doneLabel = t.done, onRej
 
   return (
     <main
-      className={cn('flex min-h-dvh flex-col items-center justify-center gap-8 px-6 py-10 text-center', approved || checkedIn ? 'bg-emerald-700 text-white' : 'bg-slate-50 text-slate-900')}
+      className={cn('flex min-h-dvh flex-col items-center justify-center gap-8 px-6 py-10 text-center', approved || checkedIn ? 'bg-success-strong text-on-solid' : 'bg-slate-50 text-brand')}
     >
-      <Icon aria-hidden className={cn('size-24', approved || checkedIn ? 'text-white' : status === 'rejected' ? 'text-red-700' : 'text-accent')} />
+      <Icon aria-hidden className={cn('size-24', approved || checkedIn ? 'text-on-solid' : status === 'rejected' ? 'text-danger-strong' : 'text-warning')} />
       <div className="space-y-2">
         <h1 className={cn('font-extrabold tracking-tight', approved || checkedIn ? 'text-5xl' : 'text-3xl')}>{title}</h1>
-        <p className={cn('mx-auto max-w-xs text-lg', approved || checkedIn ? 'text-white' : 'text-slate-700')}>{body}</p>
+        <p className={cn('mx-auto max-w-xs text-lg', approved || checkedIn ? 'text-on-solid' : 'text-slate-700')}>{body}</p>
         {plateNo && <p className="text-2xl font-bold">{plateNo}</p>}
-        <p className={cn('text-sm', approved || checkedIn ? 'text-white/90' : 'text-slate-600')}>
+        <p className={cn('text-sm', approved || checkedIn ? 'text-on-solid/90' : 'text-slate-600')}>
           {t.submittedBy(summary.driverName)} {t.submittedAt(when(summary.submittedAt))}
         </p>
       </div>
       <div className="w-full max-w-sm"><PassTimeline status={status} tone={approved || checkedIn ? 'success' : 'neutral'} {...(live ? { pass: live } : {})} /></div>
       {onDone && (
-        <Button className={cn('h-14 w-full max-w-sm text-lg font-bold', (approved || checkedIn) && 'bg-white text-emerald-800 hover:bg-emerald-50')} onClick={onDone}>
+        <Button className={cn('h-14 w-full max-w-sm text-lg font-bold', (approved || checkedIn) && 'bg-surface text-success-strong hover:bg-success-soft')} onClick={onDone}>
           {doneLabel}
         </Button>
       )}

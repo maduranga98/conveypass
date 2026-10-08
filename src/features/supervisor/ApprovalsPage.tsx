@@ -15,6 +15,7 @@ import { useDecisions } from '@/features/passes/useDecisions'
 import { QUEUE_LIMIT, usePassQueue } from '@/features/passes/usePassQueue'
 import { useNow, useToday } from '@/features/passes/useToday'
 import type { BulkItemResult, PassStatus, PassWithId } from '@/types/passes'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.supervisor.approvals
 const a = strings.approvals
@@ -108,13 +109,13 @@ export default function ApprovalsPage() {
             aria-controls="approvals-panel"
             onClick={() => setTab(id)}
             className={cn(
-              'flex h-12 items-center justify-center gap-2 rounded-lg text-base font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-              tab === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700 hover:bg-slate-100',
+              'flex h-12 items-center justify-center gap-2 rounded-lg text-base font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
+              tab === id ? 'bg-surface text-brand shadow-sm' : 'text-slate-700 hover:bg-slate-100',
             )}
           >
             {t.tabs[id]}
             {id === 'pending' && pendingVisible.length > 0 && (
-              <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-white">{pendingVisible.length >= QUEUE_LIMIT ? `${QUEUE_LIMIT - 1}+` : pendingVisible.length}</span>
+              <span className="rounded-full bg-brand px-2 py-0.5 text-xs font-bold text-on-solid">{pendingVisible.length >= QUEUE_LIMIT ? `${QUEUE_LIMIT - 1}+` : pendingVisible.length}</span>
             )}
           </button>
         ))}
@@ -122,7 +123,7 @@ export default function ApprovalsPage() {
 
       <div id="approvals-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} className="space-y-3">
         {queue.isError && queue.items.length === 0 ? (
-          <ErrorState message={a.queue.loadFailed} onRetry={queue.retry} />
+          <ErrorState message={a.queue.loadFailed} error={queue.error} onRetry={queue.retry} />
         ) : queue.isLoading || !today ? (
           <div role="status" aria-busy="true" className="space-y-3">
             <span className="sr-only">{strings.common.loading}</span>
@@ -136,7 +137,7 @@ export default function ApprovalsPage() {
           />
         ) : (
           <>
-            {queue.isError && <p role="alert" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{a.queue.loadFailed}</p>}
+            {queue.isError && <NotificationBanner tone="warning" role="alert">{a.queue.loadFailed}</NotificationBanner>}
             <ul className="space-y-3">
               {visible.map((p) => {
                 const pickable = today !== null && isBulkSelectable(p, today)
@@ -163,7 +164,7 @@ export default function ApprovalsPage() {
       </div>
 
       {selectingNow && (
-        <div className="fixed inset-x-0 bottom-16 z-20 border-t border-slate-300 bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="fixed inset-x-0 bottom-16 z-20 border-t border-slate-300 bg-surface px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <div className="mx-auto flex max-w-5xl items-center gap-3">
             <p aria-live="polite" className="flex-1 text-base font-semibold">{a.bulk.selectedCount(sel.selected.size)}</p>
             {sel.selected.size > 0 ? (
@@ -172,7 +173,7 @@ export default function ApprovalsPage() {
               selectableCount > 0 && <Button variant="secondary" className="h-14 px-4 text-base" onClick={sel.selectAll}>{`${strings.common.all} (${selectableCount})`}</Button>
             )}
             <Button
-              className="h-14 bg-emerald-700 px-6 text-lg font-bold hover:bg-emerald-800"
+              className="h-14 bg-success-strong px-6 text-lg font-bold hover:bg-success-hover"
               disabled={sel.selected.size === 0}
               onClick={() => setConfirming(true)}
             >

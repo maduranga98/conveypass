@@ -37,6 +37,7 @@
     "drill:restore": "tsx scripts/restore-drill.ts",
     "sla:check": "tsx functions/src/cli/runSlaCheck.ts",
     "bundle:report": "tsx scripts/bundle-report.ts",
+    "contrast": "tsx scripts/check-contrast.ts",
     "build:e2e": "tsx scripts/build-e2e.ts"
   },
   "dependencies": {

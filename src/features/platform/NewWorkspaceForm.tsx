@@ -43,7 +43,7 @@ export function NewWorkspaceForm({ onSubmit, onCancel }: { onSubmit: (v: NewWork
   }
 
   return (
-    <form noValidate onSubmit={(e) => void submit(e)} aria-label={t.newTitle} className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
+    <form noValidate onSubmit={(e) => void submit(e)} aria-label={t.newTitle} className="space-y-4 rounded-xl border border-slate-200 bg-surface p-5">
       <div>
         <h2 className="text-base font-semibold">{t.newTitle}</h2>
         <p className="text-sm text-slate-500">{t.newIntro}</p>

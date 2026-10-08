@@ -1,5 +1,6 @@
 import { Radio } from 'lucide-react'
 import { useMemo } from 'react'
+import { Button } from '@/components/ui/Button'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { useSession } from '@/features/auth/useAuth'
 import { OnboardingGate } from '@/features/onboarding/OnboardingGate'
@@ -18,6 +19,7 @@ import type { DashboardScope } from './links'
 import { attentionItems, computeKpis, contractorRows, recentGateActivity } from './model'
 import { RecentGateActivity } from './RecentGateActivity'
 import { TrendCard } from './TrendCard'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.dashboard
 
@@ -53,7 +55,7 @@ export default function DashboardPage({ scope }: { scope: DashboardScope }) {
           <p className="mt-1 text-sm text-slate-500">{t.intro}</p>
         </div>
         <p role="status" className="flex items-center gap-2 text-sm text-slate-600">
-          <Radio aria-hidden className={`size-4 ${live ? 'text-green-600' : 'text-slate-400'}`} />
+          <Radio aria-hidden className={`size-4 ${live ? 'text-success' : 'text-slate-500'}`} />
           <span className="font-medium">{live ? t.live : t.offline}</span>
           {passes.updatedAt !== null && <span className="text-slate-500">· {t.updated(formatTime(passes.updatedAt))}</span>}
         </p>
@@ -62,11 +64,15 @@ export default function DashboardPage({ scope }: { scope: DashboardScope }) {
       {scope === 'admin' && <OnboardingGate />}
 
       {passes.isError && passes.items.length === 0 ? (
-        <ErrorState message={t.loadFailed} onRetry={passes.retry} />
+        <ErrorState message={t.loadFailed} error={passes.error} onRetry={passes.retry} />
       ) : (
         <>
-          {passes.capped && <p role="note" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{t.capNotice(TODAY_CAP)}</p>}
-          {passes.isError && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{t.loadFailed} <button type="button" className="font-medium underline" onClick={passes.retry}>{strings.common.retry}</button></p>}
+          {passes.capped && <NotificationBanner tone="warning" role="note">{t.capNotice(TODAY_CAP)}</NotificationBanner>}
+          {passes.isError && (
+            <NotificationBanner tone="error" action={<Button variant="secondary" size="sm" onClick={passes.retry}>{strings.common.retry}</Button>}>
+              {t.loadFailed}
+            </NotificationBanner>
+          )}
           <KpiTiles kpis={kpis} scope={scope} today={today} />
           <div className="grid gap-6 xl:grid-cols-2">
             <AttentionPanel items={attention} denied={events.items.length} loading={loading || events.isLoading} scope={scope} today={today} contractorName={nameOf} />

@@ -4,6 +4,7 @@ import { Modal } from '@/components/ui/Modal'
 import { cn } from '@/lib/cn'
 import { MAX_REASON_NOTE, MIN_REASON_NOTE, OTHER_REASON_ID, type RejectionReasonDef } from '@/lib/defaultRejectionReasons'
 import { strings } from '@/lib/strings'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.approvals.reject
 
@@ -79,15 +80,15 @@ export function RejectSheet({ open, mode = 'reject', reasons, loading = false, e
         <p className="text-sm text-slate-700">{revoke ? t.revokeIntro : t.rejectIntro}</p>
 
         <fieldset disabled={loading} className="space-y-2">
-          <legend className="text-sm font-semibold text-slate-900">{t.reasonLegend}</legend>
+          <legend className="text-sm font-semibold text-brand">{t.reasonLegend}</legend>
           <div role="radiogroup" aria-labelledby={groupId} className="flex flex-wrap gap-2">
             <span id={groupId} className="sr-only">{t.reasonLegend}</span>
             {reasons.map((r) => (
               <label
                 key={r.id}
                 className={cn(
-                  'inline-flex min-h-11 cursor-pointer items-center rounded-full border-2 px-4 py-2 text-sm font-medium has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent',
-                  code === r.id ? 'border-red-700 bg-red-50 text-red-900' : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50',
+                  'inline-flex min-h-11 cursor-pointer items-center rounded-full border-2 px-4 py-2 text-sm font-medium has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus',
+                  code === r.id ? 'border-danger-strong bg-danger-soft text-danger-ink' : 'border-slate-300 bg-surface text-slate-800 hover:bg-slate-50',
                 )}
               >
                 <input type="radio" name={groupId} value={r.id} checked={code === r.id} onChange={() => setCode(r.id)} className="sr-only" />
@@ -95,12 +96,12 @@ export function RejectSheet({ open, mode = 'reject', reasons, loading = false, e
               </label>
             ))}
           </div>
-          {tried && !code && <p role="alert" className="text-sm text-red-700">{t.pickReason}</p>}
+          {tried && !code && <p role="alert" className="text-sm text-danger-strong">{t.pickReason}</p>}
         </fieldset>
 
         {code && (
           <div className="space-y-1.5">
-            <label htmlFor={noteId} className="text-sm font-semibold text-slate-900">
+            <label htmlFor={noteId} className="text-sm font-semibold text-brand">
               {noteRequired ? t.noteRequired : t.noteOptional}
             </label>
             <textarea
@@ -113,13 +114,13 @@ export function RejectSheet({ open, mode = 'reject', reasons, loading = false, e
               aria-invalid={tried && noteMissing ? true : undefined}
               aria-describedby={tried && noteMissing ? `${noteId}-err` : undefined}
               onChange={(e) => setNote(e.target.value)}
-              className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-accent"
+              className="block w-full rounded-lg border border-slate-300 bg-surface px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-focus"
             />
-            {tried && noteMissing && <p id={`${noteId}-err`} role="alert" className="text-sm text-red-700">{t.noteError}</p>}
+            {tried && noteMissing && <p id={`${noteId}-err`} role="alert" className="text-sm text-danger-strong">{t.noteError}</p>}
           </div>
         )}
 
-        {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
+        {error && <NotificationBanner tone="error">{error}</NotificationBanner>}
       </div>
     </Modal>
   )

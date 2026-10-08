@@ -22,6 +22,8 @@ export interface PassQueue {
   items: PassWithId[]
   isLoading: boolean
   isError: boolean
+  /** The Firestore error behind `isError` (permission, missing index, offline), for `ErrorState`. */
+  error: unknown
   /** True when the listener hit the limit, so more passes may exist than are shown. */
   capped: boolean
   retry: () => void
@@ -67,6 +69,7 @@ export function usePassQueue(opts: PassQueueOptions): PassQueue {
       items: state.items,
       isLoading: state.status === 'loading',
       isError: state.status === 'error',
+      error: state.error,
       capped: state.items.length >= QUEUE_LIMIT,
       retry,
     }),

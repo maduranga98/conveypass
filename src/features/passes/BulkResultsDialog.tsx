@@ -29,7 +29,7 @@ export function BulkResultsDialog({ results, passes, onClose }: Props) {
     >
       <div className="space-y-4">
         <p role="status" className="flex items-center gap-2 text-base font-semibold">
-          {failed.length === 0 ? <CheckCircle2 aria-hidden className="size-6 text-emerald-700" /> : <XCircle aria-hidden className="size-6 text-red-700" />}
+          {failed.length === 0 ? <CheckCircle2 aria-hidden className="size-6 text-success-strong" /> : <XCircle aria-hidden className="size-6 text-danger-strong" />}
           {t.resultsSummary(ok, failed.length)}
         </p>
         {failed.length > 0 && (
@@ -39,7 +39,7 @@ export function BulkResultsDialog({ results, passes, onClose }: Props) {
               {failed.map((r) => (
                 <li key={r.passId} className="px-3 py-2">
                   <p className="font-semibold">{plate(r.passId)}</p>
-                  <p className="text-sm text-red-800">{t.itemError[r.error ?? 'internal']}</p>
+                  <p className="text-sm text-danger-ink">{t.itemError[r.error ?? 'internal']}</p>
                 </li>
               ))}
             </ul>

@@ -19,6 +19,7 @@ export interface TodayPasses {
   items: PassWithId[]
   isLoading: boolean
   isError: boolean
+  error: unknown
   capped: boolean
   updatedAt: number | null
   retry: () => void
@@ -58,6 +59,7 @@ export function useTodayPasses(): TodayPasses {
       items: state.items,
       isLoading: state.status === 'loading',
       isError: state.status === 'error',
+      error: state.error,
       capped: state.items.length >= TODAY_CAP,
       updatedAt: state.updatedAt,
       retry,

@@ -22,6 +22,7 @@ import { CREATABLE_ROLES, ROLES, type Role } from '@/lib/roles'
 import { strings } from '@/lib/strings'
 import { useContractors } from './queries'
 import { CredentialsReveal } from './CredentialsReveal'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 
 const t = strings.admin.createUser
@@ -116,9 +117,7 @@ function CreateUserForm({ onCreated }: { onCreated: (r: Revealed) => void }) {
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-4" noValidate>
       {formError && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700">
-          {formError}
-        </p>
+        <NotificationBanner tone="error">{formError}</NotificationBanner>
       )}
 
       <Select label={t.role} {...register('role')}>

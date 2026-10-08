@@ -10,7 +10,7 @@ export function CheckInBlock({ pass }: { pass: Pick<PassDoc, 'checkIn'> }) {
   if (!c) return null
   const p = strings.admin.passes
   return (
-    <section aria-labelledby="checkin-h" className="space-y-1 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+    <section aria-labelledby="checkin-h" className="space-y-1 rounded-lg bg-success-soft px-3 py-2 text-sm text-success-ink">
       <h3 id="checkin-h" className="font-semibold">{p.checkInTitle}</h3>
       <p>{p.checkInLine(c.name, formatDateTime(toMs(c.at)), c.gateName)}</p>
       {c.offlineCapturedAt && <p className="text-xs">{p.checkInOffline(formatDateTime(Date.parse(c.offlineCapturedAt)))}</p>}
@@ -33,7 +33,7 @@ export function PassHistory({ pass }: { pass: Pick<PassDoc, 'history' | 'rejecti
         <ol className="space-y-2 border-l-2 border-slate-200 pl-4">
           {history.map((h, i) => (
             <li key={i} className="text-sm">
-              <p className="font-medium text-slate-900">
+              <p className="font-medium text-brand">
                 {t.info.stage[h.stage]}: {VERB[h.action]} · {strings.admin.passes.attemptN(h.attempt)}
               </p>
               <p className="text-slate-600">{h.byName} ({strings.roles[h.byRole as keyof typeof strings.roles] ?? h.byRole}) · {formatDateTime(toMs(h.at))}</p>
@@ -46,7 +46,7 @@ export function PassHistory({ pass }: { pass: Pick<PassDoc, 'history' | 'rejecti
           <h4 className="text-sm font-semibold">{t.info.previousRejection}</h4>
           <ul className="space-y-2">
             {rejections.map((r, i) => (
-              <li key={i} className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-900">
+              <li key={i} className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger-ink">
                 <p className="font-medium">{r.reason}</p>
                 <p className="text-xs">
                   {t.info.stage[r.stage]} · {r.byName} · {formatDateTime(toMs(r.at))}

@@ -77,7 +77,7 @@ export default function UsersPage() {
       primary: true,
       cell: (u) => (
         <div>
-          <span className="font-medium text-slate-900">{u.name}</span>
+          <span className="font-medium text-brand">{u.name}</span>
           {u.mustChangePassword && <p className="text-xs font-normal text-slate-600">{t.mustChange}</p>}
         </div>
       ),
@@ -127,7 +127,7 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
           {users.data && <p className="mt-1 text-sm text-slate-500">{t.count(rows.length)}</p>}
@@ -168,7 +168,7 @@ export default function UsersPage() {
           <Spinner className="size-6" />
         </div>
       ) : users.isError ? (
-        <ErrorState onRetry={() => void users.refetch()} />
+        <ErrorState error={users.error} onRetry={() => void users.refetch()} />
       ) : rows.length === 0 ? (
         <EmptyState icon={<Users aria-hidden />} title={t.emptyTitle} body={t.emptyBody} />
       ) : (

@@ -15,7 +15,7 @@ export function LabelSheet({ labels, size, baseUrl }: { labels: LabelData[]; siz
         <section
           key={i}
           aria-label={`${strings.qr.preview} ${i + 1}`}
-          className="mx-auto w-fit bg-white p-4 shadow-sm ring-1 ring-slate-200 print:p-0 print:shadow-none print:ring-0 [&:not(:last-child)]:break-after-page"
+          className="mx-auto w-fit bg-surface p-4 shadow-sm ring-1 ring-slate-200 print:p-0 print:shadow-none print:ring-0 [&:not(:last-child)]:break-after-page"
         >
           <div
             className="grid content-start justify-center"
@@ -35,14 +35,15 @@ function Label({ label, size, url }: { label: LabelData; size: LabelSize; url: s
   const spec = LABEL_SPEC[size]
   return (
     <div
-      className="flex break-inside-avoid flex-col items-center justify-between overflow-hidden bg-white text-center text-black"
-      style={{ width: `${spec.mm}mm`, height: `${spec.mm}mm`, padding: `${spec.pad}mm`, border: '0.2mm dashed #000' }}
+      className="flex break-inside-avoid flex-col items-center justify-between overflow-hidden bg-surface text-center text-scrim"
+      style={{ width: `${spec.mm}mm`, height: `${spec.mm}mm`, padding: `${spec.pad}mm`, border: '0.2mm dashed var(--color-scrim)' }}
     >
       <QRCodeSVG
         value={url}
         size={256}
         level="Q"
         marginSize={2}
+        // Scanner-critical pure black on white (the same values as --color-scrim / --color-surface); not themeable.
         fgColor="#000000"
         bgColor="#ffffff"
         title={label.plateNo}

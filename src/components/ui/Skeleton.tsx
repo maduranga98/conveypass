@@ -8,7 +8,7 @@ export function Skeleton({ className }: { className?: string }) {
 /** Placeholder rows shown while a list loads. */
 export function ListSkeleton({ rows = 6 }: { rows?: number }) {
   return (
-    <div role="status" aria-busy="true" className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
+    <div role="status" aria-busy="true" className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-surface">
       <span className="sr-only">{strings.common.loading}</span>
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="flex items-center gap-4 px-4 py-4">

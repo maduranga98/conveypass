@@ -34,7 +34,7 @@ onBackgroundMessage(getMessaging(app), (payload) => {
   const title = data.title || 'ConvoyPass'
   const options: NotificationOptions & { renotify?: boolean } = {
     body: data.body ?? '',
-    icon: '/icons/icon-192.png',
+    icon: '/android-chrome-192x192.png',
     badge: '/icons/badge-96.png',
     // A stable tag replaces the previous notification; renotify makes the replacement alert again.
     ...(data.tag ? { tag: data.tag, renotify: data.renotify === '1' } : {}),

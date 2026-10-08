@@ -174,10 +174,10 @@ export function EvidenceViewer({ items, index, plateNo, onIndexChange, onClose }
 
   if (!item) return null
   const zoomed = view.scale > 1
-  const navBtn = 'absolute top-1/2 z-10 grid size-12 -translate-y-1/2 place-items-center rounded-full bg-black/60 text-white hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:hidden'
+  const navBtn = 'absolute top-1/2 z-10 grid size-12 -translate-y-1/2 place-items-center rounded-full bg-scrim/60 text-on-solid hover:bg-scrim/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-solid disabled:hidden'
 
   return (
-    <div ref={rootRef} role="dialog" aria-modal="true" aria-label={`${t.title}: ${plateNo}`} className="fixed inset-0 z-50 flex flex-col bg-black text-white">
+    <div ref={rootRef} role="dialog" aria-modal="true" aria-label={`${t.title}: ${plateNo}`} className="fixed inset-0 z-50 flex flex-col bg-scrim text-on-solid">
       <header className="flex items-center gap-3 px-4 py-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-base font-semibold">{item.label}</p>
@@ -186,7 +186,7 @@ export function EvidenceViewer({ items, index, plateNo, onIndexChange, onClose }
         <button
           type="button"
           onClick={zoomToStamp}
-          className="inline-flex h-11 items-center gap-2 rounded-lg bg-white/10 px-3 text-sm font-medium hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="inline-flex h-11 items-center gap-2 rounded-lg bg-on-solid/10 px-3 text-sm font-medium hover:bg-on-solid/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-solid"
         >
           <ScanText aria-hidden className="size-4" />
           {t.zoomStamp}
@@ -196,7 +196,7 @@ export function EvidenceViewer({ items, index, plateNo, onIndexChange, onClose }
           type="button"
           onClick={onClose}
           aria-label={t.close}
-          className="grid size-11 place-items-center rounded-lg bg-white/10 hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="grid size-11 place-items-center rounded-lg bg-on-solid/10 hover:bg-on-solid/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-solid"
         >
           <X aria-hidden className="size-6" />
         </button>
@@ -213,11 +213,11 @@ export function EvidenceViewer({ items, index, plateNo, onIndexChange, onClose }
       >
         <div className="grid size-full place-items-center">
           {url.isPending ? (
-            <Spinner className="size-8 text-white" />
+            <Spinner className="size-8 text-on-solid" />
           ) : url.isError || !url.data ? (
             <div role="alert" className="space-y-3 text-center">
               <p>{t.loadFailed}</p>
-              <button type="button" onClick={() => void url.refetch()} className="h-11 rounded-lg bg-white px-4 text-sm font-medium text-slate-900">{t.retry}</button>
+              <button type="button" onClick={() => void url.refetch()} className="h-11 rounded-lg bg-surface px-4 text-sm font-medium text-brand">{t.retry}</button>
             </div>
           ) : (
             <img

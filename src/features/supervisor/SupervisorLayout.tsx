@@ -8,6 +8,7 @@ import { usePendingCount } from '@/features/passes/usePendingCount'
 import { Bell } from '@/features/notifications/Bell'
 import { PushOptInCard } from '@/features/notifications/PushOptInCard'
 import { useContractorList } from '@/features/shared/queries'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const nav = [
   { to: '/supervisor', label: strings.supervisor.nav.home, icon: Home, end: true },
@@ -28,7 +29,7 @@ export default function SupervisorLayout() {
 
   return (
     <div className={cn('min-h-dvh print:pb-0', reviewing ? 'pb-0' : 'pb-20')}>
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white print:hidden">
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-surface print:hidden">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4">
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold tracking-tight">{contractors.data?.[0]?.name ?? strings.app.name}</p>
@@ -48,13 +49,11 @@ export default function SupervisorLayout() {
         {claims.contractorId ? (
           <Outlet />
         ) : (
-          <p role="alert" className="rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
-            {strings.supervisor.noContractor}
-          </p>
+          <NotificationBanner tone="warning" role="alert">{strings.supervisor.noContractor}</NotificationBanner>
         )}
       </main>
 
-      {!reviewing && <nav aria-label={strings.supervisor.mainNav} className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] print:hidden">
+      {!reviewing && <nav aria-label={strings.supervisor.mainNav} className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-surface pb-[env(safe-area-inset-bottom)] print:hidden">
         <ul className="mx-auto grid max-w-5xl grid-cols-5">
           {nav.map(({ to, label, icon: Icon, end }) => (
             <li key={to}>
@@ -63,8 +62,8 @@ export default function SupervisorLayout() {
                 end={end}
                 className={({ isActive }) =>
                   cn(
-                    'flex h-16 flex-col items-center justify-center gap-1 text-xs font-medium focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent',
-                    isActive ? 'text-accent' : 'text-slate-500 hover:text-slate-900',
+                    'flex h-16 flex-col items-center justify-center gap-1 text-xs font-medium focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus',
+                    isActive ? 'text-brand' : 'text-slate-500 hover:text-brand',
                   )
                 }
               >
@@ -73,7 +72,7 @@ export default function SupervisorLayout() {
                   {to === '/supervisor/approvals' && count !== null && count > 0 && (
                     <span
                       aria-label={strings.supervisor.homePending(count)}
-                      className="absolute -right-3 -top-2 grid min-w-5 place-items-center rounded-full bg-red-700 px-1 text-[11px] font-bold leading-5 text-white"
+                      className="absolute -right-3 -top-2 grid min-w-5 place-items-center rounded-full bg-danger-strong px-1 text-[11px] font-bold leading-5 text-on-solid"
                     >
                       {count >= 100 ? '99+' : count}
                     </span>

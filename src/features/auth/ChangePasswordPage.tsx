@@ -15,6 +15,7 @@ import { ROLE_HOME } from '@/lib/roles'
 import { strings } from '@/lib/strings'
 import { safeNext } from './redirect'
 import { useAuth, useSession } from './useAuth'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 interface Values {
   newPassword: string
@@ -79,14 +80,12 @@ export default function ChangePasswordPage() {
   return (
     <main className="grid min-h-dvh place-items-center px-4 py-10">
       <div className="w-full max-w-sm">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-surface p-6 shadow-sm">
           <h1 className="text-xl font-semibold">{isDriver ? t.changePinTitle : t.changePasswordTitle}</h1>
           <p className="mt-1 mb-6 text-sm text-slate-500">{isDriver ? t.changePinIntro : t.changePasswordIntro}</p>
 
           {error && (
-            <p role="alert" className="mb-4 rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700">
-              {error}
-            </p>
+            <NotificationBanner tone="error" className="mb-4">{error}</NotificationBanner>
           )}
 
           <form onSubmit={handleSubmit(submit)} className="space-y-4" noValidate>

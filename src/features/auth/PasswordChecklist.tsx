@@ -15,7 +15,7 @@ export function PasswordChecklist({ checks }: { checks: PasswordChecks }) {
   return (
     <ul aria-label={t.title} data-testid="password-rules" className="space-y-1 text-sm">
       {rows.map(([key, label]) => (
-        <li key={key} className={cn('flex items-center gap-2', checks[key] ? 'text-green-700' : 'text-slate-600')} data-met={checks[key]}>
+        <li key={key} className={cn('flex items-center gap-2', checks[key] ? 'text-success-strong' : 'text-slate-600')} data-met={checks[key]}>
           {checks[key] ? <Check aria-hidden className="size-4 shrink-0" /> : <Circle aria-hidden className="size-4 shrink-0" />}
           <span>{label}</span>
           <span className="sr-only">{checks[key] ? t.met : t.unmet}</span>

@@ -18,6 +18,7 @@ import { usePass } from '@/features/passes/usePass'
 import { usePassQueue } from '@/features/passes/usePassQueue'
 import { useToday } from '@/features/passes/useToday'
 import type { PassWithId } from '@/types/passes'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.supervisor.approvals
 const a = strings.approvals
@@ -70,7 +71,7 @@ function Review({ pass, today }: { pass: PassWithId; today: string | null }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <Link to="/supervisor/approvals" className="inline-flex h-12 items-center gap-2 rounded-lg px-1 text-base font-semibold text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+        <Link to="/supervisor/approvals" className="inline-flex h-12 items-center gap-2 rounded-lg px-1 text-base font-semibold text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
           <ArrowLeft aria-hidden className="size-5" />
           {t.review.back}
         </Link>
@@ -81,7 +82,7 @@ function Review({ pass, today }: { pass: PassWithId; today: string | null }) {
       {!changed && expired && <p role="status" className="rounded-xl bg-slate-200 px-4 py-3 text-base font-medium">{a.decision.expired}</p>}
       {!changed && !expired && !decidable && <p role="status" className="rounded-xl bg-slate-200 px-4 py-3 text-base font-medium">{t.review.alreadyDecided}</p>}
       {!changed && decidable && pass.checklist.some((c) => c.answer === 'no') && (
-        <p role="note" className="rounded-xl bg-red-50 px-4 py-3 text-base font-medium text-red-900">{a.decision.issuesWarning}</p>
+        <NotificationBanner tone="error" role="note" size="lg">{a.decision.issuesWarning}</NotificationBanner>
       )}
 
       <PassReview pass={pass} today={today} />
@@ -132,7 +133,7 @@ export default function ReviewPage() {
       <EmptyState
         icon={<SearchX aria-hidden />}
         title={a.decision.notFound}
-        action={<Link to="/supervisor/approvals" className="inline-flex h-12 items-center rounded-lg border border-slate-300 bg-white px-5 text-base font-semibold">{t.review.back}</Link>}
+        action={<Link to="/supervisor/approvals" className="inline-flex h-12 items-center rounded-lg border border-slate-300 bg-surface px-5 text-base font-semibold">{t.review.back}</Link>}
       />
     )
   }

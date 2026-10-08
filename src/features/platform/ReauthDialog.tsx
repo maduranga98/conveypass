@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { strings } from '@/lib/strings'
 import { WrongPassword } from './reauth'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.platform.reauth
 
@@ -36,9 +37,9 @@ export function ReauthDialog({ open, onConfirm, onCancel, onSignInPage }: { open
       <form onSubmit={(e) => void submit(e)} className="space-y-4">
         <p className="text-sm text-slate-600">{t.body}</p>
         <Input label={t.password} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</p>}
+        {error && <NotificationBanner tone="error">{error}</NotificationBanner>}
         {onSignInPage && (
-          <button type="button" onClick={onSignInPage} className="inline-flex min-h-11 items-center text-sm text-slate-700 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-accent">
+          <button type="button" onClick={onSignInPage} className="inline-flex min-h-11 items-center text-sm text-slate-700 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-focus">
             {strings.platformAuth.reauthGoToSignIn}
           </button>
         )}

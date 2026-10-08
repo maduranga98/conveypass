@@ -37,10 +37,10 @@ function StatusChip({ chip }: { chip: Chip }) {
     <span
       className={cn(
         'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-sm font-extrabold',
-        chip === 'approved' && 'bg-emerald-700 text-white',
-        chip === 'checked_in' && 'bg-slate-200 text-slate-900',
-        chip === 'pending' && 'bg-amber-300 text-slate-950',
-        chip === 'none' && 'border-2 border-red-700 text-red-800',
+        chip === 'approved' && 'bg-success-strong text-on-solid',
+        chip === 'checked_in' && 'bg-slate-200 text-brand',
+        chip === 'pending' && 'bg-accent text-brand',
+        chip === 'none' && 'border-2 border-danger-strong text-danger-ink',
       )}
     >
       {Icon && <Icon aria-hidden className="size-4" />}
@@ -55,10 +55,10 @@ function Card({ to, plateNo, sub, line, chip }: { to: string; plateNo: string; s
       <Link
         to={to}
         state={{ from: 'list' }}
-        className="flex min-h-16 items-center gap-3 rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 hover:border-slate-400 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="flex min-h-16 items-center gap-3 rounded-2xl border-2 border-slate-200 bg-surface px-4 py-3 hover:border-slate-400 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
         <div className="min-w-0 flex-1">
-          <p className="text-2xl leading-tight font-black tracking-tight text-slate-950">{plateNo}</p>
+          <p className="text-2xl leading-tight font-black tracking-tight text-brand">{plateNo}</p>
           <p className="text-sm font-semibold text-slate-700">{sub}</p>
           {line && <p className="text-sm text-slate-700">{line}</p>}
         </div>
@@ -130,14 +130,14 @@ export default function GateHome() {
         <button
           type="button"
           onClick={() => setScanning(true)}
-          className="flex h-24 w-full items-center justify-center gap-4 rounded-3xl bg-slate-900 text-3xl font-black tracking-tight text-white shadow-sm hover:bg-slate-800 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="flex h-24 w-full items-center justify-center gap-4 rounded-3xl bg-brand text-3xl font-black tracking-tight text-on-solid shadow-sm hover:bg-brand-hover focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
           <ScanLine aria-hidden className="size-10" />
           {t.scan}
         </button>
 
         <section className="space-y-2">
-          <label htmlFor={searchId} className="text-base font-bold text-slate-900">{t.searchLabel}</label>
+          <label htmlFor={searchId} className="text-base font-bold text-brand">{t.searchLabel}</label>
           <div className="relative">
             <Search aria-hidden className="pointer-events-none absolute top-1/2 left-4 size-6 -translate-y-1/2 text-slate-500" />
             <input
@@ -150,7 +150,7 @@ export default function GateHome() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder={t.searchPlaceholder}
-              className="h-16 w-full rounded-2xl border-2 border-slate-300 bg-white pr-4 pl-13 text-2xl font-bold tracking-wide uppercase placeholder:text-base placeholder:font-medium placeholder:tracking-normal placeholder:normal-case focus-visible:border-slate-900 focus-visible:outline-none"
+              className="h-16 w-full rounded-2xl border-2 border-slate-300 bg-surface pr-4 pl-13 text-2xl font-bold tracking-wide uppercase placeholder:text-base placeholder:font-medium placeholder:tracking-normal placeholder:normal-case focus-visible:border-brand focus-visible:outline-none"
             />
           </div>
           {large && <p className="text-sm text-slate-700">{t.searchLarge}</p>}
@@ -158,7 +158,7 @@ export default function GateHome() {
           {key.length >= MIN_SEARCH && (
             <div aria-live="polite">
               {large && prefix.isError ? (
-                <p role="alert" className="text-sm font-semibold text-red-800">{t.searchFailed}</p>
+                <p role="alert" className="text-sm font-semibold text-danger-ink">{t.searchFailed}</p>
               ) : matches.length === 0 && !(large && prefix.isPending) && !vehicles.isPending ? (
                 <p className="rounded-xl bg-slate-100 px-4 py-3 text-base font-semibold text-slate-800">{t.searchNone}</p>
               ) : (
@@ -185,12 +185,12 @@ export default function GateHome() {
                   aria-controls="gate-list"
                   onClick={() => setTab(id)}
                   className={cn(
-                    'flex h-14 items-center justify-center gap-2 rounded-xl border-2 text-base font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-                    tab === id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-900',
+                    'flex h-14 items-center justify-center gap-2 rounded-xl border-2 text-base font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
+                    tab === id ? 'border-brand bg-brand text-on-solid' : 'border-slate-300 bg-surface text-brand',
                   )}
                 >
                   {t.tabs[id]}
-                  <span className={cn('rounded-full px-2 text-sm', tab === id ? 'bg-white text-slate-900' : 'bg-slate-200')}>{count}</span>
+                  <span className={cn('rounded-full px-2 text-sm', tab === id ? 'bg-surface text-brand' : 'bg-slate-200')}>{count}</span>
                 </button>
               )
             })}
@@ -203,7 +203,7 @@ export default function GateHome() {
 
           <div id="gate-list" role="tabpanel">
             {passes.status === 'error' && passes.items.length === 0 ? (
-              <div className="rounded-2xl border border-slate-200 bg-white">
+              <div className="rounded-2xl border border-slate-200 bg-surface">
                 <EmptyState
                   title={t.listFailed}
                   action={<button type="button" onClick={passes.retry} className="h-12 rounded-xl border-2 border-slate-300 px-4 font-bold">{strings.common.retry}</button>}
@@ -212,7 +212,7 @@ export default function GateHome() {
             ) : passes.status === 'loading' ? (
               <ListSkeleton rows={3} />
             ) : shown.length === 0 ? (
-              <div className="rounded-2xl border border-slate-200 bg-white">
+              <div className="rounded-2xl border border-slate-200 bg-surface">
                 <EmptyState
                   title={tab === 'awaiting' ? t.emptyAwaiting : t.emptyCheckedIn}
                   body={tab === 'awaiting' ? t.emptyAwaitingBody : t.emptyCheckedInBody}
@@ -242,7 +242,7 @@ export default function GateHome() {
       </div>
 
       {scanning && (
-        <Suspense fallback={<div role="status" className="fixed inset-0 z-50 grid place-items-center bg-black text-lg font-semibold text-white">{t.scanner.starting}</div>}>
+        <Suspense fallback={<div role="status" className="fixed inset-0 z-50 grid place-items-center bg-scrim text-lg font-semibold text-on-solid">{t.scanner.starting}</div>}>
           <QrScanner
             onClose={closeScanner}
             onVehicle={(id) => void navigate(`/v/${id}`, { replace: false, state: { from: 'scan' } })}

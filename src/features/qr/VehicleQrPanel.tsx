@@ -51,7 +51,7 @@ function Panel({ url, vehicle, scope }: { url: string; vehicle: WithId<Vehicle>;
 
   return (
     <section aria-label={t.qrTitle} className="space-y-4">
-      <div className="mx-auto w-fit rounded-xl border border-slate-200 bg-white p-3">
+      <div className="mx-auto w-fit rounded-xl border border-slate-200 bg-surface p-3">
         <QRCodeSVG ref={svgRef} value={url} size={224} level="Q" marginSize={2} title={`${t.qrTitle}: ${vehicle.plateNo}`} />
       </div>
       {/* Off-screen canvas used only to render the 1024 px PNG. */}

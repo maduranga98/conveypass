@@ -19,11 +19,11 @@ export function KpiTiles({ kpis, scope, today }: { kpis: Kpis | null; scope: Das
               {kpis ? <span className="text-3xl font-semibold tabular-nums tracking-tight">{kpis[key]}</span> : <Skeleton className="h-9 w-12" />}
             </>
           )
-          const cls = 'flex h-full flex-col justify-between gap-2 rounded-xl border border-slate-200 bg-white p-4'
+          const cls = 'flex h-full flex-col justify-between gap-2 rounded-xl border border-slate-200 bg-surface p-4'
           return (
             <li key={key}>
               {href ? (
-                <Link to={href} className={`${cls} hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-accent`}>{body}</Link>
+                <Link to={href} className={`${cls} hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-focus`}>{body}</Link>
               ) : (
                 <div className={cls}>{body}</div>
               )}

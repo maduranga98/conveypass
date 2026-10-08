@@ -63,7 +63,7 @@ export function ReportTable({ columns, rows, totals, total, page, sort, onSort, 
   const pages = pageCount(total)
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white print:overflow-visible print:rounded-none print:border-0">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-surface print:overflow-visible print:rounded-none print:border-0">
         <table className="report-table w-full text-sm">
           <caption className="sr-only">{caption}</caption>
           <thead className="border-b border-slate-200 bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-600">
@@ -80,11 +80,11 @@ export function ReportTable({ columns, rows, totals, total, page, sort, onSort, 
                         type="button"
                         onClick={() => onSort(c.key)}
                         aria-label={t.sortBy(c.label)}
-                        className="inline-flex items-center gap-1 font-medium uppercase tracking-wide focus-visible:outline-2 focus-visible:outline-accent"
+                        className="inline-flex items-center gap-1 font-medium uppercase tracking-wide focus-visible:outline-2 focus-visible:outline-focus"
                       >
                         {c.label}
                         <span aria-hidden>
-                          {active ? (sort?.dir === 'asc' ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />) : <ChevronsUpDown className="size-3 text-slate-400" />}
+                          {active ? (sort?.dir === 'asc' ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />) : <ChevronsUpDown className="size-3 text-slate-500" />}
                         </span>
                       </button>
                     )}

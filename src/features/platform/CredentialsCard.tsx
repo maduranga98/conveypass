@@ -1,8 +1,9 @@
-import { Check, Copy, Eye, EyeOff, Mail, MessageCircle, TriangleAlert } from 'lucide-react'
+import { Check, Copy, Eye, EyeOff, Mail, MessageCircle } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { strings } from '@/lib/strings'
 import { credentialsMessage, mailtoUrl, whatsappUrl } from './share'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.platform.credentials
 
@@ -15,7 +16,7 @@ export interface CredentialsView {
 }
 
 const linkClass =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+  'inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-surface px-4 text-sm font-medium text-brand hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus'
 
 function Row({ id, label, value, masked, onCopy, copied }: { id: string; label: string; value: string; masked?: boolean; onCopy: () => void; copied: boolean }) {
   const [shown, setShown] = useState(false)
@@ -30,7 +31,7 @@ function Row({ id, label, value, masked, onCopy, copied }: { id: string; label: 
           value={value}
           autoComplete="off"
           onFocus={(e) => e.currentTarget.select()}
-          className="block h-11 min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 font-mono text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-accent"
+          className="block h-11 min-w-0 flex-1 rounded-lg border border-slate-300 bg-surface px-3 font-mono text-sm text-brand focus-visible:outline-2 focus-visible:outline-focus"
         />
         {masked && (
           <Button variant="secondary" aria-label={`${shown ? t.hide : t.show}: ${label}`} onClick={() => setShown((v) => !v)} icon={shown ? <EyeOff aria-hidden className="size-4" /> : <Eye aria-hidden className="size-4" />}>
@@ -64,12 +65,9 @@ export function CredentialsCard({ title = t.title, view, onConfirm }: { title?: 
   }
 
   return (
-    <section aria-labelledby="credentials-title" className="space-y-4 rounded-xl border border-amber-300 bg-amber-50/60 p-5">
+    <section aria-labelledby="credentials-title" className="space-y-4 rounded-xl border border-accent/50 bg-warning-soft/60 p-5">
       <h2 id="credentials-title" className="text-base font-semibold">{title}</h2>
-      <p role="alert" className="flex items-start gap-2 rounded-lg bg-amber-100 px-3 py-2.5 text-sm font-medium text-amber-900">
-        <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
-        {t.warning}
-      </p>
+      <NotificationBanner tone="warning" role="alert">{t.warning}</NotificationBanner>
       <Row id="cred-url" label={t.loginUrl} value={view.loginUrl} onCopy={() => void copy('url', view.loginUrl)} copied={copied === 'url'} />
       <Row id="cred-email" label={t.email} value={view.email} onCopy={() => void copy('email', view.email)} copied={copied === 'email'} />
       <Row id="cred-password" label={t.password} value={view.tempPassword} masked onCopy={() => void copy('password', view.tempPassword)} copied={copied === 'password'} />

@@ -1,9 +1,10 @@
-import { Check, Copy, Mail, MessageCircle, TriangleAlert } from 'lucide-react'
+import { Check, Copy, Mail, MessageCircle } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { strings } from '@/lib/strings'
 import type { CreatedInvite } from '@/types/platform'
 import { formatExpiry, inviteMessage, mailtoUrl, whatsappUrl } from './share'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.platform.invites
 
@@ -14,7 +15,7 @@ export interface InviteResult {
 }
 
 const linkClass =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+  'inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-surface px-4 text-sm font-medium text-brand hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus'
 
 /**
  * The one place an invite link is ever shown. It lives in this component's props only (the parent drops it on close or
@@ -39,12 +40,9 @@ export function InviteResultCard({ result, onClose }: { result: InviteResult; on
   }
 
   return (
-    <section aria-labelledby="invite-result-title" className="space-y-4 rounded-xl border border-amber-300 bg-amber-50/60 p-5">
+    <section aria-labelledby="invite-result-title" className="space-y-4 rounded-xl border border-accent/50 bg-warning-soft/60 p-5">
       <h2 id="invite-result-title" className="text-base font-semibold">{t.resultTitle}</h2>
-      <p role="alert" className="flex items-start gap-2 rounded-lg bg-amber-100 px-3 py-2.5 text-sm font-medium text-amber-900">
-        <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
-        {t.oneTimeWarning}
-      </p>
+      <NotificationBanner tone="warning" role="alert">{t.oneTimeWarning}</NotificationBanner>
       <div className="space-y-1.5">
         <label htmlFor="invite-link" className="text-sm font-medium text-slate-700">{t.linkLabel}</label>
         <input
@@ -53,7 +51,7 @@ export function InviteResultCard({ result, onClose }: { result: InviteResult; on
           readOnly
           value={invite.link}
           onFocus={(e) => e.currentTarget.select()}
-          className="block h-11 w-full rounded-lg border border-slate-300 bg-white px-3 font-mono text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-accent"
+          className="block h-11 w-full rounded-lg border border-slate-300 bg-surface px-3 font-mono text-sm text-brand focus-visible:outline-2 focus-visible:outline-focus"
         />
         <p className="text-xs text-slate-600">
           {t.expiresOn(formatExpiry(invite.expiresAt))}

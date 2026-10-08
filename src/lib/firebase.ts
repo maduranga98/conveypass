@@ -12,6 +12,18 @@ import { initAppCheck } from './appCheck'
 /** Must match FUNCTIONS_REGION in functions/.env */
 export const FUNCTIONS_REGION: string = import.meta.env.VITE_FUNCTIONS_REGION || 'asia-south1'
 
+/** Build-time settings the app cannot run without. Empty when everything is present (see `ConfigGate`). */
+export const missingFirebaseConfig: string[] = (
+  [
+    ['VITE_FIREBASE_API_KEY', import.meta.env.VITE_FIREBASE_API_KEY],
+    ['VITE_FIREBASE_AUTH_DOMAIN', import.meta.env.VITE_FIREBASE_AUTH_DOMAIN],
+    ['VITE_FIREBASE_PROJECT_ID', import.meta.env.VITE_FIREBASE_PROJECT_ID],
+    ['VITE_FIREBASE_APP_ID', import.meta.env.VITE_FIREBASE_APP_ID],
+  ] as const
+)
+  .filter(([, value]) => !value)
+  .map(([name]) => name)
+
 export const app = initializeApp({
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,

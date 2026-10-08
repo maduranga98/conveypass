@@ -33,7 +33,7 @@ export function AccountDetails() {
       {rows.map(([k, v]) => (
         <div key={k} className="contents">
           <dt className="text-slate-500">{k}</dt>
-          <dd className="min-w-0 break-words font-medium text-slate-900">{v}</dd>
+          <dd className="min-w-0 break-words font-medium text-brand">{v}</dd>
         </div>
       ))}
     </dl>
