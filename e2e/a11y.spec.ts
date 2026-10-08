@@ -73,7 +73,7 @@ test.describe('accessibility: security', () => {
     await loginStaff(page, 'security')
     await audit(page, 'gate home')
     await page.goto(`/v/${VEHICLE}`)
-    await expect(page.getByRole('button', { name: /check in/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^let in/i })).toBeVisible()
     await audit(page, 'gate vehicle view')
     await page.goto('/security/queue')
     await audit(page, 'gate queue')
