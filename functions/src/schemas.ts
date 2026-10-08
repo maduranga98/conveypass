@@ -241,6 +241,13 @@ export const completeSetupSchema = z.object({
 })
 export type CompleteSetupInput = z.infer<typeof completeSetupSchema>
 
+export const signUpSuperAdminSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  email: z.string().trim().toLowerCase().email().max(254),
+  password: z.string().max(128),
+})
+export type SignUpSuperAdminInput = z.infer<typeof signUpSuperAdminSchema>
+
 // ---- Module 9: operator console --------------------------------------------------------------
 
 export const INVITE_PREFIX_PATTERN = /^[0-9a-f]{8}$/

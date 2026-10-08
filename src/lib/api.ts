@@ -133,6 +133,10 @@ export const completeSetup = call<
   { tenantId: string }
 >('completeSetup', 60_000)
 
+// Module 11: open super admin signup (public; the server switch SUPERADMIN_SIGNUP_ENABLED decides, per-IP rate limits).
+export const getSuperAdminSignupStatus = call<Record<string, never>, { enabled: boolean }>('getSuperAdminSignupStatus', 15_000)
+export const signUpSuperAdmin = call<{ name: string; email: string; password: string }, { ok: true }>('signUpSuperAdmin', 60_000)
+
 // Module 9: platform operator console. Operators only (claims { role: 'platform', platformAdmin: true }, no tenant).
 // `createSetupInvite` returns the invite code ONCE: the page holds it in component state only (never a query cache).
 export const getOperatorProfile = call<Record<string, never>, { name: string; email: string; mustChangePassword: boolean }>('getOperatorProfile', 20_000)

@@ -2,18 +2,18 @@ import { FirebaseError } from 'firebase/app'
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import { ShieldCheck, TriangleAlert } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { isOperatorToken } from '@/features/auth/claims'
 import { PasswordInput } from '@/features/auth/PasswordInput'
 import { useAuth } from '@/features/auth/useAuth'
-import { getOperatorProfile } from '@/lib/api'
+import { getOperatorProfile, getSuperAdminSignupStatus } from '@/lib/api'
 import { auth } from '@/lib/firebase'
 import { OPERATOR_HOME } from '@/lib/roles'
 import { strings } from '@/lib/strings'
-import { peekLoginReason, safePlatformPath, setLoginReason } from './redirect'
+import { PLATFORM_SIGNUP, peekLoginReason, safePlatformPath, setLoginReason } from './redirect'
 import { usePrivateMeta } from './usePrivateMeta'
 
 const t = strings.platformAuth
@@ -47,6 +47,18 @@ export default function PlatformLoginPage() {
   const [failure, setFailure] = useState<Failure | null>(null)
   const [fieldError, setFieldError] = useState<{ email?: string; password?: string }>({})
   const attempt = useRef(0)
+  // The signup link only appears when the server says signup is on (always in the emulator, opt-in elsewhere).
+  const [signupOn, setSignupOn] = useState(false)
+  useEffect(() => {
+    let live = true
+    getSuperAdminSignupStatus({}).then(
+      (r) => live && setSignupOn(r.enabled),
+      () => undefined,
+    )
+    return () => {
+      live = false
+    }
+  }, [])
 
   const from = safePlatformPath(params.get('from')) ?? OPERATOR_HOME
   const reason = params.get('reason') ?? peekLoginReason()
@@ -129,6 +141,13 @@ export default function PlatformLoginPage() {
             </Button>
           </form>
         </div>
+        {signupOn && (
+          <p className="mt-4 text-center">
+            <Link to={PLATFORM_SIGNUP} className="inline-flex min-h-11 items-center px-3 text-sm text-slate-700 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-accent">
+              {strings.platformAuth.signup.link}
+            </Link>
+          </p>
+        )}
       </div>
     </main>
   )

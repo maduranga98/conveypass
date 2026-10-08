@@ -6,6 +6,7 @@ import { lastSignInTimes } from './workspacesPort.js'
 import { inviteStatus, type InviteTimes } from '../tenants/inviteCode.js'
 import type { InviteRecord, PlatformPort, TenantRow } from './platform.js'
 import type { PlatformAuditEntry } from './platformAudit.js'
+import type { SignupAuthPort, SignupPort } from './signup.js'
 
 const ms = (v: unknown): number | null => (v instanceof Timestamp ? v.toMillis() : null)
 
@@ -145,5 +146,34 @@ export const platformPort = (): PlatformPort => {
     },
 
     tenantCount: async () => (await db.collection('tenants').count().get()).data().count,
+  }
+}
+
+/** Firestore side of the open super admin signup: the operators profile and its audit entry, written together. */
+export const signupPort = (): SignupPort => {
+  const db = getFirestore()
+  return {
+    emailInUse: async (email) => {
+      const [ops, users] = await Promise.all([
+        db.collection('operators').where('email', '==', email).limit(1).get(),
+        db.collection('users').where('email', '==', email).limit(1).get(),
+      ])
+      return !ops.empty || !users.empty
+    },
+    createOperator: async (uid, doc, audit) => {
+      const batch = db.batch()
+      batch.create(db.doc(`operators/${uid}`), { name: doc.name, email: doc.email, status: 'active', mustChangePassword: false, createdAt: FieldValue.serverTimestamp() })
+      batch.create(db.collection('platformAuditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
+      await batch.commit()
+    },
+  }
+}
+
+export const signupAuthPort = (): SignupAuthPort => {
+  const auth = getAuth()
+  return {
+    createUser: async (p) => ({ uid: (await auth.createUser(p)).uid }),
+    setCustomUserClaims: (uid, claims) => auth.setCustomUserClaims(uid, claims),
+    deleteUser: (uid) => auth.deleteUser(uid),
   }
 }

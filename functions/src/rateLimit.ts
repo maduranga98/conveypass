@@ -89,6 +89,8 @@ export const firestoreRateLimitPort = (): RateLimitPort => {
 export const IP_RATE_LIMITS = {
   validateSetupInvite: { limit: 20, windowMs: 60_000 },
   completeSetup: { limit: 10, windowMs: 60 * 60_000 },
+  signUpSuperAdmin: { limit: 5, windowMs: 60 * 60_000 },
+  getSuperAdminSignupStatus: { limit: 60, windowMs: 60_000 },
 } as const satisfies Record<string, RateLimitOptions>
 
 /** The window key never holds a raw address: a truncated SHA-256 of it. */
