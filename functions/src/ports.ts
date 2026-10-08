@@ -2,6 +2,7 @@ import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
 import {
+  PinTakenError,
   PlateTakenError,
   VehicleIdTakenError,
   type AuthPort,
@@ -157,6 +158,15 @@ export const authPort = (): AuthPort => {
   const auth = getAuth()
   return {
     createUser: async (p) => ({ uid: (await auth.createUser(p)).uid }),
+    getUser: async (uid) => {
+      try {
+        const u = await auth.getUser(uid)
+        return { email: u.email ?? null, hasPassword: u.providerData.some((p) => p.providerId === 'password') || Boolean(u.passwordHash), disabled: u.disabled }
+      } catch (e) {
+        if ((e as { code?: unknown }).code === 'auth/user-not-found') return null
+        throw e
+      }
+    },
     deleteUser: (uid) => auth.deleteUser(uid),
     updateUser: async (uid, p) => {
       await auth.updateUser(uid, p)
@@ -192,23 +202,47 @@ export const dataPort = (): DataPort => {
       const snap = await db.doc(`vehicles/${id}`).get()
       return snap.exists ? (snap.data() as VehicleData) : null
     },
-    createUserWithAudit: async (uid, data, actorUid, audit, driver) => {
-      const batch = db.batch()
-      batch.create(db.doc(`users/${uid}`), {
-        ...data,
-        createdAt: FieldValue.serverTimestamp(),
-        createdBy: actorUid,
-        updatedAt: FieldValue.serverTimestamp(),
-      })
-      if (driver) {
-        batch.create(db.doc(`drivers/${uid}`), {
-          ...driver,
+    createUserWithAudit: async (uid, data, actorUid, audit, driver, pin) => {
+      const write = (w: { create: (ref: FirebaseFirestore.DocumentReference, d: FirebaseFirestore.DocumentData) => unknown }) => {
+        w.create(db.doc(`users/${uid}`), {
+          ...data,
           createdAt: FieldValue.serverTimestamp(),
+          createdBy: actorUid,
           updatedAt: FieldValue.serverTimestamp(),
         })
+        if (driver) {
+          w.create(db.doc(`drivers/${uid}`), {
+            ...driver,
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          })
+        }
+        w.create(db.collection('auditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
       }
-      batch.create(db.collection('auditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
-      await batch.commit()
+      if (!pin) {
+        const batch = db.batch()
+        write(batch)
+        await batch.commit()
+        return
+      }
+      // PIN users: the pinIndex doc is the global uniqueness guard, created in the same transaction as the user.
+      const pinRef = db.doc(`pinIndex/${pin.key}`)
+      await db.runTransaction(async (tx) => {
+        if ((await tx.get(pinRef)).exists) throw new PinTakenError()
+        tx.create(pinRef, { ...pin.entry, createdAt: FieldValue.serverTimestamp() })
+        write(tx)
+      })
+    },
+    reissuePinTx: async ({ uid, key, entry, patch, audit }) => {
+      const pinRef = db.doc(`pinIndex/${key}`)
+      await db.runTransaction(async (tx) => {
+        const [taken, old] = await Promise.all([tx.get(pinRef), tx.get(db.collection('pinIndex').where('uid', '==', uid))])
+        if (taken.exists) throw new PinTakenError()
+        for (const d of old.docs) tx.delete(d.ref)
+        tx.create(pinRef, { ...entry, createdAt: FieldValue.serverTimestamp() })
+        tx.update(db.doc(`users/${uid}`), { ...patch, knownDevices: FieldValue.delete(), updatedAt: FieldValue.serverTimestamp() })
+        tx.create(db.collection('auditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
+      })
     },
     updateUserWithAudit: async (uid, patch, audit, driver) => {
       const batch = db.batch()

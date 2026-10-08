@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { driverEmail, isValidPassword, isValidPin, normalisePhone } from './credentials.js'
+import { isValidPassword, normalisePhone } from './credentials.js'
 
 describe('normalisePhone', () => {
   it.each([
@@ -16,15 +16,7 @@ describe('normalisePhone', () => {
   )
 })
 
-describe('driverEmail', () => {
-  it('builds the synthetic address', () => expect(driverEmail('94771234567')).toBe('94771234567@drivers.convoypass.com'))
-})
-
 describe('credential validators', () => {
-  it('validates PINs', () => {
-    expect(isValidPin('123456')).toBe(true)
-    for (const bad of ['12345', '1234567', 'abcdef', '12 456', '']) expect(isValidPin(bad)).toBe(false)
-  })
   it('validates passwords', () => {
     expect(isValidPassword('12345678')).toBe(true)
     expect(isValidPassword('1234567')).toBe(false)

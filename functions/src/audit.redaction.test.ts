@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { bulkApprove, decidePass, revokePass } from './approvals.js'
-import { changeOwnPassword, createUser, resetCredential, sanitiseMeta, updateUser } from './core.js'
+import { changeOwnPassword, createUser, reissuePin, resetCredential, sanitiseMeta, updateUser } from './core.js'
 import { dateKey } from './dates.js'
 import { DEFAULT_CHECKLIST } from './defaultChecklist.js'
 import { checkIn, denyEntry } from './gate.js'
@@ -18,7 +18,8 @@ import { createVehicle, importVehicles, setContractorStatus, setVehicleDrivers, 
 const VID = 'veh_aaaaaaaaaa'
 const DAY = dateKey('Asia/Colombo', new Date(NOW * 1000))
 const PASSWORD = 'Sup3rSecret!pw'
-const PIN = '482913'
+let PIN = '48291736'
+let REISSUED = '59302847'
 const NEW_PASSWORD = 'An0therSecret!pw'
 const R1 = '11111111-1111-4111-8111-111111111111'
 const R2 = '22222222-2222-4222-8222-222222222222'
@@ -40,7 +41,7 @@ const jpeg = (): StoredFile => ({
   contentType: 'image/jpeg', size: 50 * 1024, timeCreated: NOW * 1000 - 60_000, head: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
 })
 
-const FORBIDDEN = [PASSWORD, PIN, NEW_PASSWORD, 'http://', 'https://', 'data:', '.jpg', 'tenants/T1/', 'eyJ', 'password', 'token']
+const forbidden = () => [PASSWORD, PIN, REISSUED, NEW_PASSWORD, 'http://', 'https://', 'data:', '.jpg', 'tenants/T1/', 'eyJ', 'password', 'token']
 
 describe('audit redaction: every write path', () => {
   it('never stores passwords, PINs, tokens, photo URLs/paths or file contents', async () => {
@@ -49,7 +50,9 @@ describe('audit redaction: every write path', () => {
 
     // users
     const { uid } = await createUser(w.deps, admin(), { role: 'supervisor', name: 'New Sup', email: 'ns@x.com', contractorId: 'C1', password: PASSWORD })
-    await createUser(w.deps, admin(), { role: 'driver', name: 'New Drv', phone: '0771111111', contractorId: 'C1', password: PIN })
+    const created = await createUser(w.deps, admin(), { role: 'driver', name: 'New Drv', phone: '0771111111', contractorId: 'C1' })
+    PIN = created.pin as string
+    REISSUED = (await reissuePin(w.deps, admin(), { uid: created.uid })).pin
     await resetCredential(w.deps, admin(), { uid, newPassword: NEW_PASSWORD })
     await changeOwnPassword(w.deps, caller(uid, 'supervisor', 'C1'), { newPassword: NEW_PASSWORD })
     w.users.set(uid, userDoc({ role: 'supervisor', contractorId: 'C1', name: 'New Sup', email: 'ns@x.com', phone: null }))
@@ -91,7 +94,7 @@ describe('audit redaction: every write path', () => {
     }
     for (const entry of w.audits) {
       const text = JSON.stringify(entry)
-      for (const bad of FORBIDDEN) expect(text, `${entry.action} contains ${bad}`).not.toContain(bad)
+      for (const bad of forbidden()) expect(text, `${entry.action} contains ${bad}`).not.toContain(bad)
       for (const v of Object.values(entry.meta)) expect(['string', 'number', 'boolean'].includes(typeof v) || v === null).toBe(true)
     }
   })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { driverEmail, generatePin, isTrivialPin, isValidPassword, isValidPin, normalisePhone } from './credentials'
+import { isValidPassword, normalisePhone } from './credentials'
 
 describe('normalisePhone', () => {
   it.each([
@@ -16,15 +16,7 @@ describe('normalisePhone', () => {
   )
 })
 
-describe('driverEmail', () => {
-  it('builds the synthetic address', () => expect(driverEmail('94771234567')).toBe('94771234567@drivers.convoypass.com'))
-})
-
 describe('credential validators', () => {
-  it('validates PINs', () => {
-    expect(isValidPin('123456')).toBe(true)
-    for (const bad of ['12345', '1234567', 'abcdef', '12 456', '']) expect(isValidPin(bad)).toBe(false)
-  })
   it('validates passwords', () => {
     expect(isValidPassword('12345678')).toBe(true)
     expect(isValidPassword('1234567')).toBe(false)
@@ -33,10 +25,6 @@ describe('credential validators', () => {
 })
 
 describe('generators', () => {
-  it('generatePin returns valid 6-digit PINs', async () => {
-    const { generatePin } = await import('./credentials')
-    for (let i = 0; i < 200; i++) expect(isValidPin(generatePin())).toBe(true)
-  })
   it('generatePassword returns valid passwords', async () => {
     const { generatePassword } = await import('./credentials')
     for (let i = 0; i < 50; i++) expect(isValidPassword(generatePassword())).toBe(true)
@@ -44,22 +32,5 @@ describe('generators', () => {
   it('formatPhone groups digits', async () => {
     const { formatPhone } = await import('./credentials')
     expect(formatPhone('94771234567')).toBe('077 123 4567')
-  })
-})
-
-describe('PIN generator', () => {
-  it.each(['000000', '111111', '999999', '123456', '234567', '456789', '654321', '987654', '012345', '543210', '121212', '123123', '909090'])(
-    'treats %s as trivial',
-    (pin) => expect(isTrivialPin(pin)).toBe(true),
-  )
-  it.each(['135792', '482915', '100001', '123457'])('does not flag %s', (pin) =>
-    expect(isTrivialPin(pin)).toBe(false),
-  )
-  it('never generates an invalid or trivial PIN', () => {
-    for (let i = 0; i < 5000; i++) {
-      const pin = generatePin()
-      expect(isValidPin(pin)).toBe(true)
-      expect(isTrivialPin(pin)).toBe(false)
-    }
   })
 })

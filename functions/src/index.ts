@@ -25,6 +25,7 @@ import { newTenantId } from './tenants/tenantDefaults.js'
 import * as setup from './setup.js'
 import { newClaimId, setupPort } from './setupPort.js'
 import { authPort } from './ports.js'
+import { PIN_PEPPER } from './pinSecret.js'
 import * as vehicles from './vehicles.js'
 
 initializeApp()
@@ -32,7 +33,9 @@ initializeApp()
 setGlobalOptions({ region: REGION, maxInstances: 10, enforceAppCheck: ENFORCE_APP_CHECK })
 
 // Sensitive callables are rate limited per user (`rateLimit: true`); latency-sensitive ones stay warm (`warm: true`).
-export const createUser = callable('createUser', core.createUser, { rateLimit: true })
+// Drivers and security get a server-generated PIN (Module 12): the PIN functions bind the PIN_PEPPER secret.
+export const createUser = callable('createUser', core.createUser, { rateLimit: true, secrets: [PIN_PEPPER] })
+export const reissuePin = callable('reissuePin', core.reissuePin, { rateLimit: true, secrets: [PIN_PEPPER] })
 export const updateUser = callable('updateUser', core.updateUser)
 export const resetCredential = callable('resetCredential', core.resetCredential, { rateLimit: true })
 // One callable for everyone's own password. A super admin (platform claims, no tenant) goes to the platform API (verified

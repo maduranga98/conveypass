@@ -14,7 +14,8 @@ export const createUserSchema = z.object({
   phone: z.string().trim().max(30).optional(),
   contractorId: z.string().trim().min(1).max(128).optional(),
   licenseNo: z.string().trim().max(30).optional(),
-  password: z.string().min(1).max(128),
+  /** Staff only. Drivers and security get a server-generated PIN (Module 12) and must not send one. */
+  password: z.string().min(1).max(128).optional(),
 })
 export type CreateUserInput = z.infer<typeof createUserSchema>
 
@@ -22,7 +23,8 @@ export const updateUserSchema = z
   .object({
     uid: z.string().min(1).max(128),
     name: name.optional(),
-    phone: z.string().trim().max(30).optional(),
+    /** Drivers and security: contact number only. `null` clears it. */
+    phone: z.string().trim().max(30).nullable().optional(),
     status: z.enum(['active', 'disabled']).optional(),
     /** Drivers only. `null` clears it. */
     licenseNo: z.string().trim().max(30).nullable().optional(),
@@ -45,6 +47,10 @@ export const resetCredentialSchema = z.object({
   newPassword: z.string().min(1).max(128),
 })
 export type ResetCredentialInput = z.infer<typeof resetCredentialSchema>
+
+export const reissuePinSchema = z.object({
+  uid: z.string().min(1).max(128),
+})
 
 export const changeOwnPasswordSchema = z.object({
   newPassword: z.string().min(1).max(128),

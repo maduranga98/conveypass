@@ -1,10 +1,13 @@
 import { onCall, HttpsError, type CallableOptions, type CallableRequest } from 'firebase-functions/v2/https'
+import type { defineSecret } from 'firebase-functions/params'
 import { fail } from './errors.js'
 import { newVehicleId } from './ids.js'
 import { logError, logInfo, logWarn } from './logger.js'
 import { firestoreRateLimitPort, enforceRateLimit, enforceIpRateLimit, type IP_RATE_LIMITS } from './rateLimit.js'
 import { authPort, dataPort, storagePort } from './ports.js'
 import { MIN_INSTANCES } from './config.js'
+import { generatePin } from './pin.js'
+import { readPinPepper } from './pinSecret.js'
 import type { Deps } from './core.js'
 import { ROLES, type Caller, type Role } from './types.js'
 
@@ -37,6 +40,8 @@ export const deps = (): Deps => ({
   data: dataPort(),
   storage: storagePort(),
   newVehicleId,
+  newPin: () => generatePin(),
+  pinPepper: readPinPepper,
   now: () => Math.floor(Date.now() / 1000),
 })
 
@@ -55,6 +60,8 @@ export interface CallableConfig {
   warm?: boolean
   timeoutSeconds?: number
   memory?: CallableOptions['memory']
+  /** Secret Manager secrets the handler reads (PIN_PEPPER for the PIN functions). */
+  secrets?: ReturnType<typeof defineSecret>[]
 }
 
 /**
@@ -70,6 +77,7 @@ export function callable<T>(
     ...(config.timeoutSeconds ? { timeoutSeconds: config.timeoutSeconds } : {}),
     ...(config.memory ? { memory: config.memory } : {}),
     ...(config.warm ? { minInstances: MIN_INSTANCES } : {}),
+    ...(config.secrets ? { secrets: config.secrets } : {}),
   }
   return onCall(options, async (request) => {
     const requestId = requestIdOf(request.data)

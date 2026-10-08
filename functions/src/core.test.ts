@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { changeOwnPassword, createUser, resetCredential, updateUser } from './core.js'
-import { admin, caller, makeWorld, NOW, rejects, sup1, userDoc, type World } from './test-utils.js'
+import { changeOwnPassword, createUser, reissuePin, resetCredential, updateUser } from './core.js'
+import { isTrivialPin, pinKey } from './pin.js'
+import { admin, caller, makeWorld, NOW, rejects, sup1, TEST_PEPPER, userDoc, type World } from './test-utils.js'
 
 const staffInput = { role: 'officer', name: 'Off', email: 'new@x.com', password: 'longenough1' }
-const driverInput = { role: 'driver', name: 'Drv', phone: '0779998888', contractorId: 'C1', password: '123456' }
+const driverInput = { role: 'driver', name: 'Drv', phone: '0779998888', contractorId: 'C1' }
+const securityInput = { role: 'security', name: 'Guard' }
 
 let w: World
 beforeEach(() => {
@@ -11,10 +13,22 @@ beforeEach(() => {
 })
 
 describe('createUser: permission matrix', () => {
-  it.each(['officer', 'security'] as const)('admin can create %s', async (role) => {
-    const { uid } = await createUser(w.deps, admin(), { ...staffInput, role })
-    expect(w.users.get(uid)).toMatchObject({ role, tenantId: 'T1', contractorId: null, mustChangePassword: true, status: 'active' })
-    expect(w.claims.get(uid)).toEqual({ role, tenantId: 'T1' })
+  it('admin can create an officer (email + password, unchanged)', async () => {
+    const { uid, pin } = await createUser(w.deps, admin(), staffInput)
+    expect(pin).toBeUndefined()
+    expect(w.users.get(uid)).toMatchObject({ role: 'officer', tenantId: 'T1', contractorId: null, mustChangePassword: true, status: 'active', loginType: 'password' })
+    expect(w.claims.get(uid)).toEqual({ role: 'officer', tenantId: 'T1' })
+    expect(w.authUsers.get(uid)).toMatchObject({ email: 'new@x.com', password: 'longenough1' })
+  })
+
+  it('admin can create a security user: a PIN once, an Auth user with no email and no password', async () => {
+    const { uid, pin } = await createUser(w.deps, admin(), securityInput)
+    expect(pin).toMatch(/^\d{8}$/)
+    expect(isTrivialPin(pin as string)).toBe(false)
+    expect(w.authUsers.get(uid)).toEqual({ disabled: false, displayName: 'Guard' })
+    expect(w.claims.get(uid)).toEqual({ role: 'security', tenantId: 'T1' })
+    expect(w.users.get(uid)).toMatchObject({ role: 'security', email: null, phone: null, mustChangePassword: false, loginType: 'pin' })
+    expect(w.pins.get(pinKey(pin as string, TEST_PEPPER))).toEqual({ uid, tenantId: 'T1', role: 'security' })
   })
 
   it('a tenant admin can no longer create an admin (the platform super admin does)', async () => {
@@ -29,11 +43,64 @@ describe('createUser: permission matrix', () => {
     expect(w.users.get(uid)?.contractorId).toBe('C2')
   })
 
-  it('admin can create a driver; phone is normalised and login email is synthetic', async () => {
-    const { uid } = await createUser(w.deps, admin(), driverInput)
-    expect(w.users.get(uid)).toMatchObject({ phone: '94779998888', email: null, contractorId: 'C1' })
-    expect(w.authUsers.get(uid)?.email).toBe('94779998888@drivers.convoypass.com')
+  it('admin can create a driver: PIN once, no credentials on the Auth user, phone is contact info only', async () => {
+    const { uid, pin } = await createUser(w.deps, admin(), driverInput)
+    expect(pin).toMatch(/^\d{8}$/)
+    expect(w.users.get(uid)).toMatchObject({ phone: '94779998888', email: null, contractorId: 'C1', loginType: 'pin', mustChangePassword: false })
+    expect(w.authUsers.get(uid)).toEqual({ disabled: false, displayName: 'Drv' })
+    expect(w.claims.get(uid)).toEqual({ role: 'driver', tenantId: 'T1', contractorId: 'C1' })
     expect(w.audits.at(-1)).toMatchObject({ action: 'user.create', actorUid: 'admin', targetId: uid, tenantId: 'T1' })
+  })
+
+  it('the PIN appears nowhere in Firestore or the audit log; only its HMAC is a pinIndex id', async () => {
+    const { pin } = await createUser(w.deps, admin(), driverInput)
+    const sec = await createUser(w.deps, admin(), securityInput)
+    for (const p of [pin, sec.pin] as string[]) {
+      const stored = JSON.stringify([[...w.users], [...w.drivers], w.audits, [...w.pins], [...w.authUsers], [...w.claims]])
+      expect(stored).not.toContain(p)
+      expect(w.pins.has(pinKey(p, TEST_PEPPER))).toBe(true)
+    }
+    expect([...w.pins.keys()].every((k) => /^[0-9a-f]{64}$/.test(k))).toBe(true)
+  })
+
+  it('a phone number is optional and need not be unique', async () => {
+    const a = await createUser(w.deps, admin(), driverInput)
+    const b = await createUser(w.deps, admin(), driverInput)
+    expect(w.users.get(a.uid)?.phone).toBe(w.users.get(b.uid)?.phone)
+    const c = await createUser(w.deps, admin(), { ...driverInput, phone: undefined })
+    expect(w.users.get(c.uid)?.phone).toBeNull()
+    expect(w.drivers.get(c.uid)?.phone).toBeNull()
+  })
+
+  it('PIN roles refuse a password or an email in the request', async () => {
+    await rejects(createUser(w.deps, admin(), { ...driverInput, password: '12345678' }), 'invalid-argument')
+    await rejects(createUser(w.deps, admin(), { ...securityInput, email: 'g@x.com' }), 'invalid-argument')
+    expect(w.authUsers.size).toBe(0)
+  })
+
+  it('a PIN collision is retried with a new PIN (uniqueness across tenants)', async () => {
+    w.pins.set(pinKey('48291736', TEST_PEPPER), { uid: 'someone', tenantId: 'T2', role: 'driver' })
+    w.pinQueue = ['48291736', '48291736', '59302847']
+    const { uid, pin } = await createUser(w.deps, admin(), driverInput)
+    expect(pin).toBe('59302847')
+    expect(w.pins.get(pinKey('48291736', TEST_PEPPER))?.uid).toBe('someone')
+    expect(w.pins.get(pinKey('59302847', TEST_PEPPER))?.uid).toBe(uid)
+  })
+
+  it('concurrent creations never hand out the same PIN', async () => {
+    w.pinQueue = ['48291736', '48291736', '59302847', '70413958']
+    const [a, b] = await Promise.all([createUser(w.deps, admin(), driverInput), createUser(w.deps, admin(), securityInput)])
+    expect(a.pin).not.toBe(b.pin)
+    expect(w.pins.size).toBe(2)
+  })
+
+  it('without the PIN_PEPPER secret nothing is created', async () => {
+    w.pepper = undefined
+    await rejects(createUser(w.deps, admin(), driverInput), 'failed-precondition', 'config-missing')
+    w.pepper = 'too-short'
+    await rejects(createUser(w.deps, admin(), securityInput), 'failed-precondition', 'config-missing')
+    expect(w.authUsers.size).toBe(0)
+    expect(w.pins.size).toBe(0)
   })
 
   it('supervisor cannot create staff of any role', async () => {
@@ -72,19 +139,16 @@ describe('createUser: tenant and validation', () => {
     await rejects(createUser(w.deps, admin(), { ...driverInput, contractorId: undefined }), 'invalid-argument')
     await rejects(createUser(w.deps, admin(), { ...staffInput, contractorId: 'C1' }), 'invalid-argument')
   })
-  it('validates PIN, password and phone by role', async () => {
-    await rejects(createUser(w.deps, admin(), { ...driverInput, password: '12345' }), 'invalid-argument')
-    await rejects(createUser(w.deps, admin(), { ...driverInput, password: 'abcdef' }), 'invalid-argument')
+  it('validates password and phone by role', async () => {
     await rejects(createUser(w.deps, admin(), { ...driverInput, phone: '0112345678' }), 'invalid-argument')
     await rejects(createUser(w.deps, admin(), { ...staffInput, password: 'short' }), 'invalid-argument')
+    await rejects(createUser(w.deps, admin(), { ...staffInput, password: undefined }), 'invalid-argument')
   })
   it('rejects malformed input', async () => {
     await rejects(createUser(w.deps, admin(), { role: 'god' }), 'invalid-argument')
     await rejects(createUser(w.deps, admin(), null), 'invalid-argument')
   })
-  it('rejects duplicates with typed reasons', async () => {
-    await createUser(w.deps, admin(), driverInput)
-    await rejects(createUser(w.deps, admin(), driverInput), 'already-exists', 'phone-exists')
+  it('rejects duplicate staff emails with a typed reason', async () => {
     await createUser(w.deps, admin(), staffInput)
     await rejects(createUser(w.deps, admin(), staffInput), 'already-exists', 'email-exists')
   })
@@ -100,7 +164,9 @@ describe('createUser: tenant and validation', () => {
   it('compensates by deleting the Auth user when the Firestore write fails', async () => {
     w.failFirestoreCreate = true
     await rejects(createUser(w.deps, admin(), staffInput), 'internal')
+    await rejects(createUser(w.deps, admin(), driverInput), 'internal')
     expect(w.authUsers.size).toBe(0)
+    expect(w.pins.size).toBe(0)
   })
 })
 
@@ -153,12 +219,17 @@ describe('updateUser', () => {
   ])('%s cannot update anyone', async (_n, c) => {
     await rejects(updateUser(w.deps, c, { uid: 'drv1', name: 'x' }), 'permission-denied', 'forbidden')
   })
-  it('changing a driver phone also changes the login email', async () => {
+  it('a driver or security contact number is contact info only: no Auth change, can be cleared', async () => {
     await updateUser(w.deps, admin(), { uid: 'drv1', phone: '0712223333' })
     expect(w.users.get('drv1')?.phone).toBe('94712223333')
-    expect(w.authUsers.get('drv1')?.email).toBe('94712223333@drivers.convoypass.com')
+    expect(w.authUsers.has('drv1')).toBe(false)
+    await updateUser(w.deps, admin(), { uid: 'drv1', phone: null })
+    expect(w.users.get('drv1')?.phone).toBeNull()
+    expect(w.drivers.get('drv1')?.phone).toBeNull()
+    await updateUser(w.deps, admin(), { uid: 'sec', phone: '0712223333' })
+    expect(w.users.get('sec')?.phone).toBe('94712223333')
   })
-  it('rejects phone for non-drivers, invalid phones and empty updates', async () => {
+  it('rejects phone for office staff, invalid phones and empty updates', async () => {
     await rejects(updateUser(w.deps, admin(), { uid: 'officer', phone: '0712223333' }), 'invalid-argument')
     await rejects(updateUser(w.deps, admin(), { uid: 'drv1', phone: '123' }), 'invalid-argument')
     await rejects(updateUser(w.deps, admin(), { uid: 'drv1' }), 'invalid-argument')
@@ -170,24 +241,23 @@ describe('updateUser', () => {
 })
 
 describe('resetCredential', () => {
-  it('admin resets a driver PIN: flag set, tokens revoked, validated as PIN', async () => {
-    await resetCredential(w.deps, admin(), { uid: 'drv1', newPassword: '654321' })
-    expect(w.users.get('drv1')?.mustChangePassword).toBe(true)
-    expect(w.authUsers.get('drv1')?.password).toBe('654321')
-    expect(w.revoked).toContain('drv1')
-    await rejects(resetCredential(w.deps, admin(), { uid: 'drv1', newPassword: 'password1' }), 'invalid-argument')
+  it.each(['drv1', 'sec'])('refuses PIN users (%s) and points to reissuePin', async (uid) => {
+    await rejects(resetCredential(w.deps, admin(), { uid, newPassword: 'a-good-password' }), 'failed-precondition', 'pin-user')
+    expect(w.revoked).toHaveLength(0)
   })
-  it('validates staff passwords', async () => {
+  it('office staff: flag set, tokens revoked, password validated', async () => {
     await rejects(resetCredential(w.deps, admin(), { uid: 'officer', newPassword: '123456' }), 'invalid-argument')
     await resetCredential(w.deps, admin(), { uid: 'officer', newPassword: 'a-good-password' })
+    expect(w.users.get('officer')?.mustChangePassword).toBe(true)
+    expect(w.authUsers.get('officer')?.password).toBe('a-good-password')
+    expect(w.revoked).toContain('officer')
   })
-  it('supervisor: own-contractor drivers only', async () => {
-    await resetCredential(w.deps, sup1(), { uid: 'drv1', newPassword: '111111' })
-    await rejects(resetCredential(w.deps, sup1(), { uid: 'drv2', newPassword: '111111' }), 'permission-denied', 'forbidden')
+  it('supervisor manages no staff passwords', async () => {
+    await rejects(resetCredential(w.deps, sup1(), { uid: 'drv2', newPassword: 'a-good-password' }), 'permission-denied', 'forbidden')
     await rejects(resetCredential(w.deps, sup1(), { uid: 'admin', newPassword: 'a-good-password' }), 'permission-denied', 'forbidden')
   })
   it('rejects cross-tenant targets and self reset', async () => {
-    await rejects(resetCredential(w.deps, admin(), { uid: 'foreign', newPassword: '111111' }), 'permission-denied', 'tenant-mismatch')
+    await rejects(resetCredential(w.deps, admin(), { uid: 'foreign', newPassword: 'a-good-password' }), 'permission-denied', 'tenant-mismatch')
     await rejects(resetCredential(w.deps, admin(), { uid: 'admin', newPassword: 'a-good-password' }), 'permission-denied', 'forbidden')
   })
   it('a tenant admin cannot reset another admin', async () => {
@@ -197,20 +267,19 @@ describe('resetCredential', () => {
     expect(w.users.get('admin2')?.mustChangePassword).toBe(false)
   })
   it('officer and driver cannot reset', async () => {
-    await rejects(resetCredential(w.deps, caller('officer', 'officer'), { uid: 'drv1', newPassword: '111111' }), 'permission-denied')
-    await rejects(resetCredential(w.deps, caller('drv1', 'driver', 'C1'), { uid: 'drv1', newPassword: '111111' }), 'permission-denied')
+    await rejects(resetCredential(w.deps, caller('officer', 'officer'), { uid: 'sup1', newPassword: 'a-good-password' }), 'permission-denied')
+    await rejects(resetCredential(w.deps, caller('drv1', 'driver', 'C1'), { uid: 'drv1', newPassword: 'a-good-password' }), 'permission-denied')
   })
 })
 
 describe('changeOwnPassword', () => {
-  it('changes a driver PIN and clears mustChangePassword', async () => {
-    w.users.set('drv1', userDoc({ mustChangePassword: true }))
-    await changeOwnPassword(w.deps, caller('drv1', 'driver', 'C1'), { newPassword: '246810' })
-    expect(w.users.get('drv1')?.mustChangePassword).toBe(false)
-    expect(w.authUsers.get('drv1')?.password).toBe('246810')
+  it.each([
+    ['driver', caller('drv1', 'driver', 'C1')],
+    ['security', caller('sec', 'security')],
+  ])('refuses %s: they sign in with a PIN', async (_n, c) => {
+    await rejects(changeOwnPassword(w.deps, c, { newPassword: 'a-good-password' }), 'failed-precondition', 'pin-user')
   })
-  it('validates by role', async () => {
-    await rejects(changeOwnPassword(w.deps, caller('drv1', 'driver', 'C1'), { newPassword: 'password1' }), 'invalid-argument')
+  it('validates staff passwords', async () => {
     await rejects(changeOwnPassword(w.deps, admin(), { newPassword: '123456' }), 'invalid-argument')
     await changeOwnPassword(w.deps, admin(), { newPassword: 'a-good-password' })
   })
@@ -226,6 +295,58 @@ describe('changeOwnPassword', () => {
     await changeOwnPassword(w.deps, admin(), { newPassword: 'a-good-password', uid: 'drv1' })
     expect(w.authUsers.has('drv1')).toBe(false)
     expect(w.authUsers.get('admin')?.password).toBe('a-good-password')
+  })
+})
+
+describe('reissuePin', () => {
+  const pinUser = async (): Promise<{ uid: string; pin: string }> => {
+    const r = await createUser(w.deps, admin(), driverInput)
+    return { uid: r.uid, pin: r.pin as string }
+  }
+
+  it('replaces the PIN at once, revokes sessions, clears known devices, audits without the PIN', async () => {
+    const { uid, pin: old } = await pinUser()
+    w.users.set(uid, { ...(w.users.get(uid) as NonNullable<ReturnType<typeof w.users.get>>), knownDevices: { abc: {} } } as never)
+    const { pin } = await reissuePin(w.deps, admin(), { uid })
+    expect(pin).toMatch(/^\d{8}$/)
+    expect(pin).not.toBe(old)
+    expect(w.pins.has(pinKey(old, TEST_PEPPER))).toBe(false)
+    expect(w.pins.get(pinKey(pin, TEST_PEPPER))).toEqual({ uid, tenantId: 'T1', role: 'driver' })
+    expect(w.revoked).toContain(uid)
+    expect(w.users.get(uid)).toMatchObject({ sessionsRevokedAt: NOW, pinVersion: 2, loginType: 'pin' })
+    expect(w.users.get(uid)).not.toHaveProperty('knownDevices')
+    expect(w.audits.at(-1)).toMatchObject({ action: 'user.reissuePin', targetId: uid })
+    expect(JSON.stringify(w.audits)).not.toContain(pin)
+  })
+
+  it('a session from before the reissue is refused with session-expired', async () => {
+    const { uid } = await pinUser()
+    await reissuePin(w.deps, admin(), { uid })
+    await rejects(changeOwnPassword(w.deps, caller(uid, 'driver', 'C1', { authTime: NOW - 1 }), { newPassword: 'x' }), 'unauthenticated', 'session-expired')
+  })
+
+  it('same scope as resetCredential: supervisors only for drivers of their own contractor', async () => {
+    await rejects(reissuePin(w.deps, caller('drv1', 'driver', 'C1'), { uid: 'drv1' }), 'permission-denied', 'forbidden')
+    await reissuePin(w.deps, sup1(), { uid: 'drv1' })
+    await rejects(reissuePin(w.deps, sup1(), { uid: 'drv2' }), 'permission-denied', 'forbidden')
+    await rejects(reissuePin(w.deps, sup1(), { uid: 'sec' }), 'permission-denied', 'forbidden')
+    await reissuePin(w.deps, admin(), { uid: 'sec' })
+    await rejects(reissuePin(w.deps, admin(), { uid: 'foreign' }), 'permission-denied', 'tenant-mismatch')
+    await rejects(reissuePin(w.deps, caller('officer', 'officer'), { uid: 'drv1' }), 'permission-denied', 'forbidden')
+  })
+
+  it('refuses office staff', async () => {
+    await rejects(reissuePin(w.deps, admin(), { uid: 'officer' }), 'failed-precondition', 'not-pin-user')
+    await rejects(reissuePin(w.deps, admin(), { uid: 'admin2' }), 'permission-denied', 'forbidden')
+  })
+
+  it('an account that predates PIN login gets a credential-free Auth user with the same uid and claims', async () => {
+    w.authUsers.set('sec', { email: 'sec@x.com', password: 'old-password', disabled: false, displayName: 'Sam' })
+    w.claims.set('sec', { role: 'security', tenantId: 'T1' })
+    await reissuePin(w.deps, admin(), { uid: 'sec' })
+    expect(w.authUsers.get('sec')).toEqual({ disabled: false, displayName: 'Name' })
+    expect(w.claims.get('sec')).toEqual({ role: 'security', tenantId: 'T1' })
+    expect(w.users.get('sec')?.loginType).toBe('pin')
   })
 })
 
@@ -305,7 +426,7 @@ describe('Module 2: suspended contractors lock their users out server-side', () 
   it('a supervisor or driver of a suspended contractor is rejected on every call', async () => {
     w.contractors.set('C1', { tenantId: 'T1', status: 'suspended' })
     await rejects(updateUser(w.deps, sup1(), { uid: 'drv1', name: 'x' }), 'permission-denied', 'caller-not-active')
-    await rejects(changeOwnPassword(w.deps, caller('drv1', 'driver', 'C1'), { newPassword: '246810' }), 'permission-denied', 'caller-not-active')
+    await rejects(updateUser(w.deps, caller('drv1', 'driver', 'C1'), { uid: 'drv1', name: 'x' }), 'permission-denied', 'caller-not-active')
   })
   it('rejects a caller whose users doc contractor differs from the token', async () => {
     await rejects(updateUser(w.deps, caller('sup1', 'supervisor', 'C2'), { uid: 'drv2', name: 'x' }), 'permission-denied', 'caller-not-active')
