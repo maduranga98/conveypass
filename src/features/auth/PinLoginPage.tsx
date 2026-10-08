@@ -4,7 +4,6 @@ import type { FunctionsError } from 'firebase/functions'
 import { Delete, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
-import { BrandMark } from '@/components/BrandMark'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { loginWithPin } from '@/lib/api'
@@ -14,6 +13,7 @@ import { auth } from '@/lib/firebase'
 import { PIN_LENGTH, pinDigits } from '@/lib/pin'
 import { OPERATOR_HOME, ROLE_HOME } from '@/lib/roles'
 import { strings } from '@/lib/strings'
+import { AuthHeading, AuthSplit } from './AuthSplit'
 import { nextForRole, safeNext, STAFF_LOGIN } from './redirect'
 import { useAuth } from './useAuth'
 
@@ -137,13 +137,11 @@ export function PinScreen({ notice, staffHref }: { notice: string | null; staffH
             : null
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col px-4 pt-8 pb-6 text-lg">
-      <div className="flex flex-col items-center text-center">
-        <BrandMark className="mb-3 size-16 rounded-2xl" />
-        <h1 className="text-3xl font-extrabold tracking-tight text-brand">{t.title}</h1>
-      </div>
+    <AuthSplit className="text-lg">
+      <AuthHeading title={t.title} compact />
+      <p className="mt-2 hidden text-base text-slate-600 lg:block">{t.subtitle}</p>
 
-      <div className="mt-4 min-h-14 space-y-2" aria-live="polite">
+      <div className="mt-3 min-h-12 space-y-2 lg:mt-6" aria-live="polite">
         {notice && !problem && <NotificationBanner tone="info" size="lg">{notice}</NotificationBanner>}
         {message && (
           <NotificationBanner tone={problem?.kind === 'offline' ? 'warning' : 'error'} size="lg" role="alert">
@@ -177,7 +175,7 @@ export function PinScreen({ notice, staffHref }: { notice: string | null; staffH
         role="img"
         aria-label={`${t.boxesLabel}: ${digits.length} of ${PIN_LENGTH}`}
         className={cn(
-          'mt-4 flex w-full items-center gap-1.5 rounded-xl peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-focus',
+          'mt-2 flex w-full items-center gap-1.5 rounded-xl sm:gap-2 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-focus',
           shake > 0 && 'motion-safe:animate-shake',
         )}
         data-testid="pin-boxes"
@@ -189,9 +187,13 @@ export function PinScreen({ notice, staffHref }: { notice: string | null; staffH
               key={i}
               data-filled={d !== undefined}
               className={cn(
-                'grid h-14 min-w-0 flex-1 place-items-center rounded-lg border-2 text-2xl font-extrabold text-brand',
-                i === 4 && 'ml-3',
-                d !== undefined ? 'border-brand bg-surface' : i === digits.length && !disabled ? 'border-brand bg-slate-50' : 'border-slate-300 bg-slate-50',
+                'grid h-14 min-w-0 flex-1 place-items-center rounded-xl border-2 text-2xl font-extrabold text-brand transition-colors sm:h-16',
+                i === 4 && 'ml-3 sm:ml-4',
+                d !== undefined
+                  ? 'border-brand bg-surface'
+                  : i === digits.length && !disabled
+                    ? 'border-accent-hover bg-accent-soft'
+                    : 'border-slate-200 bg-slate-100',
               )}
             >
               {d === undefined ? '' : reveal ? d : '•'}
@@ -200,7 +202,7 @@ export function PinScreen({ notice, staffHref }: { notice: string | null; staffH
         })}
       </div>
 
-      <div className="mt-2 flex h-14 items-center justify-between gap-3" aria-live="polite">
+      <div className="flex h-14 items-center justify-between gap-3" aria-live="polite">
         <span className="min-w-0 flex-1">
           {sending && (
             <span role="status" className="inline-flex items-center gap-2 font-semibold text-slate-700">
@@ -221,7 +223,7 @@ export function PinScreen({ notice, staffHref }: { notice: string | null; staffH
         </button>
       </div>
 
-      <div role="group" aria-label={t.keypadLabel} className="mt-2 grid grid-cols-3 gap-3">
+      <div role="group" aria-label={t.keypadLabel} className="grid grid-cols-3 gap-2.5 sm:gap-3">
         {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'].map((key) =>
           key === '' ? (
             <span key="blank" aria-hidden />
@@ -233,8 +235,11 @@ export function PinScreen({ notice, staffHref }: { notice: string | null; staffH
               onClick={() => press(key)}
               aria-label={key === 'del' ? t.delete : key}
               className={cn(
-                'grid h-18 place-items-center rounded-2xl text-3xl font-bold select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40',
-                key === 'del' ? 'bg-slate-200 text-brand active:bg-slate-300' : 'border-2 border-slate-300 bg-surface text-brand active:bg-slate-100',
+                // Never below 56 px; grows on tall screens, shrinks on short phones so the keypad always fits.
+                'grid h-[clamp(3.5rem,9dvh,4.75rem)] place-items-center rounded-2xl text-3xl font-bold transition-transform select-none motion-safe:active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40',
+                key === 'del'
+                  ? 'bg-slate-200 text-brand hover:bg-slate-300 active:bg-slate-300'
+                  : 'border border-slate-200 bg-surface text-brand shadow-sm hover:bg-slate-50 active:bg-slate-100',
               )}
             >
               {key === 'del' ? <Delete aria-hidden className="size-8" /> : key}
@@ -243,14 +248,14 @@ export function PinScreen({ notice, staffHref }: { notice: string | null; staffH
         )}
       </div>
 
-      <p className="mt-auto pt-8 text-center">
+      <p className="mt-auto pt-4 text-center lg:mt-4 lg:text-left">
         <Link
           to={staffHref}
-          className="inline-flex min-h-14 items-center px-3 text-base text-slate-700 underline underline-offset-2 hover:text-brand focus-visible:outline-2 focus-visible:outline-focus"
+          className="inline-flex min-h-14 items-center rounded-lg px-3 text-base font-medium text-slate-700 underline underline-offset-4 hover:text-brand focus-visible:outline-2 focus-visible:outline-focus lg:-ml-3"
         >
           {t.staffLink}
         </Link>
       </p>
-    </main>
+    </AuthSplit>
   )
 }

@@ -234,7 +234,12 @@ export const strings = {
     redirecting: 'Signing you in…',
     forgotPassword: 'Forgot password?',
     staffTitle: 'Office staff sign in',
+    staffIntro: 'Use your work email and password.',
     back: 'Back',
+    heroTitle: 'Every contractor vehicle, approved before it reaches the gate.',
+    pointScan: 'Drivers scan a QR and fill the pre-trip check',
+    pointApprove: 'Supervisors and officers approve in minutes',
+    pointGate: 'Security checks vehicles in with one tap',
   },
 
   /** Module 12: the one-time PIN card shown after creating a driver or security user, or reissuing a PIN. */
@@ -271,6 +276,7 @@ export const strings = {
   /** Module 12: the PIN screen for drivers and security. Plain words, short lines. */
   pinLogin: {
     title: 'Enter your PIN',
+    subtitle: 'Drivers and security sign in with the 8-digit PIN you were given.',
     boxesLabel: 'Your PIN, 8 numbers',
     inputLabel: 'PIN',
     keypadLabel: 'Number keys',

@@ -11,8 +11,8 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import { authErrorMessage } from '@/lib/errors'
 import { auth } from '@/lib/firebase'
 import { OPERATOR_HOME, ROLE_HOME } from '@/lib/roles'
-import { BrandMark } from '@/components/BrandMark'
 import { strings } from '@/lib/strings'
+import { AuthHeading, AuthSplit } from './AuthSplit'
 import { nextForRole, safeNext } from './redirect'
 import { useAuth } from './useAuth'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
@@ -53,35 +53,29 @@ export default function StaffLoginPage() {
   }
 
   return (
-    <main className="grid min-h-dvh place-items-center px-4 py-10">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center text-center">
-          <BrandMark className="mb-3 size-16 rounded-2xl" />
-          <h1 className="text-2xl font-semibold tracking-tight">{strings.app.name}</h1>
-          <p className="mt-1 text-sm text-slate-500">{strings.app.tagline}</p>
-        </div>
+    <AuthSplit className="justify-center">
+      <AuthHeading title={strings.auth.staffTitle} subtitle={strings.auth.staffIntro} />
 
-        <div className="rounded-2xl border border-slate-200 bg-surface p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold">{strings.auth.staffTitle}</h2>
-          {message && (
-            <NotificationBanner tone="error" className="mb-4">{message}</NotificationBanner>
-          )}
-          <StaffForm onSubmit={signIn} />
-        </div>
-
-        <footer className="mt-6 flex flex-wrap justify-center gap-x-4 text-center">
-          <Link
-            to={params.get('next') ? `/login?next=${encodeURIComponent(params.get('next') ?? '')}` : '/login'}
-            className="inline-flex min-h-11 items-center px-3 text-sm text-slate-700 underline underline-offset-2 hover:text-brand focus-visible:outline-2 focus-visible:outline-focus"
-          >
-            {strings.auth.back}
-          </Link>
-          <Link to="/privacy" className="inline-flex min-h-11 items-center px-3 text-sm text-slate-700 underline underline-offset-2 hover:text-brand focus-visible:outline-2 focus-visible:outline-focus">
-            {strings.privacy.link}
-          </Link>
-        </footer>
+      <div className="mt-8 space-y-4">
+        {message && <NotificationBanner tone="error">{message}</NotificationBanner>}
+        <StaffForm onSubmit={signIn} />
       </div>
-    </main>
+
+      <footer className="mt-8 flex flex-wrap justify-center gap-x-2 text-center lg:justify-start lg:text-left">
+        <Link
+          to={params.get('next') ? `/login?next=${encodeURIComponent(params.get('next') ?? '')}` : '/login'}
+          className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-700 underline underline-offset-4 hover:text-brand focus-visible:outline-2 focus-visible:outline-focus lg:-ml-3"
+        >
+          {strings.auth.back}
+        </Link>
+        <Link
+          to="/privacy"
+          className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-700 underline underline-offset-4 hover:text-brand focus-visible:outline-2 focus-visible:outline-focus"
+        >
+          {strings.privacy.link}
+        </Link>
+      </footer>
+    </AuthSplit>
   )
 }
 
@@ -94,8 +88,9 @@ function StaffForm({ onSubmit }: { onSubmit: (email: string, password: string) =
   } = useForm<StaffValues>({ resolver: zodResolver(staffSchema) })
 
   return (
-    <form onSubmit={handleSubmit((v) => onSubmit(v.email, v.password))} className="space-y-4" noValidate>
+    <form onSubmit={handleSubmit((v) => onSubmit(v.email, v.password))} className="space-y-5" noValidate>
       <Input
+        className="h-12 rounded-xl text-base"
         label={strings.auth.email}
         type="email"
         inputMode="email"
@@ -106,6 +101,7 @@ function StaffForm({ onSubmit }: { onSubmit: (email: string, password: string) =
         {...register('email')}
       />
       <Input
+        className="h-12 rounded-xl pr-12 text-base"
         label={strings.auth.password}
         type={show ? 'text' : 'password'}
         autoComplete="current-password"
@@ -122,11 +118,14 @@ function StaffForm({ onSubmit }: { onSubmit: (email: string, password: string) =
         }
         {...register('password')}
       />
-      <Button type="submit" className="w-full" loading={isSubmitting}>
+      <Button type="submit" className="h-12 w-full rounded-xl text-base" loading={isSubmitting}>
         {isSubmitting ? strings.auth.signingIn : strings.auth.signIn}
       </Button>
-      <p className="text-center">
-        <Link to="/forgot-password" className="inline-flex min-h-11 items-center px-3 text-sm text-slate-700 underline underline-offset-2 hover:text-brand focus-visible:outline-2 focus-visible:outline-focus">
+      <p className="text-center lg:text-left">
+        <Link
+          to="/forgot-password"
+          className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-700 underline underline-offset-4 hover:text-brand focus-visible:outline-2 focus-visible:outline-focus lg:-ml-3"
+        >
           {strings.auth.forgotPassword}
         </Link>
       </p>
