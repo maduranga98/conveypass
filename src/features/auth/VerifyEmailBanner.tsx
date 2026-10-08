@@ -4,12 +4,15 @@ import { useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/Button'
 import { sendVerificationEmail } from '@/lib/emailActions'
+import { cn } from '@/lib/cn'
 import { auth } from '@/lib/firebase'
 import { strings } from '@/lib/strings'
 import { useAuth } from './useAuth'
 import { useCooldown } from './useCooldown'
 
 const t = strings.verifyBanner
+/** Shells with a fixed navy sidebar on desktop (16rem): the banner starts beside it, not under it. */
+const SIDEBAR_SHELL = /^\/(officer|supervisor)(\/|$)/
 
 /**
  * Slim, non-blocking reminder for signed-in STAFF whose email is not verified (a verified email is what makes the
@@ -59,7 +62,7 @@ export function VerifyEmailBanner() {
   }
 
   return (
-    <div role="region" aria-label={t.message} className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-accent/40 bg-warning-soft px-4 py-2 text-sm text-warning-ink">
+    <div role="region" aria-label={t.message} className={cn('flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-accent/40 bg-warning-soft px-4 py-2 text-sm text-warning-ink', SIDEBAR_SHELL.test(pathname) && 'lg:pl-68')}>
       <p className="flex items-center gap-2">
         <MailWarning aria-hidden className="size-4 shrink-0" />
         {t.message}

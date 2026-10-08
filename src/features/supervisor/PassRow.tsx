@@ -23,6 +23,8 @@ interface Props {
   showStatus?: boolean
   /** A short line under the driver (rejection reason, ...). */
   note?: string | undefined
+  /** When the wait shown on the row started (epoch ms). Defaults to the submission time. */
+  since?: number | null
   /** Select mode: a pickable row toggles instead of opening; a row with issues still opens. */
   selecting?: boolean
   selectable?: boolean
@@ -31,9 +33,10 @@ interface Props {
 }
 
 /** One pass in a dense list: about 70 px tall whatever the screen, so a long queue stays scannable. */
-export function PassRow({ pass, now, today, to, active = false, overdue = false, showStatus = false, note, selecting = false, selectable = true, selected = false, onToggle }: Props) {
+export function PassRow({ pass, now, today, to, active = false, overdue = false, showStatus = false, note, since, selecting = false, selectable = true, selected = false, onToggle }: Props) {
   const issues = issueCount(pass)
   const toggles = selecting && selectable
+  const waited = timeAgo(since === undefined ? toMs(pass.submittedAt) : since, now)
   const body = (
     <>
       <div className="size-12 shrink-0 overflow-hidden rounded-lg bg-slate-200">
@@ -54,10 +57,10 @@ export function PassRow({ pass, now, today, to, active = false, overdue = false,
           <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-brand">
             <Clock aria-hidden className="size-3.5" />
             <span className="sr-only">{c.overdue}: </span>
-            {timeAgo(toMs(pass.submittedAt), now)}
+            {waited}
           </span>
         ) : (
-          <span className="text-xs font-medium text-slate-600">{timeAgo(toMs(pass.submittedAt), now)}</span>
+          <span className="text-xs font-medium text-slate-600">{waited}</span>
         )}
         {issues > 0 && (
           <span className="inline-flex items-center gap-1 rounded-full bg-danger-strong px-2 py-0.5 text-xs font-bold text-on-solid">
