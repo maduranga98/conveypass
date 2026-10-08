@@ -14,22 +14,16 @@ import { PassCard } from '@/features/passes/PassCard'
 import { useDecisions } from '@/features/passes/useDecisions'
 import { QUEUE_LIMIT, usePassQueue } from '@/features/passes/usePassQueue'
 import { useNow, useToday } from '@/features/passes/useToday'
-import type { BulkItemResult, PassStatus, PassWithId } from '@/types/passes'
+import type { BulkItemResult, PassWithId } from '@/types/passes'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
+import { isOverdue, oldestFirst, TAB_STATUSES as STATUSES, type SupervisorTab as Tab } from './queue'
+import { useSupervisorTarget } from './useSupervisorTarget'
 
 const t = strings.supervisor.approvals
 const a = strings.approvals
 
-type Tab = 'pending' | 'approved' | 'rejected'
 const TABS: readonly Tab[] = ['pending', 'approved', 'rejected']
 const isTab = (v: string | null): v is Tab => v === 'pending' || v === 'approved' || v === 'rejected'
-
-const STATUSES: Record<Tab, PassStatus[]> = {
-  pending: ['submitted'],
-  // Passes this supervisor approved today stay listed while they move on to the officer and the gate.
-  approved: ['supervisor_approved', 'officer_approved', 'checked_in'],
-  rejected: ['rejected'],
-}
 
 /** The line shown under an Approved/Rejected card. */
 const noteFor = (tab: Tab, p: PassWithId): string | undefined =>
@@ -42,6 +36,7 @@ export default function ApprovalsPage() {
   const today = useToday()
   const now = useNow()
   const decisions = useDecisions()
+  const target = useSupervisorTarget()
 
   const enabled = today !== null
   const day = today ? { dateKey: today } : {}
@@ -51,8 +46,13 @@ export default function ApprovalsPage() {
   const rejected = usePassQueue({ scope: 'supervisor', status: STATUSES.rejected, ...day, enabled: enabled && tab === 'rejected' })
   const queue = { pending, approved, rejected }[tab]
 
-  const visible = useMemo(() => queue.items.filter((p) => !decisions.isHidden(p)), [queue.items, decisions])
-  const pendingVisible = useMemo(() => pending.items.filter((p) => !decisions.isHidden(p)), [pending.items, decisions])
+  // Pending is worked through longest waiting first; the other tabs stay newest first.
+  const pendingVisible = useMemo(() => oldestFirst(pending.items.filter((p) => !decisions.isHidden(p))), [pending.items, decisions])
+  const visible = useMemo(
+    () => (tab === 'pending' ? pendingVisible : queue.items.filter((p) => !decisions.isHidden(p))),
+    [tab, pendingVisible, queue.items, decisions],
+  )
+  const overdueCount = pendingVisible.filter((p) => isOverdue(p, now, target)).length
   const sel = useBulkSelection(pendingVisible, today)
 
   const [confirming, setConfirming] = useState(false)
@@ -138,6 +138,12 @@ export default function ApprovalsPage() {
         ) : (
           <>
             {queue.isError && <NotificationBanner tone="warning" role="alert">{a.queue.loadFailed}</NotificationBanner>}
+            {tab === 'pending' &&
+              (overdueCount > 0 ? (
+                <NotificationBanner tone="warning">{t.overdue(overdueCount, target)}</NotificationBanner>
+              ) : (
+                <p className="text-sm text-slate-700">{`${t.waiting(visible.length)} ${t.oldestFirst}`}</p>
+              ))}
             <ul className="space-y-3">
               {visible.map((p) => {
                 const pickable = today !== null && isBulkSelectable(p, today)
@@ -151,6 +157,7 @@ export default function ApprovalsPage() {
                       selectable={pickable}
                       selected={sel.selected.has(p.id)}
                       {...(note ? { note } : {})}
+                      overdue={tab === 'pending' && isOverdue(p, now, target)}
                       onOpen={() => open(p)}
                       onToggle={() => sel.toggle(p)}
                     />

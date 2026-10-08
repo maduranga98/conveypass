@@ -63,7 +63,10 @@ export default function PlatformLoginPage() {
 
   const from = safePlatformPath(params.get('from')) ?? OPERATOR_HOME
   const reason = params.get('reason') ?? peekLoginReason()
-  useEffect(() => setLoginReason(undefined), []) // the idle reason is shown once
+  // The idle reason is shown once.
+  useEffect(() => {
+    setLoginReason(undefined)
+  }, [])
 
   if (status === 'loading') return <PageSpinner />
   // Already a signed-in super admin (and not mid-attempt): straight to where they were going.

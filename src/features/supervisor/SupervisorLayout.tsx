@@ -45,7 +45,8 @@ export default function SupervisorLayout() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-6 print:max-w-none print:p-0">
-        <div className="pb-4 empty:hidden print:hidden"><PushOptInCard /></div>
+        {/* Not while reviewing: the pass itself has to be the first thing on screen. */}
+        {!reviewing && <div className="pb-4 empty:hidden print:hidden"><PushOptInCard /></div>}
         {claims.contractorId ? (
           <Outlet />
         ) : (

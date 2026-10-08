@@ -24,6 +24,17 @@ export default defineConfig([
       'jsx-a11y/label-has-associated-control': ['error', { assert: 'either', depth: 4 }],
       // Zod's JIT compiler needs 'unsafe-eval' (blocked by our CSP): '@/lib/zod' turns it off.
       'no-restricted-imports': ['error', { paths: [{ name: 'zod', message: "Import { z } from '@/lib/zod' (CSP-safe)." }] }],
+      // React calls whatever an effect returns as its cleanup. An expression body returns the call's value, and some
+      // browser APIs now return one (window.scrollTo gives a Promise in current Chrome): "x is not a function" on
+      // unmount. Write effects with a block body, or return a cleanup arrow (`() => () => ...`).
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.name=/^use(Layout|Insertion)?Effect$/] > ArrowFunctionExpression.arguments:first-child[expression=true]:not([body.type='ArrowFunctionExpression'])",
+          message: 'Give effects a block body: an expression body becomes the cleanup React calls on unmount.',
+        },
+      ],
     },
   },
   {

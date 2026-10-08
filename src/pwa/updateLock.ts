@@ -17,5 +17,7 @@ export const isUpdateLocked = (): boolean => holders.size > 0
 
 /** Hold the lock while `active` is true and the component is mounted. */
 export function useUpdateLock(active = true): void {
-  useEffect(() => (active ? acquireUpdateLock() : undefined), [active])
+  useEffect(() => {
+    if (active) return acquireUpdateLock()
+  }, [active])
 }

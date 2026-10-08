@@ -1,4 +1,4 @@
-import { Check, ChevronRight, TriangleAlert } from 'lucide-react'
+import { Check, ChevronRight, Clock, TriangleAlert } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
 import type { PassWithId } from '@/types/passes'
@@ -20,12 +20,14 @@ interface Props {
   selectable?: boolean
   /** A line under the photos (the rejection reason, who approved, ...). */
   note?: string
+  /** Waited past the time target: the age turns into an "Overdue" chip. */
+  overdue?: boolean
   onOpen: () => void
   onToggle?: () => void
 }
 
 /** Summary of one pass: big plate, who and when, two photos, and an issues chip when any answer is No. */
-export function PassCard({ pass, now, contractorName, mode = 'open', selected = false, selectable = true, note, onOpen, onToggle }: Props) {
+export function PassCard({ pass, now, contractorName, mode = 'open', selected = false, selectable = true, note, overdue = false, onOpen, onToggle }: Props) {
   const issues = issueCount(pass)
   const selecting = mode === 'select'
   const canPick = selecting && selectable
@@ -77,7 +79,15 @@ export function PassCard({ pass, now, contractorName, mode = 'open', selected = 
             </p>
           </div>
           <div className="shrink-0 text-right">
-            <p className="text-sm font-semibold text-slate-800">{timeAgo(toMs(pass.submittedAt), now)}</p>
+            {overdue ? (
+              <p className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-sm font-bold text-brand">
+                <Clock aria-hidden className="size-4" />
+                <span className="sr-only">{t.overdue}: </span>
+                {timeAgo(toMs(pass.submittedAt), now)}
+              </p>
+            ) : (
+              <p className="text-sm font-semibold text-slate-800">{timeAgo(toMs(pass.submittedAt), now)}</p>
+            )}
             {pass.attempt > 1 && <p className="text-xs text-slate-600">{t.attempt(pass.attempt)}</p>}
           </div>
         </div>
