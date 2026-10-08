@@ -40,3 +40,7 @@ test-results/
 playwright-report/
 .drill/
 dist-csp
+# Module 12: PIN migration output must never be committed (it belongs outside the repo anyway)
+*pins*.csv
+*pin-login*.csv
+functions/.secret.local

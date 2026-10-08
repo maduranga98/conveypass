@@ -18,11 +18,11 @@ async function audit(page: Page, what: string): Promise<void> {
 }
 
 test.describe('accessibility: login', () => {
-  test('login (both modes) and privacy', async ({ page }) => {
+  test('PIN screen, staff form and privacy', async ({ page }) => {
     await page.goto('/login')
+    await audit(page, 'login: PIN')
+    await page.getByRole('link', { name: 'Office staff? Sign in with email' }).click()
     await audit(page, 'login: staff')
-    await page.getByRole('button', { name: 'Driver' }).click()
-    await audit(page, 'login: driver')
     await page.getByRole('link', { name: 'Privacy' }).click()
     await audit(page, 'privacy')
   })

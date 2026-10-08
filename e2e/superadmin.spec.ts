@@ -84,7 +84,7 @@ test.describe('super admin bootstrap and sign-in', () => {
 
   test('the main /login still sends a super admin to /platform', async ({ page }) => {
     const created = superadminCreate(OP.email, OP.name)
-    await page.goto('/login')
+    await page.goto('/login/staff')
     await page.getByLabel('Email').fill(OP.email)
     await page.getByLabel('Password', { exact: true }).fill(created.password ?? '')
     await page.getByRole('button', { name: 'Sign in' }).click()

@@ -21,6 +21,7 @@
     "../functions/src/defaultChecklist.ts",
     "../functions/src/defaultRejectionReasons.ts",
     "../functions/src/defaultSla.ts",
-    "../functions/src/gates.ts"
+    "../functions/src/gates.ts",
+    "../functions/src/pin.ts"
   ]
 }

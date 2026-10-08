@@ -4,7 +4,8 @@ import { initializeApp, getApps } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 import { tenantDefaults } from '../../functions/src/tenants/tenantDefaults.ts'
-import { CONTRACTOR, DRIVER_AUTH_EMAIL, PASSWORD, PIN, PLATE, PROJECT, STAFF, TENANT, VEHICLE } from './constants.ts'
+import { DEV_PIN_PEPPER, pinKey } from '../../functions/src/pin.ts'
+import { CONTRACTOR, DRIVER_PIN, PASSWORD, PLATE, PROJECT, SECURITY_PIN, STAFF, TENANT, VEHICLE } from './constants.ts'
 
 process.env.FIREBASE_AUTH_EMULATOR_HOST ??= '127.0.0.1:9099'
 process.env.FIRESTORE_EMULATOR_HOST ??= '127.0.0.1:8080'
@@ -24,6 +25,18 @@ const uids: Record<string, string> = {}
 async function user(key: string, email: string, password: string, name: string, claims: Record<string, string>, doc: Record<string, unknown>): Promise<void> {
   // Verified: the unverified-email banner has its own tests (e2e/setup.spec.ts), and must not sit on every other screen.
   const u = await auth.createUser({ email, password, displayName: name, emailVerified: true })
+  await finish(key, u.uid, name, claims, doc)
+}
+
+/** Module 12: a driver or security user has no email and no password; `pinIndex/{hmac}` points at it (dev pepper). */
+async function pinUser(key: string, pin: string, name: string, claims: Record<string, string>, doc: Record<string, unknown>): Promise<void> {
+  const u = await auth.createUser({ displayName: name })
+  await db.doc(`pinIndex/${pinKey(pin, DEV_PIN_PEPPER)}`).set({ uid: u.uid, tenantId: TENANT, role: claims.role, createdAt: Timestamp.now() })
+  await finish(key, u.uid, name, claims, { loginType: 'pin', pinVersion: 1, ...doc })
+}
+
+async function finish(key: string, uid: string, name: string, claims: Record<string, string>, doc: Record<string, unknown>): Promise<void> {
+  const u = { uid }
   await auth.setCustomUserClaims(u.uid, claims)
   await db.doc(`users/${u.uid}`).set({
     tenantId: TENANT, contractorId: null, name, email: null, phone: null, status: 'active', mustChangePassword: false,
@@ -39,10 +52,12 @@ async function seed(): Promise<Record<string, string>> {
   await db.doc(`tenants/${TENANT}`).set({ name: 'E2E Quarry', status: 'active', ...tenantDefaults('Asia/Colombo'), createdAt: FieldValue.serverTimestamp() })
   await db.doc(`contractors/${CONTRACTOR}`).set({ tenantId: TENANT, name: 'Acme Haulage', status: 'active', createdAt: Timestamp.now(), createdBy: 'e2e', updatedAt: Timestamp.now() })
   for (const [role, who] of Object.entries(STAFF)) {
+    if (role === 'security') continue
     const contractorId = role === 'supervisor' ? CONTRACTOR : null
-    await user(role, who.email, PASSWORD, who.name, { role, tenantId: TENANT, ...(contractorId ? { contractorId } : {}) }, { role, email: who.email, contractorId })
+    await user(role, who.email, PASSWORD, who.name, { role, tenantId: TENANT, ...(contractorId ? { contractorId } : {}) }, { role, email: who.email, contractorId, loginType: 'password' })
   }
-  await user('driver', DRIVER_AUTH_EMAIL, PIN, 'Dan Driver', { role: 'driver', tenantId: TENANT, contractorId: CONTRACTOR }, { role: 'driver', contractorId: CONTRACTOR, phone: '94771234567' })
+  await pinUser('security', SECURITY_PIN, STAFF.security.name, { role: 'security', tenantId: TENANT }, { role: 'security' })
+  await pinUser('driver', DRIVER_PIN, 'Dan Driver', { role: 'driver', tenantId: TENANT, contractorId: CONTRACTOR }, { role: 'driver', contractorId: CONTRACTOR, phone: '94771234567' })
   await db.doc(`drivers/${uids.driver}`).set({ tenantId: TENANT, contractorId: CONTRACTOR, name: 'Dan Driver', phone: '94771234567', status: 'active', createdAt: Timestamp.now(), updatedAt: Timestamp.now() })
   await db.doc(`vehicles/${VEHICLE}`).set({
     tenantId: TENANT, contractorId: CONTRACTOR, plateNo: PLATE, plateKey: 'WPLJ4821', type: 'Tipper', assignedDriverIds: [uids.driver], status: 'active',
