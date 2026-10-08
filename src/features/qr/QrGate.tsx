@@ -8,12 +8,12 @@ import { strings } from '@/lib/strings'
 export function DevLinkBanner({ base }: { base: AppBase }) {
   if (!base.isDevLink) return null
   return (
-    <div role="alert" className="rounded-lg border border-red-800 bg-red-700 px-4 py-3 text-white print:hidden">
+    <div role="alert" className="rounded-lg border border-danger-hover bg-danger-strong px-4 py-3 text-on-solid print:hidden">
       <p className="flex items-center gap-2 text-sm font-semibold">
         <TriangleAlert aria-hidden className="size-4 shrink-0" />
         {strings.qr.devBanner}
       </p>
-      <p className="mt-1 break-all text-xs text-white">{strings.qr.devBannerBody(base.url)}</p>
+      <p className="mt-1 break-all text-xs text-on-solid">{strings.qr.devBannerBody(base.url)}</p>
     </div>
   )
 }

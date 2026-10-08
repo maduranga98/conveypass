@@ -35,7 +35,7 @@ export function EntitySearch({ label, placeholder, options, value, onChange, loa
         <span>{label}</span>
         <span className="inline-flex h-10 items-center justify-between gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 font-normal">
           <span className="truncate">{selected ? selected.label : value}{selected?.hint ? <span className="text-slate-500"> · {selected.hint}</span> : null}</span>
-          <button type="button" aria-label={`${t.clear}: ${label}`} onClick={() => { onChange(''); setText('') }} className="rounded p-1 hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-accent">
+          <button type="button" aria-label={`${t.clear}: ${label}`} onClick={() => { onChange(''); setText('') }} className="rounded p-1 hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-focus">
             <X aria-hidden className="size-4" />
           </button>
         </span>
@@ -56,10 +56,10 @@ export function EntitySearch({ label, placeholder, options, value, onChange, loa
         value={text}
         placeholder={loading ? strings.common.loading : placeholder}
         onChange={(e) => setText(e.target.value)}
-        className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal focus-visible:outline-2 focus-visible:outline-accent"
+        className="h-10 rounded-lg border border-slate-300 bg-surface px-3 text-sm font-normal focus-visible:outline-2 focus-visible:outline-focus"
       />
       {text.trim() !== '' && (
-        <ul id={listId} role="listbox" aria-label={label} className="absolute top-full z-20 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+        <ul id={listId} role="listbox" aria-label={label} className="absolute top-full z-20 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-slate-200 bg-surface py-1 shadow-lg">
           {matches.length === 0 ? (
             <li role="presentation" className="px-3 py-2 font-normal text-slate-500">{t.noMatches}</li>
           ) : (

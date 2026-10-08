@@ -28,7 +28,7 @@ export function CheckList({ legend, options, value, onChange, emptyText, disable
       {options.length === 0 ? (
         <p className="rounded-lg border border-dashed border-slate-300 px-3 py-3 text-sm text-slate-500">{emptyText}</p>
       ) : (
-        <ul className="max-h-48 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-300 bg-white">
+        <ul className="max-h-48 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-300 bg-surface">
           {options.map((o) => (
             <li key={o.id}>
               <label className="flex min-h-11 cursor-pointer items-center gap-3 px-3 py-2 text-sm has-[:disabled]:cursor-not-allowed has-[:focus-visible]:bg-slate-50">
@@ -37,9 +37,9 @@ export function CheckList({ legend, options, value, onChange, emptyText, disable
                   name={name}
                   checked={value.includes(o.id)}
                   onChange={() => toggle(o.id)}
-                  className="size-4 rounded border-slate-300 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  className="size-4 rounded border-slate-300 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                 />
-                <span className="min-w-0 flex-1 truncate text-slate-900">{o.label}</span>
+                <span className="min-w-0 flex-1 truncate text-brand">{o.label}</span>
                 {o.hint && <span className="shrink-0 text-xs text-slate-500">{o.hint}</span>}
               </label>
             </li>

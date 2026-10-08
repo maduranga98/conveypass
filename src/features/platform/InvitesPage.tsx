@@ -111,7 +111,7 @@ export default function InvitesPage() {
         {list.isPending ? (
           <PageSpinner />
         ) : list.isError ? (
-          <ErrorState message={t.loadFailed} onRetry={() => void list.refetch()} />
+          <ErrorState message={t.loadFailed} error={list.error} onRetry={() => void list.refetch()} />
         ) : rows.length === 0 ? (
           <EmptyState title={filter ? t.emptyFiltered : t.empty} />
         ) : (

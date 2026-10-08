@@ -22,7 +22,7 @@ export default function OfficerLayout() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-30 border-b border-slate-300 bg-white print:hidden">
+      <header className="sticky top-0 z-30 border-b border-slate-300 bg-surface print:hidden">
         <div className="flex h-14 items-center justify-between gap-4 px-4 lg:px-6">
           <div className="flex min-w-0 items-center gap-6">
             <p className="hidden text-base font-semibold tracking-tight sm:block">{strings.officer.topBar}</p>
@@ -34,8 +34,8 @@ export default function OfficerLayout() {
                   end={end}
                   className={({ isActive }) =>
                     cn(
-                      'flex h-9 items-center rounded-lg px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-accent',
-                      isActive ? 'bg-accent-soft text-accent' : 'text-slate-700 hover:bg-slate-100',
+                      'flex h-9 items-center rounded-lg px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-focus',
+                      isActive ? 'bg-accent-soft text-brand' : 'text-slate-700 hover:bg-slate-100',
                     )
                   }
                 >

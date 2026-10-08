@@ -15,6 +15,7 @@ import { filterProblem, parseFilters, toParams, toRequest, type ReportFilters } 
 import { ReportPicker } from './ReportPicker'
 import { ReportView } from './ReportView'
 import type { ReportType } from '@/types/reports'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.reports
 
@@ -93,11 +94,11 @@ export default function ReportsPage() {
       )}
 
       {!filters ? null : problem === 'need-vehicle' || problem === 'need-driver' ? (
-        <p role="status" className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500">
+        <p role="status" className="rounded-xl border border-dashed border-slate-300 bg-surface px-4 py-8 text-center text-sm text-slate-500">
           {problem === 'need-vehicle' ? t.filters.needVehicle : t.filters.needDriver}
         </p>
       ) : problem ? (
-        <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{problem === 'range-long' ? t.filters.maxRange : t.filters.orderError}</p>
+        <NotificationBanner tone="error">{problem === 'range-long' ? t.filters.maxRange : t.filters.orderError}</NotificationBanner>
       ) : report.isPending ? (
         <div role="status" aria-busy="true" className="space-y-3">
           <span className="sr-only">{t.running}</span>
@@ -105,7 +106,7 @@ export default function ReportsPage() {
           <Skeleton className="h-64 w-full rounded-xl" />
         </div>
       ) : report.isError ? (
-        <ErrorState message={apiErrorMessage(report.error)} onRetry={() => void report.refetch()} />
+        <ErrorState message={apiErrorMessage(report.error)} error={report.error} onRetry={() => void report.refetch()} />
       ) : (
         <ReportView result={report.data} filterLines={lines} />
       )}

@@ -15,7 +15,7 @@ function ErrorPage({ icon, title, body }: { icon: React.ReactNode; title: string
         <p className="mt-2 text-sm text-slate-500">{body}</p>
         <Link
           to={to}
-          className="mt-6 inline-flex h-11 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="mt-6 inline-flex h-11 items-center rounded-lg bg-brand px-4 text-sm font-medium text-on-solid hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
           {session || operator ? strings.errorPages.goHome : strings.errorPages.signInRequired}
         </Link>

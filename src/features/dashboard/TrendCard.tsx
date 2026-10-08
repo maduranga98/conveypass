@@ -60,7 +60,7 @@ export function TrendCard() {
             type="button"
             aria-pressed={days === n}
             onClick={() => setDays(n)}
-            className={`h-9 px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-accent ${days === n ? 'bg-accent text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+            className={`h-9 px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-focus ${days === n ? 'bg-brand text-on-solid' : 'bg-surface text-slate-700 hover:bg-slate-50'}`}
           >
             {n}
           </button>
@@ -73,7 +73,7 @@ export function TrendCard() {
   )
 
   if (trend.isPending) return <Skeleton className="h-80 w-full rounded-xl" />
-  if (trend.isError && !trend.data) return <ErrorState message={t.loadFailed} onRetry={() => void trend.refetch()} />
+  if (trend.isError && !trend.data) return <ErrorState message={t.loadFailed} error={trend.error} onRetry={() => void trend.refetch()} />
 
   return (
     <div className="space-y-2">

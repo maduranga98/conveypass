@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { DataTable } from '@/components/ui/DataTable'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { ListSkeleton } from '@/components/ui/Skeleton'
 import { Modal } from '@/components/ui/Modal'
@@ -103,7 +104,7 @@ export default function PassesPage() {
     [queue.items, status, contractorId, today],
   )
 
-  const field = 'h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm focus-visible:outline-2 focus-visible:outline-accent'
+  const field = 'h-10 rounded-lg border border-slate-300 bg-surface px-3 text-sm focus-visible:outline-2 focus-visible:outline-focus'
   const label = 'flex flex-col gap-1 text-sm font-medium text-slate-700'
 
   return (
@@ -136,45 +137,48 @@ export default function PassesPage() {
       </div>
 
       {queue.isError && queue.items.length === 0 ? (
-        <ErrorState message={t.loadFailed} onRetry={queue.retry} />
+        <ErrorState message={t.loadFailed} error={queue.error} onRetry={queue.retry} />
       ) : queue.isLoading ? (
         <ListSkeleton rows={6} />
       ) : rows.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white">
+        <div className="rounded-xl border border-slate-200 bg-surface">
           <EmptyState icon={<ClipboardList aria-hidden />} title={t.emptyTitle} body={t.emptyBody} />
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-          <table className="w-full min-w-[720px] border-collapse text-sm">
-            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              <tr>
-                <th scope="col" className="px-4 py-3">{t.columns.plate}</th>
-                <th scope="col" className="px-4 py-3">{t.columns.contractor}</th>
-                <th scope="col" className="px-4 py-3">{t.columns.driver}</th>
-                <th scope="col" className="px-4 py-3">{t.columns.status}</th>
-                <th scope="col" className="px-4 py-3">{t.columns.submitted}</th>
-                <th scope="col" className="px-4 py-3">{t.columns.issues}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {rows.map((p) => (
-                <tr key={p.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3">
-                    <button type="button" onClick={() => setOpenId(p.id)} aria-label={t.open(p.plateNo)} className="rounded font-bold tracking-tight text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
-                      {p.plateNo}
-                    </button>
-                    <p className="text-xs text-slate-500">{p.vehicleType}</p>
-                  </td>
-                  <td className="px-4 py-3">{nameOf(p.contractorId)}</td>
-                  <td className="px-4 py-3">{p.driverName}</td>
-                  <td className="px-4 py-3"><PassStatusBadge status={displayStatus(p, today)} /></td>
-                  <td className="px-4 py-3 whitespace-nowrap">{timeAgo(toMs(p.submittedAt), now)} <span className="text-xs text-slate-500">({formatTime(toMs(p.submittedAt))})</span></td>
-                  <td className="px-4 py-3">{issueCount(p) > 0 ? <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">{strings.approvals.card.issues(issueCount(p))}</span> : strings.common.none}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          caption={t.title}
+          rows={rows}
+          rowKey={(p) => p.id}
+          columns={[
+            {
+              key: 'plate',
+              header: t.columns.plate,
+              primary: true,
+              cell: (p) => (
+                <>
+                  <button type="button" onClick={() => setOpenId(p.id)} aria-label={t.open(p.plateNo)} className="rounded font-bold tracking-tight text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
+                    {p.plateNo}
+                  </button>
+                  <p className="text-xs font-normal text-slate-500">{p.vehicleType}</p>
+                </>
+              ),
+            },
+            { key: 'contractor', header: t.columns.contractor, cell: (p) => nameOf(p.contractorId) },
+            { key: 'driver', header: t.columns.driver, cell: (p) => p.driverName },
+            { key: 'status', header: t.columns.status, cell: (p) => <PassStatusBadge status={displayStatus(p, today)} /> },
+            {
+              key: 'submitted',
+              header: t.columns.submitted,
+              className: 'whitespace-nowrap',
+              cell: (p) => <>{timeAgo(toMs(p.submittedAt), now)} <span className="text-xs text-slate-500">({formatTime(toMs(p.submittedAt))})</span></>,
+            },
+            {
+              key: 'issues',
+              header: t.columns.issues,
+              cell: (p) => (issueCount(p) > 0 ? <span className="rounded-full bg-danger-soft px-2 py-0.5 text-xs font-semibold text-danger-strong">{strings.approvals.card.issues(issueCount(p))}</span> : strings.common.none),
+            },
+          ]}
+        />
       )}
       {queue.capped && <p role="status" className="text-sm text-slate-600">{strings.approvals.queue.capNotice}</p>}
 

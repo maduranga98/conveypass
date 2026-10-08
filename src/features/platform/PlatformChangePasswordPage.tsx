@@ -15,6 +15,7 @@ import { strings } from '@/lib/strings'
 import { platformLoginUrl, safePlatformPath } from './redirect'
 import { reauthenticate, WrongPassword } from './reauth'
 import { usePrivateMeta } from './usePrivateMeta'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.platformAuth.changePassword
 
@@ -77,16 +78,16 @@ export default function PlatformChangePasswordPage() {
     <main className="grid min-h-dvh place-items-center bg-slate-100 px-4 py-10">
       <div className="w-full max-w-sm">
         <p className="mb-6 text-center text-xs font-semibold uppercase tracking-wide text-slate-700">{strings.platformAuth.label}</p>
-        <div className="rounded-xl border border-slate-300 bg-white p-6">
+        <div className="rounded-xl border border-slate-300 bg-surface p-6">
           <h1 className="text-xl font-semibold tracking-tight">{t.title}</h1>
           <p className="mt-1 text-sm text-slate-600">{forced ? t.forcedIntro : t.intro}</p>
-          {error && <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</p>}
+          {error && <NotificationBanner tone="error" className="mt-4">{error}</NotificationBanner>}
           <form onSubmit={(e) => void submit(e)} className="mt-5 space-y-4" noValidate>
             <PasswordInput label={t.current} autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
             <PasswordInput label={t.new} autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
             <ul className="space-y-1 text-sm" aria-label={t.rulesLabel}>
               {rules.map(([ok, label]) => (
-                <li key={label} className={ok ? 'flex items-center gap-2 text-slate-900' : 'flex items-center gap-2 text-slate-600'}>
+                <li key={label} className={ok ? 'flex items-center gap-2 text-brand' : 'flex items-center gap-2 text-slate-600'}>
                   {ok ? <Check aria-hidden className="size-4" /> : <Circle aria-hidden className="size-4" />}
                   {label}
                 </li>

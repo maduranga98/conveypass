@@ -15,7 +15,7 @@ export function FailedQueueBanner() {
     <Link
       to="/security/queue"
       role="alert"
-      className="flex min-h-12 items-center gap-2 bg-amber-300 px-4 py-2 text-base font-bold text-slate-950 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-slate-950"
+      className="flex min-h-12 items-center gap-2 bg-accent px-4 py-2 text-base font-bold text-brand underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-brand"
     >
       <TriangleAlert aria-hidden className="size-5 shrink-0" />
       {t.failedBanner(failed)}
@@ -28,7 +28,7 @@ export function OfflineBanner({ offline, stale }: { offline: boolean; stale: boo
   if (!offline && !stale) return null
   const Icon = offline ? WifiOff : CloudOff
   return (
-    <p role="status" className="flex items-center gap-2 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">
+    <p role="status" className="flex items-center gap-2 bg-brand px-4 py-2.5 text-sm font-semibold text-on-solid">
       <Icon aria-hidden className="size-5 shrink-0" />
       {offline ? t.offlineBanner : t.staleBanner}
     </p>

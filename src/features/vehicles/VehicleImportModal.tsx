@@ -12,6 +12,7 @@ import { useContractorList } from '@/features/shared/queries'
 import { useScope, type Scope } from '@/features/shared/scope'
 import { downloadText, parseVehicleCsv, TEMPLATE_CSV, toCsv, type CsvRow } from './csv'
 import { importInChunks, type RowOutcome } from './importRunner'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.vehicles.import
 const PREVIEW_ROWS = 200
@@ -89,9 +90,7 @@ function ImportFlow({ scope, onClose }: { scope: Scope; onClose: () => void }) {
             </Select>
           )}
           {error && (
-            <p role="alert" className="rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700">
-              {error}
-            </p>
+            <NotificationBanner tone="error">{error}</NotificationBanner>
           )}
           <div className="space-y-3 rounded-xl border border-dashed border-slate-300 p-6 text-center">
             <FileUp aria-hidden className="mx-auto size-8 text-slate-300" />
@@ -140,10 +139,10 @@ function Preview({ step, onBack, onImport }: { step: Extract<Step, { name: 'prev
         <h3 className="text-sm font-semibold">{t.previewTitle}</h3>
         <p className="mt-0.5 truncate text-xs text-slate-500">{step.fileName}</p>
         <p className="mt-2 flex flex-wrap gap-x-3 text-sm">
-          <span className="text-emerald-700">{t.valid(valid)}</span>
-          {invalid > 0 && <span className="text-red-700">{t.invalid(invalid)}</span>}
+          <span className="text-success-strong">{t.valid(valid)}</span>
+          {invalid > 0 && <span className="text-danger-strong">{t.invalid(invalid)}</span>}
         </p>
-        {step.truncated && <p className="mt-1 text-xs text-amber-700">{t.tooMany(2000)}</p>}
+        {step.truncated && <p className="mt-1 text-xs text-warning-strong">{t.tooMany(2000)}</p>}
       </div>
       <div className="max-h-96 overflow-auto rounded-xl border border-slate-200">
         <table className="w-full text-left text-xs">
@@ -157,11 +156,11 @@ function Preview({ step, onBack, onImport }: { step: Extract<Step, { name: 'prev
           </thead>
           <tbody className="divide-y divide-slate-100">
             {step.rows.slice(0, PREVIEW_ROWS).map((r) => (
-              <tr key={r.line} className={r.value ? '' : 'bg-red-50/60'}>
+              <tr key={r.line} className={r.value ? '' : 'bg-danger-soft/60'}>
                 <td className="px-3 py-2 tabular-nums text-slate-500">{r.line}</td>
                 <td className="px-3 py-2 font-mono">{r.raw.plateNo || strings.common.none}</td>
                 <td className="px-3 py-2">{r.raw.type || strings.common.none}</td>
-                <td className={r.value ? 'px-3 py-2 text-emerald-700' : 'px-3 py-2 text-red-700'}>{r.value ? t.ok : r.error}</td>
+                <td className={r.value ? 'px-3 py-2 text-success-strong' : 'px-3 py-2 text-danger-strong'}>{r.value ? t.ok : r.error}</td>
               </tr>
             ))}
           </tbody>
@@ -192,8 +191,8 @@ function Summary({ imported, failed, onAnother, onClose }: { imported: number; f
       <div>
         <h3 className="text-base font-semibold">{t.summaryTitle}</h3>
         <p className="mt-2 flex flex-wrap gap-x-4 text-sm" role="status">
-          <span className="text-emerald-700">{t.imported(imported)}</span>
-          <span className={failed.length > 0 ? 'text-red-700' : 'text-slate-500'}>{t.failed(failed.length)}</span>
+          <span className="text-success-strong">{t.imported(imported)}</span>
+          <span className={failed.length > 0 ? 'text-danger-strong' : 'text-slate-500'}>{t.failed(failed.length)}</span>
         </p>
       </div>
       {failed.length > 0 && (
@@ -202,7 +201,7 @@ function Summary({ imported, failed, onAnother, onClose }: { imported: number; f
             {failed.slice(0, PREVIEW_ROWS).map((f, i) => (
               <li key={i} className="flex justify-between gap-3 px-3 py-2">
                 <span className="font-mono">{f.raw.plateNo || strings.common.none}</span>
-                <span className="text-right text-red-700">{f.error}</span>
+                <span className="text-right text-danger-strong">{f.error}</span>
               </li>
             ))}
           </ul>

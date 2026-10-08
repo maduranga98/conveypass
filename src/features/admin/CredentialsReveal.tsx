@@ -30,7 +30,7 @@ export function CredentialsReveal({ loginId, secret, isPin, onDone }: Props) {
 
   return (
     <div className="space-y-5">
-      <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-800">{t.credentialsWarning}</p>
+      <p className="rounded-lg bg-warning-soft px-3 py-2.5 text-sm text-warning-ink">{t.credentialsWarning}</p>
       <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 text-sm">
         <div className="flex items-center justify-between gap-4 px-4 py-3">
           <dt className="text-slate-500">{t.loginId}</dt>

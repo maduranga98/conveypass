@@ -45,7 +45,7 @@ export function PassTable({ rows, now, today, contractorName, openId, onOpen, se
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-300 bg-white">
+    <div className="overflow-x-auto rounded-xl border border-slate-300 bg-surface">
       <table className="w-full min-w-[960px] border-collapse text-sm">
         <thead className="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-700">
           <tr>
@@ -54,7 +54,7 @@ export function PassTable({ rows, now, today, contractorName, openId, onOpen, se
                 <input
                   type="checkbox"
                   aria-label={t.selectAll}
-                  className="size-4 accent-indigo-600"
+                  className="size-4 accent-brand"
                   checked={allPicked}
                   disabled={pickable.length === 0}
                   onChange={() => (allPicked ? onClear() : onSelectAll())}
@@ -83,7 +83,7 @@ export function PassTable({ rows, now, today, contractorName, openId, onOpen, se
                 aria-selected={isOpen}
                 onClick={() => onOpen(p)}
                 onKeyDown={rowKey(p)}
-                className={cn('cursor-pointer align-middle hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent', isOpen && 'bg-accent-soft', selected.has(p.id) && 'bg-accent-soft/60')}
+                className={cn('cursor-pointer align-middle hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus', isOpen && 'bg-accent-soft', selected.has(p.id) && 'bg-accent-soft/60')}
               >
                 {selectable && (
                   <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
@@ -91,7 +91,7 @@ export function PassTable({ rows, now, today, contractorName, openId, onOpen, se
                       <input
                         type="checkbox"
                         aria-label={t.selectRow(p.plateNo)}
-                        className="size-4 accent-indigo-600"
+                        className="size-4 accent-brand"
                         checked={selected.has(p.id)}
                         onChange={() => onToggle(p)}
                       />
@@ -123,9 +123,9 @@ export function PassTable({ rows, now, today, contractorName, openId, onOpen, se
                 {showStatus && <td className="px-3 py-2"><PassStatusBadge status={displayStatus(p, today)} /></td>}
                 <td className="px-3 py-2">
                   {issues > 0 ? (
-                    <span className="inline-flex items-center whitespace-nowrap rounded-full bg-red-700 px-2.5 py-0.5 text-xs font-bold text-white">{c.card.issues(issues)}</span>
+                    <span className="inline-flex items-center whitespace-nowrap rounded-full bg-danger-strong px-2.5 py-0.5 text-xs font-bold text-on-solid">{c.card.issues(issues)}</span>
                   ) : (
-                    <Check aria-label={t.noIssues} className="size-4 text-emerald-700" />
+                    <Check aria-label={t.noIssues} className="size-4 text-success-strong" />
                   )}
                 </td>
                 <td className="px-3 py-2">
@@ -140,7 +140,7 @@ export function PassTable({ rows, now, today, contractorName, openId, onOpen, se
                 <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                   <div className="flex justify-end gap-2">
                     {revocable && p.status === 'officer_approved' && (
-                      <Button variant="secondary" size="sm" className="border-red-300 text-red-800 hover:bg-red-50" onClick={() => onRevoke(p)}>{t.revoke}</Button>
+                      <Button variant="secondary" size="sm" className="border-danger/40 text-danger-ink hover:bg-danger-soft" onClick={() => onRevoke(p)}>{t.revoke}</Button>
                     )}
                     <Button variant="secondary" size="sm" onClick={() => onOpen(p)} aria-label={`${t.review}: ${p.plateNo}`}>{t.review}</Button>
                   </div>

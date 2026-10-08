@@ -6,10 +6,10 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md' | 'icon'
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-accent text-white hover:bg-accent-hover',
-  secondary: 'border border-slate-300 bg-white text-slate-900 hover:bg-slate-50',
+  primary: 'bg-brand text-on-solid hover:bg-brand-hover',
+  secondary: 'border border-slate-300 bg-surface text-brand hover:bg-slate-50',
   ghost: 'text-slate-700 hover:bg-slate-100',
-  danger: 'bg-red-600 text-white hover:bg-red-700',
+  danger: 'bg-danger text-on-solid hover:bg-danger-strong',
 }
 const sizes: Record<Size, string> = {
   // Dense on a mouse, 44 px (the touch-target guideline) on a finger.
@@ -41,8 +41,8 @@ export function Button({
       type={type}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+        'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition-colors',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
         'disabled:cursor-not-allowed disabled:opacity-50',
         variants[variant],
         sizes[size],

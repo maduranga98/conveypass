@@ -73,7 +73,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
         <button
           type="button"
           onClick={() => setOpenId(v.id)}
-          className="inline-flex min-h-11 items-center rounded font-mono text-base font-semibold tracking-wide text-slate-900 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="inline-flex min-h-11 items-center rounded font-mono text-base font-semibold tracking-wide text-brand hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
           {v.plateNo}
         </button>
@@ -112,7 +112,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
         <div className="flex gap-2">
           <Button variant="secondary" icon={<Upload aria-hidden className="size-4" />} onClick={() => setImporting(true)}>
@@ -127,7 +127,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
       {loading ? (
         <ListSkeleton />
       ) : failed ? (
-        <ErrorState onRetry={() => void Promise.all([vehicles.refetch(), drivers.refetch(), contractors.refetch()])} />
+        <ErrorState error={vehicles.error ?? drivers.error ?? contractors.error} onRetry={() => void Promise.all([vehicles.refetch(), drivers.refetch(), contractors.refetch()])} />
       ) : items.length === 0 ? (
         <EmptyState
           icon={<Truck aria-hidden />}

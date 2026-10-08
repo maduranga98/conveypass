@@ -36,8 +36,8 @@ export function PassCard({ pass, now, contractorName, mode = 'open', selected = 
     <article
       data-testid="pass-card"
       className={cn(
-        'flex items-stretch gap-3 rounded-2xl border-2 bg-white p-3',
-        selected ? 'border-accent bg-accent-soft' : issues > 0 ? 'border-red-300' : 'border-slate-300',
+        'flex items-stretch gap-3 rounded-2xl border-2 bg-surface p-3',
+        selected ? 'border-brand bg-accent-soft' : issues > 0 ? 'border-danger/40' : 'border-slate-300',
       )}
     >
       {selecting && (
@@ -50,8 +50,8 @@ export function PassCard({ pass, now, contractorName, mode = 'open', selected = 
               aria-label={t.select(pass.plateNo)}
               onClick={onToggle}
               className={cn(
-                'grid size-11 place-items-center rounded-lg border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-                selected ? 'border-accent bg-accent text-white' : 'border-slate-400 bg-white',
+                'grid size-11 place-items-center rounded-lg border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
+                selected ? 'border-brand bg-brand text-on-solid' : 'border-slate-400 bg-surface',
               )}
             >
               {selected && <Check aria-hidden className="size-6" />}
@@ -66,7 +66,7 @@ export function PassCard({ pass, now, contractorName, mode = 'open', selected = 
         type="button"
         onClick={activate}
         aria-label={selecting && !canPick ? `${pass.plateNo}: ${t.openToReview}` : undefined}
-        className="min-w-0 flex-1 space-y-3 rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="min-w-0 flex-1 space-y-3 rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -92,13 +92,13 @@ export function PassCard({ pass, now, contractorName, mode = 'open', selected = 
 
         <div className={cn('flex flex-wrap items-center gap-2', (issues > 0 || (selecting && !canPick)) && 'min-h-7')}>
           {issues > 0 && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-700 px-3 py-1 text-sm font-bold text-white">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-danger-strong px-3 py-1 text-sm font-bold text-on-solid">
               <TriangleAlert aria-hidden className="size-4" />
               {t.issues(issues)}
             </span>
           )}
           {selecting && !canPick && (
-            <span className="inline-flex items-center gap-1 text-sm font-semibold text-red-800">
+            <span className="inline-flex items-center gap-1 text-sm font-semibold text-danger-ink">
               {t.openToReview}
               <ChevronRight aria-hidden className="size-4" />
             </span>

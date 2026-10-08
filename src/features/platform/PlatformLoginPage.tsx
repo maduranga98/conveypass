@@ -1,6 +1,6 @@
 import { FirebaseError } from 'firebase/app'
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth'
-import { ShieldCheck, TriangleAlert } from 'lucide-react'
+import { ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
@@ -15,6 +15,7 @@ import { OPERATOR_HOME } from '@/lib/roles'
 import { strings } from '@/lib/strings'
 import { PLATFORM_SIGNUP, peekLoginReason, safePlatformPath, setLoginReason } from './redirect'
 import { usePrivateMeta } from './usePrivateMeta'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.platformAuth
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -105,16 +106,13 @@ export default function PlatformLoginPage() {
           <ShieldCheck aria-hidden className="size-5" />
           <span className="text-xs font-semibold uppercase tracking-wide">{t.label}</span>
         </div>
-        <div className="rounded-xl border border-slate-300 bg-white p-6">
+        <div className="rounded-xl border border-slate-300 bg-surface p-6">
           <h1 className="text-xl font-semibold tracking-tight">{t.loginTitle}</h1>
           <p className="mt-1 text-sm text-slate-600">{t.loginIntro}</p>
 
           {notice && !failure && <p role="status" className="mt-4 rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-700">{notice}</p>}
           {failure && (
-            <p role="alert" className="mt-4 flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700">
-              <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
-              {t[failure]}
-            </p>
+            <NotificationBanner tone="error" className="mt-4">{t[failure]}</NotificationBanner>
           )}
 
           <form onSubmit={(e) => void submit(e)} className="mt-5 space-y-4" noValidate>
@@ -143,7 +141,7 @@ export default function PlatformLoginPage() {
         </div>
         {signupOn && (
           <p className="mt-4 text-center">
-            <Link to={PLATFORM_SIGNUP} className="inline-flex min-h-11 items-center px-3 text-sm text-slate-700 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-accent">
+            <Link to={PLATFORM_SIGNUP} className="inline-flex min-h-11 items-center px-3 text-sm text-slate-700 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-focus">
               {strings.platformAuth.signup.link}
             </Link>
           </p>

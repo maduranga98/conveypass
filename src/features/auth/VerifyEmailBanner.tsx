@@ -59,7 +59,7 @@ export function VerifyEmailBanner() {
   }
 
   return (
-    <div role="region" aria-label={t.message} className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+    <div role="region" aria-label={t.message} className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-accent/40 bg-warning-soft px-4 py-2 text-sm text-warning-ink">
       <p className="flex items-center gap-2">
         <MailWarning aria-hidden className="size-4 shrink-0" />
         {t.message}

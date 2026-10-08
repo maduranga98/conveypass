@@ -40,7 +40,7 @@ export function CheckInSuccess({ info, next, onNext }: { info: SuccessInfo; next
     <main
       onClick={() => setStayed(true)}
       onKeyDown={() => setStayed(true)}
-      className="flex min-h-dvh flex-col items-center justify-between gap-6 bg-emerald-700 px-6 pt-12 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center text-white"
+      className="flex min-h-dvh flex-col items-center justify-between gap-6 bg-success-strong px-6 pt-12 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center text-on-solid"
     >
       <div role="status" className="flex flex-col items-center gap-4">
         <CircleCheckBig aria-hidden className="size-28" strokeWidth={2.5} />
@@ -53,7 +53,7 @@ export function CheckInSuccess({ info, next, onNext }: { info: SuccessInfo; next
         <p className="text-xl font-semibold">{t.successBy(info.guardName)}</p>
         <p className="text-xl font-semibold">{t.successGate(info.gateName)}</p>
         {info.offline && (
-          <p className="inline-flex items-center gap-2 rounded-full bg-amber-300 px-4 py-2 text-lg font-extrabold text-slate-950">
+          <p className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-lg font-extrabold text-brand">
             <CloudUpload aria-hidden className="size-6" />
             {t.savedOffline}
           </p>
@@ -70,7 +70,7 @@ export function CheckInSuccess({ info, next, onNext }: { info: SuccessInfo; next
                 e.stopPropagation()
                 onNext()
               }}
-              className="h-16 w-full rounded-2xl bg-white text-2xl font-black text-emerald-800 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="h-16 w-full rounded-2xl bg-surface text-2xl font-black text-success-strong focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-on-solid"
             >
               {t.continue}
             </button>
@@ -81,7 +81,7 @@ export function CheckInSuccess({ info, next, onNext }: { info: SuccessInfo; next
             <button
               type="button"
               onClick={() => setStayed(true)}
-              className="h-16 w-full rounded-2xl border-4 border-white text-xl font-extrabold focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="h-16 w-full rounded-2xl border-4 border-on-solid text-xl font-extrabold focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-on-solid"
             >
               {t.stay}
             </button>

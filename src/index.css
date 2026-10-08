@@ -2,10 +2,61 @@
 
 @theme {
   --font-sans: ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
-  /* The single accent colour. */
-  --color-accent: var(--color-indigo-600);
-  --color-accent-hover: var(--color-indigo-700);
-  --color-accent-soft: var(--color-indigo-50);
+
+  /*
+   * ConvoyPass brand palette. Components use these names only (bg-brand, text-danger-strong, ...); never a raw hex or a
+   * Tailwind colour scale. Every text/background pair below is checked against WCAG 2.1 AA by `npm run contrast`
+   * (scripts/check-contrast.ts), so change a value and the check tells you whether the pairing still holds.
+   */
+
+  /* Brand navy: primary buttons, body text, dark surfaces. (Same value as slate-900.) */
+  --color-brand: #0f172a;
+  --color-brand-hover: #1e293b;
+
+  /*
+   * Accent amber: highlights (active navigation, selection, unread dot, "pending" status). Amber is too light for white
+   * text and for text on white, so text on accent is always brand navy (8:1) and amber is never used as text colour.
+   */
+  --color-accent: #f59e0b;
+  --color-accent-hover: #d97706;
+  --color-accent-soft: #fef3c7;
+
+  /* Status colours. Base = icons, borders, large fills. `-strong` = text on light surfaces and fills that carry white text. */
+  --color-success: #16a34a;
+  --color-success-strong: #15803d;
+  --color-success-hover: #166534;
+  --color-success-soft: #f0fdf4;
+  --color-success-ink: #14532d;
+
+  --color-warning: #d97706;
+  --color-warning-strong: #b45309;
+  --color-warning-soft: #fffbeb;
+  --color-warning-ink: #78350f;
+
+  --color-danger: #dc2626;
+  --color-danger-strong: #b91c1c;
+  --color-danger-hover: #991b1b;
+  --color-danger-soft: #fef2f2;
+  --color-danger-ink: #7f1d1d;
+
+  /* Surfaces and the colour of text/icons that sit on a solid brand/status fill; focus ring; modal and camera scrims. */
+  --color-surface: #ffffff;
+  --color-on-solid: #ffffff;
+  --color-focus: #0f172a;
+  --color-scrim: #000000;
+
+  /* Slate neutrals (identical to Tailwind's defaults, declared here so the whole palette lives in one place). */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
 }
 
 @layer base {
@@ -46,8 +97,8 @@
 @media print {
   html,
   body {
-    background: #fff !important;
-    color: #000 !important;
+    background: var(--color-surface) !important;
+    color: var(--color-scrim) !important;
   }
   [data-sonner-toaster] {
     display: none !important;

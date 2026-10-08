@@ -46,13 +46,13 @@ export default function UserSettingsPage() {
 
   return (
     <div className="mx-auto min-h-dvh max-w-2xl space-y-6 px-4 py-6">
-      <Link to={ROLE_HOME[claims.role]} className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-slate-700 hover:underline focus-visible:outline-2 focus-visible:outline-accent">
+      <Link to={ROLE_HOME[claims.role]} className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-slate-700 hover:underline focus-visible:outline-2 focus-visible:outline-focus">
         <ArrowLeft aria-hidden className="size-4" />
         {strings.userSettings.back}
       </Link>
       <h1 className="text-xl font-semibold tracking-tight">{strings.userSettings.title}</h1>
 
-      <section aria-labelledby="alerts-h" className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+      <section aria-labelledby="alerts-h" className="space-y-4 rounded-xl border border-slate-200 bg-surface p-4">
         <h2 id="alerts-h" className="font-semibold">{t.settingsTitle}</h2>
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
@@ -68,27 +68,27 @@ export default function UserSettingsPage() {
             disabled={!canToggle || busy}
             onClick={() => void toggle()}
             className={cn(
-              'relative inline-flex h-11 w-16 shrink-0 items-center rounded-full border-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50',
-              on ? 'border-accent bg-accent' : 'border-slate-400 bg-white',
+              'relative inline-flex h-11 w-16 shrink-0 items-center rounded-full border-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-50',
+              on ? 'border-brand bg-brand' : 'border-slate-500 bg-surface',
             )}
           >
-            <span aria-hidden className={cn('inline-block size-7 rounded-full transition-transform', on ? 'translate-x-7 bg-white' : 'translate-x-1 bg-slate-500')} />
+            <span aria-hidden className={cn('inline-block size-7 rounded-full transition-transform', on ? 'translate-x-7 bg-surface' : 'translate-x-1 bg-slate-500')} />
           </button>
         </div>
 
         {installFirst ? (
-          <div role="note" className="rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+          <div role="note" className="rounded-lg bg-warning-soft px-3 py-2.5 text-sm text-warning-ink">
             <p className="font-semibold">{t.iosTitle}</p>
             <p>{t.iosBody}</p>
             <ol className="mt-1 list-decimal space-y-0.5 pl-5">{t.iosSteps.map((s) => <li key={s}>{s}</li>)}</ol>
           </div>
         ) : (
-          <p data-testid="permission-status" className={cn('text-sm', blocked ? 'text-red-800' : 'text-slate-700')}>{permissionText}</p>
+          <p data-testid="permission-status" className={cn('text-sm', blocked ? 'text-danger-ink' : 'text-slate-700')}>{permissionText}</p>
         )}
         <p className="text-sm text-slate-600">{t.otherDevices}</p>
       </section>
 
-      <section aria-labelledby="account-h" className="space-y-6 rounded-xl border border-slate-200 bg-white p-4">
+      <section aria-labelledby="account-h" className="space-y-6 rounded-xl border border-slate-200 bg-surface p-4">
         <h2 id="account-h" className="font-semibold">{strings.userSettings.account}</h2>
         <AccountDetails />
         <ChangeCredentialCard />

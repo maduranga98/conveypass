@@ -53,8 +53,8 @@ export default function DriverHome() {
 
       <PushOptInCard />
 
-      <section aria-labelledby="how-h" className="flex items-start gap-3 rounded-2xl border border-slate-300 bg-white p-4">
-        <ScanLine aria-hidden className="mt-0.5 size-6 shrink-0 text-accent" />
+      <section aria-labelledby="how-h" className="flex items-start gap-3 rounded-2xl border border-slate-300 bg-surface p-4">
+        <ScanLine aria-hidden className="mt-0.5 size-6 shrink-0 text-brand" />
         <div>
           <h2 id="how-h" className="font-semibold">{t.howTitle}</h2>
           <p className="text-base text-slate-700">{t.howBody}</p>
@@ -81,9 +81,9 @@ export default function DriverHome() {
               // Rejected: red, with the reason and the way back into the form.
               if (pass && status === 'rejected') {
                 return (
-                  <li key={v.id} className="space-y-3 rounded-2xl border-2 border-red-700 bg-red-50 p-4">
+                  <li key={v.id} className="space-y-3 rounded-2xl border-2 border-danger-strong bg-danger-soft p-4">
                     <div className="flex items-start gap-3">
-                      <TriangleAlert aria-hidden className="mt-0.5 size-7 shrink-0 text-red-700" />
+                      <TriangleAlert aria-hidden className="mt-0.5 size-7 shrink-0 text-danger-strong" />
                       <div className="min-w-0 flex-1">
                         <p className="text-xl font-bold tracking-tight">{v.plateNo}</p>
                         <p className="text-sm text-slate-700">{v.type}</p>
@@ -91,15 +91,15 @@ export default function DriverHome() {
                       <Chip status="rejected" />
                     </div>
                     {pass.rejection && (
-                      <div className="rounded-xl bg-white px-3 py-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-red-800">{t.rejectedReason}</p>
-                        <p className="text-base font-medium text-slate-900">{pass.rejection.reason}</p>
+                      <div className="rounded-xl bg-surface px-3 py-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-danger-ink">{t.rejectedReason}</p>
+                        <p className="text-base font-medium text-brand">{pass.rejection.reason}</p>
                         {pass.rejection.byName && <p className="mt-1 text-xs text-slate-600">{t.rejectedBy(pass.rejection.byName)}</p>}
                       </div>
                     )}
                     <Link
                       to={`/v/${v.id}`}
-                      className="flex h-14 items-center justify-center rounded-xl bg-red-700 text-lg font-bold text-white hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      className="flex h-14 items-center justify-center rounded-xl bg-danger-strong text-lg font-bold text-on-solid hover:bg-danger-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                     >
                       {t.fixAndResubmit}
                     </Link>
@@ -110,7 +110,7 @@ export default function DriverHome() {
               // Approved (or already through the gate): green, as bright as the status screen.
               if (pass && (status === 'officer_approved' || status === 'checked_in')) {
                 return (
-                  <li key={v.id} className="space-y-4 rounded-2xl bg-emerald-700 p-4 text-white">
+                  <li key={v.id} className="space-y-4 rounded-2xl bg-success-strong p-4 text-on-solid">
                     <div className="flex items-center gap-3">
                       <CheckCircle2 aria-hidden className="size-9 shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -126,7 +126,7 @@ export default function DriverHome() {
 
               // Waiting for a supervisor or an officer: the timeline moves by itself as they approve.
               return (
-                <li key={v.id} className="space-y-4 rounded-2xl border border-slate-300 bg-white p-4">
+                <li key={v.id} className="space-y-4 rounded-2xl border border-slate-300 bg-surface p-4">
                   <div className="flex min-h-12 items-center gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-xl font-bold tracking-tight">{v.plateNo}</p>
@@ -149,7 +149,7 @@ export default function DriverHome() {
         ) : passes.isError ? null : passes.data.length === 0 ? (
           <p className="text-slate-600">{t.recentEmpty}</p>
         ) : (
-          <ul className="divide-y divide-slate-200 rounded-2xl border border-slate-300 bg-white">
+          <ul className="divide-y divide-slate-200 rounded-2xl border border-slate-300 bg-surface">
             {passes.data.slice(0, RECENT_PASSES).map((p) => (
               <li key={p.id} className="flex min-h-14 items-center gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1">

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/cn'
+import { BrandMark } from '@/components/BrandMark'
 import { strings } from '@/lib/strings'
 import { useAuth, useSession } from '@/features/auth/useAuth'
 import { Bell } from '@/features/notifications/Bell'
@@ -31,8 +32,8 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
           onClick={onNavigate}
           className={({ isActive }) =>
             cn(
-              'flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-accent',
-              isActive ? 'bg-accent-soft text-accent' : 'text-slate-600 hover:bg-slate-100',
+              'flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-focus',
+              isActive ? 'bg-accent-soft text-brand' : 'text-slate-600 hover:bg-slate-100',
             )
           }
         >
@@ -62,10 +63,10 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-dvh md:flex">
-      <aside className="hidden w-60 shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4 md:flex print:hidden">
+      <aside className="hidden w-60 shrink-0 flex-col justify-between border-r border-slate-200 bg-surface p-4 md:flex print:hidden">
         <div className="space-y-6">
           <div className="flex items-center justify-between pl-3">
-            <p className="text-base font-semibold tracking-tight">{strings.app.name}</p>
+            <p className="flex items-center gap-2 text-base font-semibold tracking-tight"><BrandMark className="size-8" />{strings.app.name}</p>
             <Bell align="left" />
           </div>
           <NavItems />
@@ -73,9 +74,9 @@ export default function AdminLayout() {
         <Account />
       </aside>
 
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white md:hidden print:hidden">
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-surface md:hidden print:hidden">
         <div className="flex h-14 items-center justify-between px-4">
-          <p className="font-semibold tracking-tight">{strings.app.name}</p>
+          <p className="flex items-center gap-2 font-semibold tracking-tight"><BrandMark className="size-8" />{strings.app.name}</p>
           <div className="flex items-center gap-1">
           <Bell />
           <Button

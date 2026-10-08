@@ -42,7 +42,7 @@ export function NewInviteForm({ onSubmit, disabled }: { onSubmit: (v: NewInviteV
   }
 
   return (
-    <form noValidate onSubmit={(e) => void submit(e)} className="space-y-4 rounded-xl border border-slate-200 bg-white p-5" aria-label={t.newTitle}>
+    <form noValidate onSubmit={(e) => void submit(e)} className="space-y-4 rounded-xl border border-slate-200 bg-surface p-5" aria-label={t.newTitle}>
       <h2 className="text-base font-semibold">{t.newTitle}</h2>
       <div className="grid gap-4 sm:grid-cols-2">
         <Input label={t.company} hint={t.companyHint} optional value={company} onChange={(e) => setCompany(e.target.value)} error={errors.company} maxLength={200} disabled={disabled} autoComplete="off" />

@@ -32,7 +32,7 @@ function Tiles({ tiles }: { tiles: SummaryTile[] }) {
     <section aria-label={t.summary}>
       <ul className="grid grid-cols-2 gap-3 md:grid-cols-4 print:grid-cols-4">
         {tiles.map((tile) => (
-          <li key={tile.key} className="rounded-xl border border-slate-200 bg-white p-4 print:rounded-none">
+          <li key={tile.key} className="rounded-xl border border-slate-200 bg-surface p-4 print:rounded-none">
             <p className="text-sm text-slate-600">{tile.label}</p>
             <p className="text-2xl font-semibold tabular-nums">{tileText(tile)}</p>
           </li>
@@ -93,7 +93,7 @@ function Charts({ result }: { result: ReportResult }) {
       {rest.length > 0 && (
         <div className="grid gap-4 lg:grid-cols-2 print:grid-cols-2">
           {rest.map((s) => (
-            <section key={s.key} aria-label={s.title} className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 print:break-inside-avoid">
+            <section key={s.key} aria-label={s.title} className="space-y-2 rounded-xl border border-slate-200 bg-surface p-4 print:break-inside-avoid">
               <h2 className="text-base font-semibold">{s.title}</h2>
               <SimpleTable columns={s.columns} rows={s.rows} timeZone={tz} caption={s.title} />
             </section>
@@ -177,7 +177,7 @@ export function ReportView({ result, filterLines }: { result: ReportResult; filt
       <Charts result={result} />
 
       {result.rows.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white">
+        <div className="rounded-xl border border-slate-200 bg-surface">
           <EmptyState title={t.empty} body={t.emptyHint} />
         </div>
       ) : (

@@ -106,7 +106,7 @@ export default function DriversPage({ scope }: { scope: Scope }) {
         <span className="flex items-center gap-3">
           <DriverAvatar driver={d} />
           <span className="min-w-0">
-            <span className="block truncate font-medium text-slate-900">{d.name}</span>
+            <span className="block truncate font-medium text-brand">{d.name}</span>
             {isAdmin && <span className="block truncate text-xs text-slate-500">{contractorNames.get(d.contractorId) ?? strings.common.none}</span>}
           </span>
         </span>
@@ -162,7 +162,7 @@ export default function DriversPage({ scope }: { scope: Scope }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
         <Button icon={<Plus aria-hidden className="size-4" />} onClick={() => setFormFor('new')}>
           {t.add}
@@ -172,7 +172,7 @@ export default function DriversPage({ scope }: { scope: Scope }) {
       {loading ? (
         <ListSkeleton />
       ) : failed ? (
-        <ErrorState onRetry={() => void Promise.all([drivers.refetch(), vehicles.refetch(), contractors.refetch()])} />
+        <ErrorState error={drivers.error ?? vehicles.error ?? contractors.error} onRetry={() => void Promise.all([drivers.refetch(), vehicles.refetch(), contractors.refetch()])} />
       ) : items.length === 0 ? (
         <EmptyState icon={<Users aria-hidden />} title={t.emptyTitle} body={t.emptyBody} action={<Button onClick={() => setFormFor('new')}>{t.add}</Button>} />
       ) : (

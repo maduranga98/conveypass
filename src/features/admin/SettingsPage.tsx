@@ -30,6 +30,7 @@ import { GatesEditor } from './GatesEditor'
 import { RetentionEditor } from './RetentionEditor'
 import { SlaEditor } from './SlaEditor'
 import { AdminsCard } from './AdminsCard'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.admin.settings
 const MAX_ITEMS = 12
@@ -151,7 +152,7 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
 
         <ul className="space-y-3">
           {items.map((item, i) => (
-            <li key={item.id} className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+            <li key={item.id} className="space-y-3 rounded-xl border border-slate-200 bg-surface p-4">
               <Input
                 label={t.label}
                 value={item.label}
@@ -163,7 +164,7 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
                 <label className="flex min-h-10 items-center gap-2 text-sm">
                   <input
                     type="checkbox"
-                    className="size-4 accent-indigo-600"
+                    className="size-4 accent-brand"
                     checked={item.failBlocks}
                     onChange={(e) => update(i, { failBlocks: e.target.checked })}
                   />
@@ -184,7 +185,7 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
             </li>
           ))}
         </ul>
-        {problem && <p role="alert" className="text-sm text-red-600">{problem}</p>}
+        {problem && <p role="alert" className="text-sm text-danger">{problem}</p>}
 
         <Button
           variant="secondary"
@@ -205,11 +206,11 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
 
       <RetentionEditor value={retention} onChange={setRetention} showErrors={touched} />
 
-      <section aria-label={strings.admin.nav.settings} className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+      <section aria-label={strings.admin.nav.settings} className="space-y-4 rounded-xl border border-slate-200 bg-surface p-4">
         <label className="flex min-h-10 items-start gap-3 text-sm">
           <input
             type="checkbox"
-            className="mt-0.5 size-4 accent-indigo-600"
+            className="mt-0.5 size-4 accent-brand"
             checked={settings.requireLocation}
             onChange={(e) => setSettings((s) => ({ ...s, requireLocation: e.target.checked }))}
           />
@@ -225,7 +226,7 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
         <Input label={t.timezone} value={tenant?.timezone ?? DEFAULT_TIMEZONE} readOnly hint={t.timezoneHint} />
       </section>
 
-      {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <NotificationBanner tone="error">{error}</NotificationBanner>}
       <div>
         <Button loading={saving} disabled={!dirty} onClick={askOrSave}>
           {saving ? strings.common.saving : t.save}
@@ -262,7 +263,7 @@ export default function SettingsPage() {
           <Skeleton className="h-28 w-full rounded-xl" />
         </div>
       ) : tenant.isError ? (
-        <ErrorState message={t.loadFailed} onRetry={() => void tenant.refetch()} />
+        <ErrorState message={t.loadFailed} error={tenant.error} onRetry={() => void tenant.refetch()} />
       ) : (
         <SettingsForm tenant={tenant.data} tenantId={claims.tenantId} />
       )}

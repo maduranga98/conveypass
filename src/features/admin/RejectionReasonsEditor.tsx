@@ -37,7 +37,7 @@ export function RejectionReasonsEditor({ items, onChange, showErrors, usingDefau
         {items.map((r, i) => {
           const locked = r.id === OTHER_REASON_ID
           return (
-            <li key={r.id} className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+            <li key={r.id} className="space-y-3 rounded-xl border border-slate-200 bg-surface p-4">
               <Input
                 label={t.label}
                 value={r.label}
@@ -73,7 +73,7 @@ export function RejectionReasonsEditor({ items, onChange, showErrors, usingDefau
           )
         })}
       </ul>
-      {tooFew && <p role="alert" className="text-sm text-red-600">{t.min}</p>}
+      {tooFew && <p role="alert" className="text-sm text-danger">{t.min}</p>}
       <Button
         variant="secondary"
         icon={<Plus aria-hidden className="size-4" />}

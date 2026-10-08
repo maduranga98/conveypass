@@ -49,7 +49,7 @@ function AddAdminForm({ onSubmit, onCancel }: { onSubmit: (name: string, email: 
     }
   }
   return (
-    <form noValidate onSubmit={(e) => void submit(e)} aria-label={t.addAdminTitle} className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
+    <form noValidate onSubmit={(e) => void submit(e)} aria-label={t.addAdminTitle} className="space-y-4 rounded-xl border border-slate-200 bg-surface p-5">
       <div>
         <h3 className="text-base font-semibold">{t.addAdminTitle}</h3>
         <p className="text-sm text-slate-500">{t.addAdminIntro}</p>
@@ -178,7 +178,7 @@ export default function WorkspaceDetailPage() {
 
   const locked = creds !== null
   const columns: Column<WorkspaceAdmin>[] = [
-    { key: 'name', header: t.columns.name, primary: true, cell: (a) => <span className="font-medium text-slate-900">{a.name}</span> },
+    { key: 'name', header: t.columns.name, primary: true, cell: (a) => <span className="font-medium text-brand">{a.name}</span> },
     { key: 'email', header: t.columns.email, cell: (a) => a.email },
     { key: 'status', header: t.columns.status, cell: (a) => <Badge tone={a.status === 'active' ? 'success' : 'danger'}>{strings.status[a.status]}</Badge> },
     {
@@ -191,7 +191,7 @@ export default function WorkspaceDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link to="/platform/workspaces" className="inline-flex items-center gap-1 text-sm text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent">
+      <Link to="/platform/workspaces" className="inline-flex items-center gap-1 text-sm text-brand hover:underline focus-visible:outline-2 focus-visible:outline-focus">
         <ArrowLeft aria-hidden className="size-4" />
         {strings.platform.workspaces.back}
       </Link>
@@ -199,7 +199,7 @@ export default function WorkspaceDetailPage() {
       {q.isPending ? (
         <PageSpinner />
       ) : q.isError ? (
-        apiErrorReason(q.error) === 'workspace-not-found' ? <EmptyState title={t.notFound} /> : <ErrorState message={t.loadFailed} onRetry={() => void q.refetch()} />
+        apiErrorReason(q.error) === 'workspace-not-found' ? <EmptyState title={t.notFound} /> : <ErrorState message={t.loadFailed} error={q.error} onRetry={() => void q.refetch()} />
       ) : (
         <>
           <header className="space-y-2">

@@ -17,8 +17,8 @@ import { PasswordInput } from './PasswordInput'
 const t = strings.authAction
 
 const linkButton =
-  'inline-flex h-11 w-full items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-white hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
-const textLink = 'inline-flex min-h-11 items-center text-sm font-medium text-slate-700 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-accent'
+  'inline-flex h-11 w-full items-center justify-center rounded-lg bg-brand px-4 text-sm font-medium text-on-solid hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus'
+const textLink = 'inline-flex min-h-11 items-center text-sm font-medium text-slate-700 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-focus'
 
 /** Firebase's email action page (`/auth/action?mode=...&oobCode=...`). The oobCode is held in memory and never shown. */
 export default function AuthActionPage() {

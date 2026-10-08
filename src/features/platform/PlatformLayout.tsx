@@ -26,9 +26,9 @@ export default function PlatformLayout() {
   const location = useLocation()
   return (
     <div className="min-h-dvh bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+      <header className="border-b border-slate-200 bg-surface">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-          <span className="rounded-md bg-slate-900 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-white">{t.label}</span>
+          <span className="rounded-md bg-brand px-2 py-1 text-xs font-semibold uppercase tracking-wide text-on-solid">{t.label}</span>
           <nav aria-label={t.navLabel} className="flex gap-1">
             {nav.map((n) => (
               <NavLink
@@ -36,7 +36,7 @@ export default function PlatformLayout() {
                 to={n.to}
                 end={n.end}
                 className={({ isActive }) =>
-                  cn('flex h-10 items-center rounded-lg px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-accent', isActive ? 'bg-accent-soft text-accent' : 'text-slate-600 hover:bg-slate-100')
+                  cn('flex h-10 items-center rounded-lg px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-focus', isActive ? 'bg-accent-soft text-brand' : 'text-slate-600 hover:bg-slate-100')
                 }
               >
                 {n.label}
@@ -47,7 +47,7 @@ export default function PlatformLayout() {
             <span className="max-w-48 truncate text-sm text-slate-600 sm:max-w-none">{operator?.email}</span>
             <Link
               to={changePasswordUrl(location.pathname + location.search)}
-              className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-accent pointer-coarse:h-11"
+              className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-focus pointer-coarse:h-11"
             >
               <KeyRound aria-hidden className="size-4" />
               {topBar.changePassword}

@@ -13,6 +13,7 @@ import { db } from '@/lib/firebase'
 import { strings } from '@/lib/strings'
 import { useSession } from '@/features/auth/useAuth'
 import type { Contractor, WithId } from '@/types'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.admin.contractors
 
@@ -92,9 +93,7 @@ function ContractorForm({ target, onClose }: { target: WithId<Contractor> | 'new
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-4" noValidate>
       {formError && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700">
-          {formError}
-        </p>
+        <NotificationBanner tone="error">{formError}</NotificationBanner>
       )}
       <Input label={t.name} autoComplete="off" error={errors.name?.message} {...register('name')} />
       <Input label={t.contactName} optional autoComplete="off" error={errors.contactName?.message} {...register('contactName')} />

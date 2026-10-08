@@ -29,7 +29,7 @@ export function DriverCredentials({ phone, pin, onDone }: { phone: string; pin: 
 
   return (
     <div className="space-y-5">
-      <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-800">{t.warning}</p>
+      <p className="rounded-lg bg-warning-soft px-3 py-2.5 text-sm text-warning-ink">{t.warning}</p>
       <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 text-sm">
         <div className="flex items-center justify-between gap-4 px-4 py-3">
           <dt className="text-slate-500">{t.phone}</dt>
@@ -49,7 +49,7 @@ export function DriverCredentials({ phone, pin, onDone }: { phone: string; pin: 
             href={whatsapp}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-surface px-4 text-sm font-medium text-brand transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
           >
             <MessageCircle aria-hidden className="size-4" />
             {t.whatsapp}

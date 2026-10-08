@@ -16,7 +16,7 @@ const t = strings.approvals
 const Row = ({ label, children }: { label: string; children: ReactNode }) => (
   <div className="flex items-baseline justify-between gap-4 px-4 py-3">
     <dt className="text-sm text-slate-600">{label}</dt>
-    <dd className="text-right text-base font-medium text-slate-900">{children}</dd>
+    <dd className="text-right text-base font-medium text-brand">{children}</dd>
   </div>
 )
 
@@ -50,7 +50,7 @@ export function PassReview({ pass, today, contractorName, historyHref, layout = 
           <h2 className="text-3xl font-extrabold tracking-tight">{pass.plateNo}</h2>
           <p className="text-base text-slate-700">{pass.vehicleType}</p>
           {historyHref && (
-            <Link to={historyHref} className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent">
+            <Link to={historyHref} className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline focus-visible:outline-2 focus-visible:outline-focus">
               <History aria-hidden className="size-4" />
               {t.info.vehicleHistory}
             </Link>
@@ -60,7 +60,7 @@ export function PassReview({ pass, today, contractorName, historyHref, layout = 
       </header>
 
       {rejection && (
-        <section aria-label={t.info.previousRejection} className="rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3 text-red-900">
+        <section aria-label={t.info.previousRejection} className="rounded-xl border-2 border-danger/40 bg-danger-soft px-4 py-3 text-danger-ink">
           <p className="text-sm font-semibold">{t.info.stage[rejection.stage]} · {rejection.byName}</p>
           <p className="text-base">{rejection.reason}</p>
         </section>
@@ -81,10 +81,10 @@ export function PassReview({ pass, today, contractorName, historyHref, layout = 
                 type="button"
                 onClick={() => setViewer(i)}
                 aria-label={t.evidence.open(item.label)}
-                className="relative block aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="relative block aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
               >
                 <EvidenceThumb path={item.path} alt={t.card.photoOf(item.label, pass.plateNo)} />
-                <span className="absolute left-2 top-2 rounded-md bg-black/70 px-2 py-1 text-sm font-semibold text-white">{item.label}</span>
+                <span className="absolute left-2 top-2 rounded-md bg-scrim/70 px-2 py-1 text-sm font-semibold text-on-solid">{item.label}</span>
               </button>
             </li>
           ))}
@@ -92,7 +92,7 @@ export function PassReview({ pass, today, contractorName, historyHref, layout = 
         )}
       </section>
 
-      <dl className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-300 bg-white">
+      <dl className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-300 bg-surface">
         <Row label={t.info.driver}>{pass.driverName}</Row>
         {contractorName && <Row label={t.info.contractor}>{contractorName}</Row>}
         <Row label={t.info.submitted}>{formatDateTime(toMs(pass.submittedAt))}</Row>
@@ -104,7 +104,7 @@ export function PassReview({ pass, today, contractorName, historyHref, layout = 
 
       <ChecklistSummary items={pass.checklist} />
 
-      <section aria-label={t.timeline.title} className="rounded-xl border border-slate-300 bg-white px-2 py-4">
+      <section aria-label={t.timeline.title} className="rounded-xl border border-slate-300 bg-surface px-2 py-4">
         <PassTimeline status={pass.status} pass={pass} />
       </section>
 

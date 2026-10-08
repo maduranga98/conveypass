@@ -15,6 +15,7 @@ import { OPERATOR_HOME } from '@/lib/roles'
 import { strings } from '@/lib/strings'
 import { PLATFORM_LOGIN } from './redirect'
 import { usePrivateMeta } from './usePrivateMeta'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.platformAuth.signup
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -94,7 +95,7 @@ export default function PlatformSignupPage() {
           <ShieldCheck aria-hidden className="size-5" />
           <span className="text-xs font-semibold uppercase tracking-wide">{strings.platformAuth.label}</span>
         </div>
-        <div className="rounded-xl border border-slate-300 bg-white p-6">
+        <div className="rounded-xl border border-slate-300 bg-surface p-6">
           {availability === 'checking' && <p role="status" className="text-sm text-slate-600">{t.checking}</p>}
 
           {availability === 'disabled' && (
@@ -108,7 +109,7 @@ export default function PlatformSignupPage() {
             <>
               <h1 className="text-xl font-semibold tracking-tight">{t.title}</h1>
               <p className="mt-1 text-sm text-slate-600">{t.intro}</p>
-              {error && <p role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</p>}
+              {error && <NotificationBanner tone="error" className="mt-4">{error}</NotificationBanner>}
               <form onSubmit={(e) => void submit(e)} className="mt-5 space-y-4" noValidate>
                 <Input label={t.name} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} error={fieldError.name} />
                 <Input
@@ -125,7 +126,7 @@ export default function PlatformSignupPage() {
                 <PasswordInput label={t.password} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
                 <ul className="space-y-1 text-sm" aria-label={t.rulesLabel}>
                   {rules.map(([ok, label]) => (
-                    <li key={label} className={ok ? 'flex items-center gap-2 text-slate-900' : 'flex items-center gap-2 text-slate-600'}>
+                    <li key={label} className={ok ? 'flex items-center gap-2 text-brand' : 'flex items-center gap-2 text-slate-600'}>
                       {ok ? <Check aria-hidden className="size-4" /> : <Circle aria-hidden className="size-4" />}
                       {label}
                     </li>
@@ -140,7 +141,7 @@ export default function PlatformSignupPage() {
           )}
         </div>
         <p className="mt-4 text-center">
-          <Link to={PLATFORM_LOGIN} className="inline-flex min-h-11 items-center px-3 text-sm text-slate-700 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-accent">
+          <Link to={PLATFORM_LOGIN} className="inline-flex min-h-11 items-center px-3 text-sm text-slate-700 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-focus">
             {t.backToSignIn}
           </Link>
         </p>

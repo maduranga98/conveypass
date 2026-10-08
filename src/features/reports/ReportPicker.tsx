@@ -28,13 +28,13 @@ export function ReportPicker({ current, onPick }: { current: ReportType | null; 
               aria-current={active ? 'true' : undefined}
               onClick={() => onPick(type)}
               className={cn(
-                'flex h-full w-full items-start gap-3 rounded-xl border bg-white p-4 text-left focus-visible:outline-2 focus-visible:outline-accent',
-                active ? 'border-accent bg-accent-soft' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
+                'flex h-full w-full items-start gap-3 rounded-xl border bg-surface p-4 text-left focus-visible:outline-2 focus-visible:outline-focus',
+                active ? 'border-brand bg-accent-soft' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
               )}
             >
-              <Icon aria-hidden className={cn('mt-0.5 size-5 shrink-0', active ? 'text-accent' : 'text-slate-500')} />
+              <Icon aria-hidden className={cn('mt-0.5 size-5 shrink-0', active ? 'text-brand' : 'text-slate-500')} />
               <span>
-                <span className="block font-medium text-slate-900">{info.title}</span>
+                <span className="block font-medium text-brand">{info.title}</span>
                 <span className="block text-sm text-slate-500">{info.description}</span>
               </span>
             </button>

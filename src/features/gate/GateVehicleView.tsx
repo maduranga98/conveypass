@@ -26,6 +26,7 @@ import { canCheckIn, canDeny, computeGateResult, gateTone, type GateResult } fro
 import { useContractorDoc, useDriverDoc, useVehicleDoc } from './queries'
 import { useCheckIn, useDenyEntry } from './useGateActions'
 import { useGateRuntime, useGates } from './useGate'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.gate
 
@@ -60,9 +61,9 @@ function Banner({ result }: { result: GateResult }) {
       aria-live="polite"
       className={cn(
         'flex items-center gap-3 px-4 py-4',
-        tone === 'green' && 'bg-emerald-700 text-white',
-        tone === 'amber' && 'bg-amber-400 text-slate-950',
-        tone === 'red' && 'bg-red-700 text-white',
+        tone === 'green' && 'bg-success-strong text-on-solid',
+        tone === 'amber' && 'bg-accent text-brand',
+        tone === 'red' && 'bg-danger-strong text-on-solid',
       )}
     >
       <Icon aria-hidden className="size-14 shrink-0" strokeWidth={2.5} />
@@ -199,13 +200,13 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
 
   const backTo = readOnly ? ROLE_HOME[claims.role] : '/security'
   const header = (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-2">
-      <Link to={backTo} className="inline-flex h-11 items-center gap-1 rounded-lg px-2 text-base font-semibold text-slate-900 focus-visible:outline-2 focus-visible:outline-accent">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-surface px-2">
+      <Link to={backTo} className="inline-flex h-11 items-center gap-1 rounded-lg px-2 text-base font-semibold text-brand focus-visible:outline-2 focus-visible:outline-focus">
         <ArrowLeft aria-hidden className="size-5" />
         {t.back}
       </Link>
       {!readOnly && gate && <span className="truncate text-sm font-bold text-slate-700">{gate.name}</span>}
-      <span className={cn('inline-flex h-8 items-center gap-1 rounded-full px-2 text-xs font-bold', online ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-900 text-white')}>
+      <span className={cn('inline-flex h-8 items-center gap-1 rounded-full px-2 text-xs font-bold', online ? 'bg-success-soft text-success-strong' : 'bg-brand text-on-solid')}>
         {online ? null : <WifiOff aria-hidden className="size-4" />}
         {online ? t.online : t.offline}
       </span>
@@ -214,7 +215,7 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
 
   if (loading) {
     return (
-      <div className="flex min-h-dvh flex-col bg-white">
+      <div className="flex min-h-dvh flex-col bg-surface">
         {!readOnly && <SecurityRuntime />}
         {header}
         <p role="status" className="bg-slate-200 px-4 py-6 text-3xl font-black text-slate-700">{t.banner.loading}</p>
@@ -225,14 +226,14 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
 
   if (failed) {
     return (
-      <div className="flex min-h-dvh flex-col bg-white">
+      <div className="flex min-h-dvh flex-col bg-surface">
         {!readOnly && <SecurityRuntime />}
         {header}
         <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
           <CircleAlert aria-hidden className="size-16 text-slate-700" />
           <p className="text-2xl font-extrabold">{t.loadFailed}</p>
           {!online && <p className="text-lg">{t.offlineStrip}</p>}
-          <button type="button" onClick={() => { refresh(); void vehicleQ.refetch() }} className="h-14 w-full max-w-xs rounded-xl bg-slate-900 text-lg font-bold text-white">
+          <button type="button" onClick={() => { refresh(); void vehicleQ.refetch() }} className="h-14 w-full max-w-xs rounded-xl bg-brand text-lg font-bold text-on-solid">
             {strings.common.retry}
           </button>
         </div>
@@ -245,13 +246,13 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
   const checkInStamp = pass?.checkIn
 
   return (
-    <div className="flex min-h-dvh flex-col bg-white">
+    <div className="flex min-h-dvh flex-col bg-surface">
       {!readOnly && <SecurityRuntime />}
       {!readOnly && <FailedQueueBanner />}
       {header}
       <Banner result={result} />
       {!online && (
-        <p role="status" className="flex items-center gap-2 bg-slate-900 px-4 py-2 text-sm font-bold text-white">
+        <p role="status" className="flex items-center gap-2 bg-brand px-4 py-2 text-sm font-bold text-on-solid">
           <WifiOff aria-hidden className="size-4 shrink-0" />
           {t.offlineStrip}
         </p>
@@ -260,7 +261,7 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
       <main className="mx-auto w-full max-w-lg flex-1 space-y-4 px-4 pt-4 pb-6">
         {vehicle ? (
           <section aria-label={t.plate}>
-            <p className="text-5xl leading-none font-black tracking-tight break-words text-slate-950">{vehicle.plateNo}</p>
+            <p className="text-5xl leading-none font-black tracking-tight break-words text-brand">{vehicle.plateNo}</p>
             <p className="mt-2 text-lg font-semibold text-slate-800">
               {vehicle.type} · {contractorName}
             </p>
@@ -270,7 +271,7 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
         )}
 
         {result.kind === 'already_checked_in' && (
-          <p className="flex items-start gap-2 rounded-xl border-2 border-amber-400 bg-amber-50 px-3 py-2 text-base font-bold text-slate-950">
+          <p className="flex items-start gap-2 rounded-xl border-2 border-accent bg-warning-soft px-3 py-2 text-base font-bold text-brand">
             {result.pendingSync ? <CloudUpload aria-hidden className="mt-0.5 size-5 shrink-0" /> : <CircleAlert aria-hidden className="mt-0.5 size-5 shrink-0" />}
             <span>
               {result.pendingSync || !checkInStamp
@@ -290,7 +291,7 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
                 <DriverPhoto driver={driverQ.data ?? null} name={driverName} online={online} />
                 <div className="min-w-0 pt-1">
                   <p className="text-sm font-semibold text-slate-600">{t.driver}</p>
-                  <p className="text-2xl leading-tight font-extrabold break-words text-slate-950">{driverName}</p>
+                  <p className="text-2xl leading-tight font-extrabold break-words text-brand">{driverName}</p>
                 </div>
               </>
             ) : (
@@ -300,19 +301,19 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
         )}
 
         {pass && (pass.supervisor || pass.officer) && (
-          <section aria-labelledby="approved-by" className="rounded-xl bg-slate-100 px-3 py-2.5 text-base text-slate-900">
+          <section aria-labelledby="approved-by" className="rounded-xl bg-slate-100 px-3 py-2.5 text-base text-brand">
             <h2 id="approved-by" className="text-sm font-bold text-slate-700">{t.approvedBy}</h2>
             {pass.supervisor && <p className="font-semibold">{t.supervisorLine(pass.supervisor.name, hhmm(pass.supervisor.at?.toMillis()))}</p>}
             {pass.officer && <p className="font-semibold">{t.officerLine(pass.officer.name, hhmm(pass.officer.at?.toMillis()))}</p>}
           </section>
         )}
 
-        {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-base font-bold text-red-800">{error}</p>}
+        {error && <NotificationBanner tone="error" size="lg">{error}</NotificationBanner>}
         {readOnly && <p className="text-sm text-slate-600">{t.readOnly}</p>}
       </main>
 
       {!readOnly && (
-        <div className="sticky bottom-0 border-t border-slate-200 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="sticky bottom-0 border-t border-slate-200 bg-surface px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <div className="mx-auto max-w-lg space-y-2">
             {canCheckIn(result) ? (
               <>
@@ -321,7 +322,7 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
                   onClick={() => void doCheckIn()}
                   disabled={checkingIn}
                   aria-busy={checkingIn}
-                  className="flex h-20 w-full items-center justify-center gap-3 rounded-2xl bg-emerald-700 text-3xl font-black tracking-tight text-white hover:bg-emerald-800 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-emerald-900 disabled:opacity-70"
+                  className="flex h-20 w-full items-center justify-center gap-3 rounded-2xl bg-success-strong text-3xl font-black tracking-tight text-on-solid hover:bg-success-hover focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-success-hover disabled:opacity-70"
                 >
                   <CircleCheckBig aria-hidden className="size-8" />
                   {checkingIn ? t.checkingIn : online ? t.checkIn : t.checkInOffline}
@@ -329,7 +330,7 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
                 <button
                   type="button"
                   onClick={openDeny}
-                  className="h-12 w-full rounded-xl text-base font-bold text-red-800 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-red-800"
+                  className="h-12 w-full rounded-xl text-base font-bold text-danger-ink underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-danger-hover"
                 >
                   {t.denyLink}
                 </button>
@@ -340,7 +341,7 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
                   <button
                     type="button"
                     onClick={openDeny}
-                    className="h-16 flex-1 rounded-2xl border-2 border-red-700 bg-white text-lg font-extrabold text-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-800"
+                    className="h-16 flex-1 rounded-2xl border-2 border-danger-strong bg-surface text-lg font-extrabold text-danger-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger-hover"
                   >
                     {t.recordDenied}
                   </button>
@@ -348,7 +349,7 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
                 <button
                   type="button"
                   onClick={scanNext}
-                  className="flex h-16 flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-900 text-lg font-extrabold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                  className="flex h-16 flex-1 items-center justify-center gap-2 rounded-2xl bg-brand text-lg font-extrabold text-on-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                   <ScanLine aria-hidden className="size-6" />
                   {t.scanNext}

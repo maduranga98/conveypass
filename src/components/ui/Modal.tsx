@@ -40,7 +40,7 @@ export function Modal({ open, onClose, title, children, variant = 'center', foot
         if (e.target === e.currentTarget) onClose() // backdrop click
       }}
       className={cn(
-        'bg-white p-0 text-slate-900 shadow-xl backdrop:bg-slate-900/40',
+        'bg-surface p-0 text-brand shadow-xl backdrop:bg-brand/40',
         variant === 'center' && 'm-auto w-[calc(100%-2rem)] max-w-md rounded-xl',
         variant === 'drawer' && 'my-0 ml-auto mr-0 h-dvh max-h-dvh w-full max-w-none sm:max-w-md',
         variant === 'sheet' &&

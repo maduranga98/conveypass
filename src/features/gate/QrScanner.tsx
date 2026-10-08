@@ -161,13 +161,13 @@ export function QrScanner({ onVehicle, onClose }: { onVehicle: (vehicleId: strin
     : null
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={t.title} className="fixed inset-0 z-50 flex flex-col bg-black text-white">
+    <div role="dialog" aria-modal="true" aria-label={t.title} className="fixed inset-0 z-50 flex flex-col bg-scrim text-on-solid">
       <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-3">
         <button
           type="button"
           onClick={onClose}
           aria-label={t.close}
-          className="inline-flex size-12 items-center justify-center rounded-full bg-white/15 focus-visible:outline-2 focus-visible:outline-white"
+          className="inline-flex size-12 items-center justify-center rounded-full bg-on-solid/15 focus-visible:outline-2 focus-visible:outline-on-solid"
         >
           <X aria-hidden className="size-7" />
         </button>
@@ -177,7 +177,7 @@ export function QrScanner({ onVehicle, onClose }: { onVehicle: (vehicleId: strin
             type="button"
             onClick={() => void toggleTorch()}
             aria-pressed={torch.on}
-            className="inline-flex h-12 items-center gap-2 rounded-full bg-white/15 px-4 text-sm font-bold focus-visible:outline-2 focus-visible:outline-white"
+            className="inline-flex h-12 items-center gap-2 rounded-full bg-on-solid/15 px-4 text-sm font-bold focus-visible:outline-2 focus-visible:outline-on-solid"
           >
             {torch.on ? <FlashlightOff aria-hidden className="size-5" /> : <Flashlight aria-hidden className="size-5" />}
             {torch.on ? t.torchOff : t.torchOn}
@@ -193,8 +193,8 @@ export function QrScanner({ onVehicle, onClose }: { onVehicle: (vehicleId: strin
           <p role="status" className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-lg font-semibold">{t.starting}</p>
         )}
         {problem && (
-          <div role="alert" className="mx-6 max-w-sm space-y-4 rounded-2xl bg-white p-6 text-center text-slate-900">
-            <CameraOff aria-hidden className="mx-auto size-12 text-red-700" />
+          <div role="alert" className="mx-6 max-w-sm space-y-4 rounded-2xl bg-surface p-6 text-center text-brand">
+            <CameraOff aria-hidden className="mx-auto size-12 text-danger-strong" />
             <p className="text-xl font-extrabold">{problem.title}</p>
             <p className="text-base">{problem.body}</p>
             <div className="flex flex-col gap-2">
@@ -205,7 +205,7 @@ export function QrScanner({ onVehicle, onClose }: { onVehicle: (vehicleId: strin
                     setPhase('starting')
                     setAttempt((n) => n + 1)
                   }}
-                  className="h-14 rounded-xl bg-slate-900 text-lg font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                  className="h-14 rounded-xl bg-brand text-lg font-bold text-on-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                   {t.retry}
                 </button>
@@ -213,7 +213,7 @@ export function QrScanner({ onVehicle, onClose }: { onVehicle: (vehicleId: strin
               <button
                 type="button"
                 onClick={onClose}
-                className="h-14 rounded-xl border-2 border-slate-300 text-lg font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                className="h-14 rounded-xl border-2 border-slate-300 text-lg font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               >
                 {t.close}
               </button>
@@ -224,12 +224,12 @@ export function QrScanner({ onVehicle, onClose }: { onVehicle: (vehicleId: strin
 
       <div className="shrink-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {message ? (
-          <p role="alert" className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-red-700 px-4 text-lg font-extrabold">
+          <p role="alert" className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-danger-strong px-4 text-lg font-extrabold">
             <TriangleAlert aria-hidden className="size-6 shrink-0" />
             {message}
           </p>
         ) : (
-          <p className="flex min-h-14 items-center justify-center gap-2 text-center text-base font-semibold text-white/90">
+          <p className="flex min-h-14 items-center justify-center gap-2 text-center text-base font-semibold text-on-solid/90">
             <ScanLine aria-hidden className="size-6 shrink-0" />
             {t.hint}
           </p>

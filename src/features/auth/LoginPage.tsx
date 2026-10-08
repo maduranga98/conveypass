@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { signInWithEmailAndPassword } from 'firebase/auth'
-import { Eye, EyeOff, TriangleAlert } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
@@ -13,9 +13,11 @@ import { driverEmail, isValidPin, normalisePhone } from '@/lib/credentials'
 import { authErrorMessage } from '@/lib/errors'
 import { auth } from '@/lib/firebase'
 import { OPERATOR_HOME, ROLE_HOME } from '@/lib/roles'
+import { BrandMark } from '@/components/BrandMark'
 import { strings } from '@/lib/strings'
 import { safeNext } from './redirect'
 import { useAuth } from './useAuth'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 type Mode = 'staff' | 'driver'
 
@@ -59,12 +61,13 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-dvh place-items-center px-4 py-10">
       <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <BrandMark className="mb-3 size-16 rounded-2xl" />
           <h1 className="text-2xl font-semibold tracking-tight">{strings.app.name}</h1>
           <p className="mt-1 text-sm text-slate-500">{strings.app.tagline}</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-surface p-6 shadow-sm">
           <div role="group" aria-label={strings.auth.modeLabel} className="mb-6 grid grid-cols-2 rounded-lg bg-slate-100 p-1">
             {(['staff', 'driver'] as const).map((m) => (
               <button
@@ -76,8 +79,8 @@ export default function LoginPage() {
                   setError(null)
                 }}
                 className={cn(
-                  'h-11 rounded-md text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-accent',
-                  mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900',
+                  'h-11 rounded-md text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-focus',
+                  mode === m ? 'bg-surface text-brand shadow-sm' : 'text-slate-600 hover:text-brand',
                 )}
               >
                 {m === 'staff' ? strings.auth.staffTab : strings.auth.driverTab}
@@ -86,17 +89,14 @@ export default function LoginPage() {
           </div>
 
           {message && (
-            <p role="alert" className="mb-4 flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700">
-              <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
-              {message}
-            </p>
+            <NotificationBanner tone="error" className="mb-4">{message}</NotificationBanner>
           )}
 
           {mode === 'staff' ? <StaffForm onSubmit={signIn} /> : <DriverForm onSubmit={signIn} />}
         </div>
 
         <footer className="mt-6 text-center">
-          <Link to="/privacy" className="inline-flex min-h-11 items-center px-3 text-sm text-slate-700 underline underline-offset-2 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-accent">
+          <Link to="/privacy" className="inline-flex min-h-11 items-center px-3 text-sm text-slate-700 underline underline-offset-2 hover:text-brand focus-visible:outline-2 focus-visible:outline-focus">
             {strings.privacy.link}
           </Link>
         </footer>
@@ -146,7 +146,7 @@ function StaffForm({ onSubmit }: { onSubmit: (email: string, password: string) =
         {isSubmitting ? strings.auth.signingIn : strings.auth.signIn}
       </Button>
       <p className="text-center">
-        <Link to="/forgot-password" className="inline-flex min-h-11 items-center px-3 text-sm text-slate-700 underline underline-offset-2 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-accent">
+        <Link to="/forgot-password" className="inline-flex min-h-11 items-center px-3 text-sm text-slate-700 underline underline-offset-2 hover:text-brand focus-visible:outline-2 focus-visible:outline-focus">
           {strings.auth.forgotPassword}
         </Link>
       </p>

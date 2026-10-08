@@ -26,7 +26,7 @@ export function drawStamp(ctx: CanvasRenderingContext2D, width: number, height: 
   const stripH = fontPx + pad * 2
   ctx.fillStyle = 'rgba(0, 0, 0, 0.65)'
   ctx.fillRect(0, height - stripH, stripW, stripH)
-  ctx.fillStyle = '#fff'
+  ctx.fillStyle = '#fff' // canvas pixels cannot read CSS variables: same value as --color-on-solid
   ctx.fillText(text, pad, height - stripH / 2, width - pad * 2)
   ctx.restore()
 }

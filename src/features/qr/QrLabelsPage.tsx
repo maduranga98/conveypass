@@ -66,12 +66,12 @@ export default function QrLabelsPage({ scope }: { scope: Scope }) {
           vehicles.isPending || contractors.isPending ? (
             <ListSkeleton rows={3} />
           ) : vehicles.isError || contractors.isError ? (
-            <ErrorState onRetry={() => void Promise.all([vehicles.refetch(), contractors.refetch()])} />
+            <ErrorState error={vehicles.error ?? contractors.error} onRetry={() => void Promise.all([vehicles.refetch(), contractors.refetch()])} />
           ) : all.length === 0 ? (
             <EmptyState icon={<QrCode aria-hidden />} title={strings.vehicles.emptyTitle} body={strings.vehicles.emptyBody} />
           ) : (
             <>
-              <div className="space-y-5 rounded-xl border border-slate-200 bg-white p-4 sm:p-5 print:hidden">
+              <div className="space-y-5 rounded-xl border border-slate-200 bg-surface p-4 sm:p-5 print:hidden">
                 <fieldset className="space-y-2">
                   <legend className="text-sm font-medium text-slate-700">{t.selection}</legend>
                   <div className="flex flex-wrap gap-2">
@@ -81,8 +81,8 @@ export default function QrLabelsPage({ scope }: { scope: Scope }) {
                         <label
                           key={m.value}
                           className={cn(
-                            'inline-flex h-10 cursor-pointer items-center rounded-lg border px-3 text-sm font-medium has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent',
-                            mode === m.value ? 'border-accent bg-accent-soft text-accent' : 'border-slate-300 text-slate-700 hover:bg-slate-50',
+                            'inline-flex h-10 cursor-pointer items-center rounded-lg border px-3 text-sm font-medium has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus',
+                            mode === m.value ? 'border-brand bg-accent-soft text-brand' : 'border-slate-300 text-slate-700 hover:bg-slate-50',
                           )}
                         >
                           <input type="radio" name="mode" className="sr-only" checked={mode === m.value} onChange={() => setMode(m.value)} />
@@ -140,8 +140,8 @@ export default function QrLabelsPage({ scope }: { scope: Scope }) {
                       <label
                         key={value}
                         className={cn(
-                          'inline-flex h-10 cursor-pointer items-center rounded-lg border px-3 text-sm font-medium has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent',
-                          size === value ? 'border-accent bg-accent-soft text-accent' : 'border-slate-300 text-slate-700 hover:bg-slate-50',
+                          'inline-flex h-10 cursor-pointer items-center rounded-lg border px-3 text-sm font-medium has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus',
+                          size === value ? 'border-brand bg-accent-soft text-brand' : 'border-slate-300 text-slate-700 hover:bg-slate-50',
                         )}
                       >
                         <input type="radio" name="size" className="sr-only" checked={size === value} onChange={() => setSize(value)} />

@@ -13,6 +13,7 @@ import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
 import type { Role } from '@/lib/roles'
 import { CredentialsReveal } from './CredentialsReveal'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.admin.reset
 
@@ -92,9 +93,7 @@ function ResetForm({
     <form onSubmit={handleSubmit(submit)} className="space-y-4" noValidate>
       <p className="text-sm text-slate-600">{t.forUser(user.name)}</p>
       {formError && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700">
-          {formError}
-        </p>
+        <NotificationBanner tone="error">{formError}</NotificationBanner>
       )}
       <div className="flex items-end gap-2">
         <div className="flex-1">

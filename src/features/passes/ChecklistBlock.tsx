@@ -4,6 +4,7 @@ import { cn } from '@/lib/cn'
 import type { ChecklistItemDef } from '@/lib/defaultChecklist'
 import { strings } from '@/lib/strings'
 import { noteMissing, type Answers } from './checklist'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.pass.form
 
@@ -17,12 +18,12 @@ interface Props {
 
 const segment = (selected: boolean, tone: 'yes' | 'no') =>
   cn(
-    'h-14 flex-1 rounded-xl border-2 text-lg font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+    'h-14 flex-1 rounded-xl border-2 text-lg font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
     selected
       ? tone === 'yes'
-        ? 'border-emerald-700 bg-emerald-700 text-white'
-        : 'border-red-700 bg-red-700 text-white'
-      : 'border-slate-400 bg-white text-slate-900 hover:bg-slate-100',
+        ? 'border-success-strong bg-success-strong text-on-solid'
+        : 'border-danger-strong bg-danger-strong text-on-solid'
+      : 'border-slate-400 bg-surface text-brand hover:bg-slate-100',
   )
 
 export function ChecklistBlock({ items, answers, onChange, onAllOk, disabled }: Props) {
@@ -41,7 +42,7 @@ export function ChecklistBlock({ items, answers, onChange, onAllOk, disabled }: 
           const isNo = entry?.answer === 'no'
           const noteId = `chk-note-${item.id}`
           return (
-            <li key={item.id} className="space-y-3 rounded-2xl border border-slate-300 bg-white p-4">
+            <li key={item.id} className="space-y-3 rounded-2xl border border-slate-300 bg-surface p-4">
               <p id={labelId} className="text-base font-semibold">{item.label}</p>
               <div role="radiogroup" aria-labelledby={labelId} className="flex gap-3">
                 <button
@@ -67,13 +68,13 @@ export function ChecklistBlock({ items, answers, onChange, onAllOk, disabled }: 
                     id={noteId} rows={2} maxLength={200} value={entry?.note ?? ''} placeholder={t.notePlaceholder}
                     aria-invalid={noteMissing(answers, item.id)} aria-required="true" disabled={disabled}
                     onChange={(e) => set(item.id, { answer: 'no', note: e.target.value })}
-                    className="w-full rounded-xl border-2 border-slate-400 bg-white px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-accent aria-invalid:border-red-600"
+                    className="w-full rounded-xl border-2 border-slate-400 bg-surface px-3 py-2 text-base focus-visible:outline-2 focus-visible:outline-focus aria-invalid:border-danger"
                   />
-                  <p className="flex items-center gap-2 text-sm font-medium text-amber-800">
+                  <p className="flex items-center gap-2 text-sm font-medium text-warning-ink">
                     <TriangleAlert aria-hidden className="size-4 shrink-0" /> {t.noteWarning}
                   </p>
                   {item.failBlocks && (
-                    <p role="alert" className="rounded-lg bg-red-100 px-3 py-2 text-sm font-semibold text-red-800">{t.failBlocks}</p>
+                    <NotificationBanner tone="error">{t.failBlocks}</NotificationBanner>
                   )}
                 </div>
               )}

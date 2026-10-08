@@ -18,6 +18,7 @@ import type { Vehicle, WithId } from '@/types'
 import { assignableDrivers } from './assignable'
 import { DriverPicker } from './DriverPicker'
 import { vehicleFieldsSchema } from './schemas'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.vehicles.form
 
@@ -122,9 +123,7 @@ function VehicleForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-4" noValidate>
       {formError && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700">
-          {formError}
-        </p>
+        <NotificationBanner tone="error">{formError}</NotificationBanner>
       )}
 
       <Controller

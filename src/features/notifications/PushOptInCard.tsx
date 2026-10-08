@@ -48,8 +48,8 @@ export function PushOptInCard() {
   }
 
   return (
-    <section aria-labelledby="push-card-h" className="relative flex items-start gap-3 rounded-2xl border border-slate-300 bg-white p-4 print:hidden">
-      <BellRing aria-hidden className="mt-0.5 size-6 shrink-0 text-accent" />
+    <section aria-labelledby="push-card-h" className="relative flex items-start gap-3 rounded-2xl border border-slate-300 bg-surface p-4 print:hidden">
+      <BellRing aria-hidden className="mt-0.5 size-6 shrink-0 text-brand" />
       <div className="min-w-0 flex-1 pr-8">
         <h2 id="push-card-h" className="font-semibold">{view === 'ios-install' ? t.iosTitle : t.cardTitle}</h2>
         {view === 'ios-install' ? (
@@ -80,7 +80,7 @@ export function PushOptInCard() {
         type="button"
         aria-label={t.dismiss}
         onClick={dismiss}
-        className="absolute right-1 top-1 inline-flex size-11 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-accent"
+        className="absolute right-1 top-1 inline-flex size-11 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-focus"
       >
         <X aria-hidden className="size-4" />
       </button>

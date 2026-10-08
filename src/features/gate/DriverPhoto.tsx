@@ -28,7 +28,7 @@ export function DriverPhoto({ driver, name, online }: { driver: Pick<Driver, 'ph
           type="button"
           onClick={() => setOpen(true)}
           aria-label={t.enlargePhoto(name)}
-          className="size-32 overflow-hidden rounded-2xl border-2 border-slate-300 bg-slate-100 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-accent sm:size-36"
+          className="size-32 overflow-hidden rounded-2xl border-2 border-slate-300 bg-slate-100 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus sm:size-36"
         >
           <img src={src} alt={t.photoOf(name)} onError={() => setBroken(src)} className="size-full object-cover" />
         </button>
@@ -38,7 +38,7 @@ export function DriverPhoto({ driver, name, online }: { driver: Pick<Driver, 'ph
         </span>
       )}
       {!hasPath && driver !== null && (
-        <span className="inline-flex items-center gap-1 rounded-md bg-amber-300 px-2 py-0.5 text-xs font-extrabold text-slate-950">
+        <span className="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-0.5 text-xs font-extrabold text-brand">
           <TriangleAlert aria-hidden className="size-3.5" />
           {t.noPhoto}
         </span>

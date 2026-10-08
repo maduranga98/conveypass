@@ -24,15 +24,15 @@ function Section({ title, to, count, children }: { title: string; to?: string; c
     <section className="space-y-3" aria-label={title}>
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-sm font-semibold">
-          {title} <span className="font-normal text-slate-400">{count}</span>
+          {title} <span className="font-normal text-slate-600">{count}</span>
         </h2>
         {to && count > PREVIEW && (
-          <Link to={to} className="rounded text-sm text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+          <Link to={to} className="rounded text-sm text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
             {t.viewAll}
           </Link>
         )}
       </div>
-      <div className="rounded-xl border border-slate-200 bg-white">{children}</div>
+      <div className="rounded-xl border border-slate-200 bg-surface">{children}</div>
     </section>
   )
 }
@@ -52,7 +52,7 @@ export default function ContractorDetailPage() {
   const mySupervisors = useMemo(() => (supervisors.data ?? []).filter((u) => u.contractorId === contractorId), [supervisors.data, contractorId])
 
   const back = (
-    <Link to="/admin/contractors" className="inline-flex items-center gap-1.5 rounded text-sm text-slate-500 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+    <Link to="/admin/contractors" className="inline-flex items-center gap-1.5 rounded text-sm text-slate-500 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
       <ArrowLeft aria-hidden className="size-4" />
       {t.back}
     </Link>
@@ -70,7 +70,7 @@ export default function ContractorDetailPage() {
     return (
       <div className="space-y-5">
         {back}
-        <ErrorState onRetry={() => void contractors.refetch()} />
+        <ErrorState error={contractors.error} onRetry={() => void contractors.refetch()} />
       </div>
     )
   }
@@ -117,11 +117,11 @@ export default function ContractorDetailPage() {
       </div>
 
       <section aria-label={t.summary}>
-        <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white text-sm">
+        <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-surface text-sm">
           {rows.map(([label, value]) => (
             <div key={label} className="flex justify-between gap-6 px-4 py-3">
               <dt className="shrink-0 text-slate-500">{label}</dt>
-              <dd className="min-w-0 text-right text-slate-900">{value}</dd>
+              <dd className="min-w-0 text-right text-brand">{value}</dd>
             </div>
           ))}
         </dl>
@@ -131,7 +131,7 @@ export default function ContractorDetailPage() {
         {supervisors.isPending ? (
           <p className="px-4 py-4 text-sm text-slate-500">{strings.common.loading}</p>
         ) : supervisors.isError ? (
-          <ErrorState onRetry={() => void supervisors.refetch()} />
+          <ErrorState error={supervisors.error} onRetry={() => void supervisors.refetch()} />
         ) : mySupervisors.length === 0 ? (
           <p className="px-4 py-4 text-sm text-slate-500">{t.noSupervisors}</p>
         ) : (
@@ -153,7 +153,7 @@ export default function ContractorDetailPage() {
         {vehicles.isPending ? (
           <p className="px-4 py-4 text-sm text-slate-500">{strings.common.loading}</p>
         ) : vehicles.isError ? (
-          <ErrorState onRetry={() => void vehicles.refetch()} />
+          <ErrorState error={vehicles.error} onRetry={() => void vehicles.refetch()} />
         ) : myVehicles.length === 0 ? (
           <p className="px-4 py-4 text-sm text-slate-500">{t.noVehicles}</p>
         ) : (
@@ -175,7 +175,7 @@ export default function ContractorDetailPage() {
         {drivers.isPending ? (
           <p className="px-4 py-4 text-sm text-slate-500">{strings.common.loading}</p>
         ) : drivers.isError ? (
-          <ErrorState onRetry={() => void drivers.refetch()} />
+          <ErrorState error={drivers.error} onRetry={() => void drivers.refetch()} />
         ) : myDrivers.length === 0 ? (
           <p className="px-4 py-4 text-sm text-slate-500">{t.noDrivers}</p>
         ) : (

@@ -48,3 +48,29 @@ export function apiErrorMessage(e: unknown): string {
   }
   return strings.common.somethingWrong
 }
+
+/**
+ * Why a read failed, in words an administrator can act on. Firestore reports the cause in `error.code`:
+ * a missing composite index and undeployed security rules both look like "no data" on screen, so the banner names them.
+ */
+export function describeLoadError(e: unknown): string | null {
+  if (!(e instanceof FirebaseError)) return null
+  const code = e.code.replace(/^(functions|firestore|storage)\//, '')
+  if (import.meta.env.DEV) console.error('[load failed]', e.code, e.message)
+  switch (code) {
+    case 'permission-denied':
+      return strings.loadErrors.permission
+    case 'failed-precondition':
+      return /index/i.test(e.message) ? strings.loadErrors.index : null
+    case 'unavailable':
+    case 'deadline-exceeded':
+    case 'network-request-failed':
+      return strings.loadErrors.network
+    case 'unauthenticated':
+      return strings.loadErrors.session
+    case 'resource-exhausted':
+      return strings.loadErrors.quota
+    default:
+      return null
+  }
+}
