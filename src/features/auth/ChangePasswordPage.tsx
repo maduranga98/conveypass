@@ -13,7 +13,7 @@ import { apiErrorMessage, apiErrorReason } from '@/lib/errors'
 import { auth } from '@/lib/firebase'
 import { ROLE_HOME } from '@/lib/roles'
 import { strings } from '@/lib/strings'
-import { safeNext } from './redirect'
+import { nextForRole } from './redirect'
 import { useAuth, useSession } from './useAuth'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
@@ -74,7 +74,7 @@ export default function ChangePasswordPage() {
       return
     }
     toast.success(isDriver ? t.pinUpdated : t.passwordUpdated)
-    navigate(safeNext(params.get('next')) ?? ROLE_HOME[session.claims.role], { replace: true })
+    navigate(nextForRole(session.claims.role, params.get('next')) ?? ROLE_HOME[session.claims.role], { replace: true })
   }
 
   return (

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { changePasswordUrl, loginUrl, safeNext } from './redirect'
+import { changePasswordUrl, loginUrl, nextForRole, safeNext } from './redirect'
 
 describe('safeNext', () => {
   it('keeps same-origin paths, including query and hash', () => {
@@ -17,4 +17,20 @@ describe('urls', () => {
     expect(loginUrl('/v/abc123?a=b')).toBe('/login?next=%2Fv%2Fabc123%3Fa%3Db')
     expect(changePasswordUrl('/driver')).toBe('/change-password?next=%2Fdriver')
   })
+})
+
+describe('nextForRole', () => {
+  it("drops another role's area left behind by a previous session", () => {
+    expect(nextForRole('supervisor', '/admin/dashboard')).toBeNull()
+    expect(nextForRole('supervisor', '/admin')).toBeNull()
+    expect(nextForRole('admin', '/supervisor/approvals')).toBeNull()
+    expect(nextForRole('driver', '/platform/invites')).toBeNull()
+  })
+  it("keeps the role's own area and shared paths", () => {
+    expect(nextForRole('supervisor', '/supervisor/vehicles?new=1')).toBe('/supervisor/vehicles?new=1')
+    expect(nextForRole('supervisor', '/v/veh_abc123defg')).toBe('/v/veh_abc123defg')
+    expect(nextForRole('officer', '/notifications')).toBe('/notifications')
+    expect(nextForRole('admin', '/administrator')).toBe('/administrator')
+  })
+  it('still rejects unsafe paths', () => expect(nextForRole('admin', '//evil.com')).toBeNull())
 })
