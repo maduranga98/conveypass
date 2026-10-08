@@ -6,11 +6,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const signIn = vi.hoisted(() => vi.fn())
 const fbSignOut = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<void>>(async () => undefined))
 const getProfile = vi.hoisted(() => vi.fn())
+const signupStatus = vi.hoisted(() => vi.fn())
 const authState = vi.hoisted(() => ({ value: { status: 'signedOut', operator: null, session: null } as Record<string, unknown> }))
 
 vi.mock('firebase/auth', () => ({ signInWithEmailAndPassword: (...a: unknown[]) => signIn(...a), signOut: (...a: unknown[]) => fbSignOut(...a) }))
 vi.mock('@/lib/firebase', () => ({ auth: { currentUser: null } }))
-vi.mock('@/lib/api', () => ({ getOperatorProfile: (...a: unknown[]) => getProfile(...a) }))
+vi.mock('@/lib/api', () => ({ getOperatorProfile: (...a: unknown[]) => getProfile(...a), getSuperAdminSignupStatus: (...a: unknown[]) => signupStatus(...a) }))
 vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => authState.value }))
 
 import PlatformLoginPage from './PlatformLoginPage'
@@ -43,6 +44,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   authState.value = { status: 'signedOut', operator: null, session: null }
   getProfile.mockResolvedValue({ name: 'Olive', email: 'olive@convoypass.test', mustChangePassword: false })
+  signupStatus.mockResolvedValue({ enabled: false })
 })
 
 describe('Super admin sign-in page', () => {
@@ -153,8 +155,15 @@ describe('Super admin sign-in page', () => {
     renderAt()
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument()
   })
-  it('never links to the workspace login or the privacy page of the tenant app', () => {
+  it('never links to the workspace login or the privacy page of the tenant app, and hides signup while it is off', async () => {
     renderAt()
+    await waitFor(() => expect(signupStatus).toHaveBeenCalled())
     expect(screen.queryAllByRole('link')).toHaveLength(0)
+  })
+  it('offers the signup link only when the server says signup is on', async () => {
+    signupStatus.mockResolvedValue({ enabled: true })
+    renderAt()
+    const link = await screen.findByRole('link', { name: 'Create a super admin account' })
+    expect(link.getAttribute('href')).toBe('/platform/signup')
   })
 })

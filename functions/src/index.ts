@@ -12,9 +12,10 @@ import * as passes from './passes.js'
 import * as reportsApi from './reportsApi.js'
 import { devicePort } from './notifyPorts.js'
 import { operatorCallable, callable, publicCallable, runOperatorCall } from './runtime.js'
-import { APP_BASE_URL, IN_EMULATOR } from './config.js'
+import { APP_BASE_URL, IN_EMULATOR, SUPERADMIN_SIGNUP_ENABLED } from './config.js'
 import { createPlatformApi } from './platform/platform.js'
-import { platformPort } from './platform/platformPort.js'
+import { platformPort, signupAuthPort, signupPort } from './platform/platformPort.js'
+import * as superAdminSignup from './platform/signup.js'
 import { createWorkspaceApi } from './platform/workspaces.js'
 import { workspaceAuthPort, workspacePort } from './platform/workspacesPort.js'
 import { generateTempPassword } from './auth/tempPassword.js'
@@ -107,6 +108,10 @@ export const getOperatorOverview = operatorCallable('getOperatorOverview', (a) =
 export const createSetupInvite = operatorCallable('createSetupInvite', (a, d) => platformApi().createSetupInvite(a, d))
 export const listSetupInvites = operatorCallable('listSetupInvites', (a, d) => platformApi().listSetupInvites(a, d))
 export const revokeSetupInvite = operatorCallable('revokeSetupInvite', (a, d) => platformApi().revokeSetupInvite(a, d))
+// Module 11: open super admin signup. Public (per-IP rate limits); off unless the emulator or ALLOW_SUPERADMIN_SIGNUP=true.
+const signupDeps = (): superAdminSignup.SignupDeps => ({ enabled: () => SUPERADMIN_SIGNUP_ENABLED, auth: signupAuthPort(), port: signupPort() })
+export const getSuperAdminSignupStatus = publicCallable('getSuperAdminSignupStatus', async () => superAdminSignup.signupStatus(signupDeps()))
+export const signUpSuperAdmin = publicCallable('signUpSuperAdmin', (data) => superAdminSignup.signUpSuperAdmin(signupDeps(), data))
 // Module 10: the super admin creates workspaces and manages their admins (temporary password returned once).
 const workspaceApi = () =>
   createWorkspaceApi({

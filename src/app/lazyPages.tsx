@@ -48,6 +48,7 @@ export const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPa
 export const ReportsPage = lazy(() => import('@/features/reports/ReportsPage'))
 // Module 9: the operator console. Separate chunks, loaded only on /platform (never reachable by workspace roles).
 export const PlatformLoginPage = lazy(() => import('@/features/platform/PlatformLoginPage'))
+export const PlatformSignupPage = lazy(() => import('@/features/platform/PlatformSignupPage'))
 export const PlatformChangePasswordPage = lazy(() => import('@/features/platform/PlatformChangePasswordPage'))
 export const PlatformLayout = lazy(() => import('@/features/platform/PlatformLayout'))
 export const OperatorOverviewPage = lazy(() => import('@/features/platform/OverviewPage'))

@@ -4,6 +4,7 @@ import { OPERATOR_HOME } from '@/lib/roles'
 
 export const PLATFORM_LOGIN = '/platform/login'
 export const PLATFORM_CHANGE_PASSWORD = '/platform/change-password'
+export const PLATFORM_SIGNUP = '/platform/signup'
 
 /** `/platform`, or a path below it that is neither of the two auth pages. Anything else is null. */
 export function safePlatformPath(raw: string | null | undefined): string | null {
@@ -17,7 +18,7 @@ export function safePlatformPath(raw: string | null | undefined): string | null 
   if (url.origin !== 'https://x.invalid') return null
   const path = url.pathname
   if (path !== OPERATOR_HOME && !path.startsWith(`${OPERATOR_HOME}/`)) return null
-  if (path === PLATFORM_LOGIN || path === PLATFORM_CHANGE_PASSWORD) return null
+  if (path === PLATFORM_LOGIN || path === PLATFORM_CHANGE_PASSWORD || path === PLATFORM_SIGNUP) return null
   return `${path}${url.search}${url.hash}`
 }
 

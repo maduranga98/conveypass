@@ -10,6 +10,13 @@ const intFromEnv = (raw: string | undefined, fallback: number, min: number, max:
 export const IN_EMULATOR = process.env.FUNCTIONS_EMULATOR === 'true'
 
 /**
+ * Open super admin signup (`signUpSuperAdmin`, the /platform/signup page). Always on in the emulator; anywhere else it needs
+ * `ALLOW_SUPERADMIN_SIGNUP=true` in functions/.env.<alias>. While on, ANYONE who finds the page can become a super admin
+ * (create workspaces and admins for every client): leave it off in production, or turn it off again after creating yours.
+ */
+export const SUPERADMIN_SIGNUP_ENABLED = IN_EMULATOR || process.env.ALLOW_SUPERADMIN_SIGNUP === 'true'
+
+/**
  * App Check enforcement for callables. Off unless `ENFORCE_APP_CHECK=true` (functions/.env.<alias>), and never in
  * the emulator. Roll out in monitoring mode first: see docs/ops.md.
  */

@@ -66,6 +66,7 @@ export type Reason =
   | 'invite-not-found'
   | 'invite-not-revocable'
   | 'config-missing'
+  | 'signup-disabled'
   | 'internal'
 
 /** Typed error: `code` is the gRPC-style code, `details.reason` is a stable key the client maps to a string. */

@@ -29,6 +29,7 @@ import {
   PlatformChangePasswordPage,
   PlatformLayout,
   PlatformLoginPage,
+  PlatformSignupPage,
   PassesPage,
   PrivacyPage,
   QrLabelsPage,
@@ -60,6 +61,7 @@ export const router = createBrowserRouter([
   { path: '/', element: <RoleHomeRedirect /> },
   // Module 11: the Super admin sign-in. Public, lazy, noindex; not linked from any workspace screen.
   { path: '/platform/login', element: lazyEl(<PlatformLoginPage />) },
+  { path: '/platform/signup', element: lazyEl(<PlatformSignupPage />) },
   {
     // Platform operator console (Module 9): operators only, no tenant, no notifications or workspace navigation.
     element: <RequireOperator />,
