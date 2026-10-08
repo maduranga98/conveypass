@@ -18,8 +18,9 @@ export const isValidPassword = (v: string): boolean =>
 
 export const staffPasswordSchema = z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH)
 
-/** `94771234567` -> `077 123 4567` for display. */
-export function formatPhone(normalised: string): string {
+/** `94771234567` -> `077 123 4567` for display; no number (an optional contact number, Module 12) -> ''. */
+export function formatPhone(normalised: string | null | undefined): string {
+  if (!normalised) return ''
   const m = /^94(7\d)(\d{3})(\d{4})$/.exec(normalised)
   return m ? `0${m[1]} ${m[2]} ${m[3]}` : normalised
 }

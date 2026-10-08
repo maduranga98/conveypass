@@ -22,8 +22,17 @@ export function nextForRole(role: Role, next: string | null | undefined): string
   return foreign.some((area) => insideArea(path, area)) ? null : path
 }
 
+/** The office staff sign-in (email and password). `/login` itself is the PIN screen for drivers and security (Module 12). */
+export const STAFF_LOGIN = '/login/staff'
+const STAFF_AREAS = ['/admin', '/officer', '/supervisor']
+
+/**
+ * Where a signed-out visitor goes: the PIN screen, or the staff form when they were headed for an office-staff area.
+ * Shared paths (`/v/...`, `/notifications`, `/settings`) go to the PIN screen, which links to the staff form.
+ */
 export function loginUrl(next: string): string {
-  return `/login?next=${encodeURIComponent(next)}`
+  const staff = STAFF_AREAS.some((area) => insideArea(next, area))
+  return `${staff ? STAFF_LOGIN : '/login'}?next=${encodeURIComponent(next)}`
 }
 
 export function changePasswordUrl(next: string): string {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { COMMON_PASSWORDS } from './commonPasswords'
-import { checkStaffPassword, passwordAcceptable, pinProblem } from './passwordRules'
+import { checkStaffPassword, passwordAcceptable } from './passwordRules'
 
 describe('staff password rules', () => {
   it('needs 10+ characters, not the email, not a common password', () => {
@@ -15,14 +15,5 @@ describe('staff password rules', () => {
   })
   it('refuses every entry of the deny-list that is long enough', () => {
     for (const p of COMMON_PASSWORDS.filter((x) => x.length >= 10)) expect(passwordAcceptable(checkStaffPassword(p))).toBe(false)
-  })
-})
-
-describe('driver PIN rules', () => {
-  it('needs 6 digits and none of the Module 2 weak patterns', () => {
-    expect(pinProblem('12345')).toBe('format')
-    expect(pinProblem('12a456')).toBe('format')
-    for (const weak of ['000000', '111111', '123456', '654321', '121212', '123123']) expect(pinProblem(weak), weak).toBe('trivial')
-    expect(pinProblem('481926')).toBeNull()
   })
 })

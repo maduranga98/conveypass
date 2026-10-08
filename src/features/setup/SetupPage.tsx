@@ -216,7 +216,7 @@ function SetupForm({
       await cred.user.getIdToken(true)
       void sendVerificationEmail(cred.user).catch(() => undefined) // best effort
     } catch {
-      navigate('/login', { replace: true })
+      navigate('/login/staff', { replace: true })
       return
     }
     navigate('/admin/dashboard?welcome=1', { replace: true })

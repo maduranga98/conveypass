@@ -1,3 +1,4 @@
+import { formatPhone } from '@/lib/credentials'
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { useContractorList, useDrivers, useVehicles } from '@/features/shared/queries'
@@ -18,7 +19,7 @@ function VehicleField({ value, onChange }: { value: string; onChange: (id: strin
 
 function DriverField({ value, onChange }: { value: string; onChange: (id: string) => void }) {
   const drivers = useDrivers('admin')
-  const options = (drivers.data?.items ?? []).map((d) => ({ id: d.id, label: d.name, hint: d.phone }))
+  const options = (drivers.data?.items ?? []).map((d) => ({ id: d.id, label: d.name, ...(d.phone ? { hint: formatPhone(d.phone) } : {}) }))
   return <EntitySearch label={t.driver} placeholder={t.driverPlaceholder} options={options} value={value} onChange={onChange} loading={drivers.isPending} />
 }
 

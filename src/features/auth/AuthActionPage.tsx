@@ -28,7 +28,7 @@ export default function AuthActionPage() {
   if (mode === 'resetPassword') return <ResetPassword code={code} />
   if (mode === 'verifyEmail') return <VerifyEmail code={code} />
   // Any other action (recoverEmail, email change, ...) is not handled here.
-  return <Navigate to="/login" replace />
+  return <Navigate to="/login/staff" replace />
 }
 
 type Outcome = 'checking' | 'ready' | 'expired' | 'invalid' | 'network'
@@ -96,7 +96,7 @@ function ResetPassword({ code }: { code: string }) {
   if (done) {
     return (
       <AuthShell title={t.resetDoneTitle} intro={t.resetDone}>
-        <Link to="/login" className={linkButton}>{strings.auth.signIn}</Link>
+        <Link to="/login/staff" className={linkButton}>{strings.auth.signIn}</Link>
       </AuthShell>
     )
   }
@@ -173,7 +173,7 @@ function VerifyEmail({ code }: { code: string }) {
       <div className="space-y-4">
         <Notice>{outcome === 'network' ? t.network : outcome === 'expired' ? t.linkExpired : t.linkInvalid}</Notice>
         {outcome !== 'network' && <p className="text-sm text-slate-600">{t.verifyNewHint}</p>}
-        <Link to="/login" className={textLink}>{t.goToSignIn}</Link>
+        <Link to="/login/staff" className={textLink}>{t.goToSignIn}</Link>
       </div>
     </AuthShell>
   )

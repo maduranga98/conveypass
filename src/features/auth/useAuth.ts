@@ -5,6 +5,8 @@ export interface Session {
   uid: string
   claims: Claims
   profile: WithId<UserDoc>
+  /** Seconds: when this session signed in (token `auth_time`). PIN sessions expire from it (Module 12). */
+  authTime: number
 }
 
 /** A platform operator (Module 9). Their profile comes from `operators/{uid}` through `getOperatorProfile`; there is no `users` doc. */

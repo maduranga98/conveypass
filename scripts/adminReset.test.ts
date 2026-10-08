@@ -30,7 +30,7 @@ describe('admin:reset', () => {
   it('--link prints a reset link with the app login as continue URL, writes the audit entry, changes nothing else', async () => {
     const t = setup()
     expect(await runAdminReset([...ARGS, '--link'], t.io)).toBe(0)
-    expect(t.calls).toEqual(['link:admin@acme.test:https://app.convoypass.com/login'])
+    expect(t.calls).toEqual(['link:admin@acme.test:https://app.convoypass.com/login/staff'])
     expect(t.text()).toContain('oobCode=SECRET')
     expect(t.audits).toEqual([{
       tenantId: 'ten_1', action: 'admin.recovery', actorUid: 'admin-reset', actorRole: 'system', targetType: 'user', targetId: 'u1', meta: { method: 'link', env: 'staging' },

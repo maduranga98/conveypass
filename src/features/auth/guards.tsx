@@ -4,6 +4,7 @@ import { OPERATOR_HOME, ROLE_HOME, type Role } from '@/lib/roles'
 import { ForbiddenPage } from './ErrorPages'
 import { IdleGuard } from '@/features/platform/IdleGuard'
 import { changePasswordUrl as operatorChangePasswordUrl, PLATFORM_CHANGE_PASSWORD, peekLoginReason, platformLoginUrl } from '@/features/platform/redirect'
+import { isPinRole } from '@/lib/session'
 import { changePasswordUrl, loginUrl } from './redirect'
 import { useAuth } from './useAuth'
 
@@ -19,7 +20,8 @@ export function RequireAuth() {
   if (status === 'loading') return <PageSpinner />
   if (operator) return <ForbiddenPage />
   if (!session) return <Navigate to={loginUrl(here)} replace />
-  if (session.profile.mustChangePassword && location.pathname !== '/change-password') {
+  // PIN users (Module 12) have no password to change: the forced-change flow is for office staff only.
+  if (session.profile.mustChangePassword && !isPinRole(session.claims.role) && location.pathname !== '/change-password') {
     return <Navigate to={changePasswordUrl(here)} replace />
   }
   return <Outlet />

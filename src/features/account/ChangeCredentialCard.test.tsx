@@ -15,7 +15,7 @@ let role = 'admin'
 vi.mock('sonner', () => ({ toast }))
 vi.mock('@/lib/firebase', () => ({ auth: authMock }))
 vi.mock('@/lib/api', () => ({ changeOwnPassword: (...a: unknown[]) => changeOwnPassword(...a) }))
-vi.mock('@/features/auth/useAuth', () => ({ useSession: () => ({ claims: { role, tenantId: 'T1' }, profile: { email: role === 'driver' ? null : 'ada@acme.test' } }) }))
+vi.mock('@/features/auth/useAuth', () => ({ useSession: () => ({ claims: { role, tenantId: 'T1' }, profile: { email: 'ada@acme.test' } }) }))
 vi.mock('firebase/auth', () => ({
   EmailAuthProvider: { credential: (email: string, password: string) => ({ email, password }) },
   reauthenticateWithCredential: (...a: unknown[]) => reauth(...a),
@@ -29,7 +29,7 @@ const fillAndSubmit = async (current: string, next: string, confirm = next, labe
   fireEvent.change(screen.getByLabelText(labels[0] as string), { target: { value: current } })
   fireEvent.change(screen.getByLabelText(labels[1] as string), { target: { value: next } })
   fireEvent.change(screen.getByLabelText(labels[2] as string), { target: { value: confirm } })
-  fireEvent.click(screen.getByRole('button', { name: /^Update (password|PIN)$/ }))
+  fireEvent.click(screen.getByRole('button', { name: /^Update password$/ }))
 }
 
 beforeEach(() => {
@@ -116,43 +116,5 @@ describe('ChangeCredentialCard (staff)', () => {
     await fillAndSubmit('Old-password-1234', GOOD)
     await waitFor(() => expect(toast.success).toHaveBeenCalled())
     expect(signInWithEmailAndPassword).toHaveBeenCalledWith(authMock, 'ada@acme.test', GOOD)
-  })
-})
-
-describe('ChangeCredentialCard (driver)', () => {
-  const pinLabels = ['Current PIN', 'New 6-digit PIN', 'Confirm new PIN']
-  beforeEach(() => {
-    role = 'driver'
-    user.email = '94771234567@drivers.convoypass.com'
-  })
-
-  it('uses PIN labels, re-authenticates with the synthetic email, and changes the PIN', async () => {
-    render(<ChangeCredentialCard />)
-    await fillAndSubmit('481926', '739204', '739204', pinLabels)
-    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('PIN updated. You stay signed in on this device.'))
-    expect(order.slice(0, 3)).toEqual(['reauth:481926', 'token', 'change'])
-    expect(changeOwnPassword).toHaveBeenCalledWith({ newPassword: '739204' })
-    expect(screen.queryByTestId('password-rules')).toBeNull()
-  })
-
-  it.each([
-    ['too short', '1234', 'PIN must be exactly 6 digits'],
-    ['letters', '12ab56', 'PIN must be exactly 6 digits'],
-    ['a repeat', '111111', 'That PIN is too easy to guess. Avoid repeats and sequences like 123456.'],
-    ['a sequence', '123456', 'That PIN is too easy to guess. Avoid repeats and sequences like 123456.'],
-    ['a pattern', '121212', 'That PIN is too easy to guess. Avoid repeats and sequences like 123456.'],
-  ])('rejects %s (Module 2 weak-PIN exclusions)', async (_n, pin, message) => {
-    render(<ChangeCredentialCard />)
-    await fillAndSubmit('481926', pin, pin, pinLabels)
-    expect(await screen.findByText(message)).toBeInTheDocument()
-    expect(reauth).not.toHaveBeenCalled()
-  })
-
-  it('a wrong current PIN fails with a PIN message', async () => {
-    reauth.mockRejectedValueOnce(new FirebaseError('auth/wrong-password', 'x'))
-    render(<ChangeCredentialCard />)
-    await fillAndSubmit('000000', '739204', '739204', pinLabels)
-    expect(await screen.findByText('That is not your current PIN.')).toBeInTheDocument()
-    expect(changeOwnPassword).not.toHaveBeenCalled()
   })
 })

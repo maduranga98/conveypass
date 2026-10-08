@@ -18,7 +18,7 @@ export function DriverPicker({ drivers, contractorId, value, onChange, disabled 
   return (
     <CheckList
       legend={strings.vehicles.form.drivers}
-      options={options.map((d) => ({ id: d.id, label: d.name, hint: formatPhone(d.phone) }))}
+      options={options.map((d) => ({ id: d.id, label: d.name, ...(d.phone ? { hint: formatPhone(d.phone) } : {}) }))}
       value={value}
       onChange={onChange}
       emptyText={contractorId ? strings.vehicles.form.driversEmpty : strings.vehicles.form.driversPickContractor}

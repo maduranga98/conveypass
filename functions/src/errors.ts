@@ -9,7 +9,6 @@ export type Reason =
   | 'user-not-found'
   | 'contractor-invalid'
   | 'email-exists'
-  | 'phone-exists'
   | 'self-status'
   | 'self-reset'
   | 'recent-login-required'

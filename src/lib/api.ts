@@ -1,6 +1,7 @@
 import { httpsCallable } from 'firebase/functions'
 import type { Role } from './roles'
 import { functions } from './firebase'
+import { isSessionExpired, reportSessionExpired } from './sessionEvents'
 import type { ChecklistItemDef, PassSettings } from './defaultChecklist'
 import type { VehicleType } from './vehicleTypes'
 import type { RejectionReasonDef } from './defaultRejectionReasons'
@@ -26,13 +27,15 @@ export interface CreateUserPayload {
   phone?: string
   contractorId?: string
   licenseNo?: string
-  password: string
+  /** Office staff only. Drivers and security get a server-generated PIN (Module 12). */
+  password?: string
 }
 
 export interface UpdateUserPayload {
   uid: string
   name?: string
-  phone?: string
+  /** Drivers and security: contact number only. `null` clears it. */
+  phone?: string | null
   status?: 'active' | 'disabled'
   /** Drivers only. `null` clears it. */
   licenseNo?: string | null
@@ -42,10 +45,22 @@ export interface UpdateUserPayload {
 
 const call = <Req, Res>(name: string, timeout?: number) => {
   const fn = httpsCallable<Req, Res>(functions, name, timeout ? { timeout } : undefined)
-  return async (payload: Req): Promise<Res> => (await fn(payload)).data
+  return async (payload: Req): Promise<Res> => {
+    try {
+      return (await fn(payload)).data
+    } catch (e) {
+      // A PIN session past its limit (or from before a reissued PIN): sign out and ask for the PIN again.
+      if (isSessionExpired(e)) reportSessionExpired()
+      throw e
+    }
+  }
 }
 
-export const createUser = call<CreateUserPayload, { uid: string }>('createUser')
+/** `pin` is set for drivers and security (Module 12) and appears in this one response only: show it once, never store it. */
+export const createUser = call<CreateUserPayload, { uid: string; pin?: string }>('createUser')
+export const reissuePin = call<{ uid: string }, { pin: string }>('reissuePin', 30_000)
+/** Unauthenticated. Every failure is one error (`pin-invalid`), with `retryAfterSeconds` while this IP or device is locked. */
+export const loginWithPin = call<{ pin: string; deviceId: string }, { token: string }>('loginWithPin', 30_000)
 export const updateUser = call<UpdateUserPayload, { ok: true }>('updateUser')
 export const resetCredential = call<{ uid: string; newPassword: string }, { ok: true }>('resetCredential')
 export const changeOwnPassword = call<{ newPassword: string }, { ok: true }>('changeOwnPassword')

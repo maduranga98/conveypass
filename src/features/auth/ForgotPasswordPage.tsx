@@ -92,8 +92,7 @@ export default function ForgotPasswordPage() {
             </Button>
           )}
         </form>
-        <p className="text-sm text-slate-500">{t.driversNote}</p>
-        <Link to="/login" className="inline-flex min-h-11 items-center text-sm font-medium text-slate-700 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-focus">
+        <Link to="/login/staff" className="inline-flex min-h-11 items-center text-sm font-medium text-slate-700 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-focus">
           {t.back}
         </Link>
       </div>

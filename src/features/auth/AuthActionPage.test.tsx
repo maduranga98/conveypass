@@ -28,7 +28,7 @@ const renderAt = (search: string) =>
     <MemoryRouter initialEntries={[`/auth/action${search}`]}>
       <Routes>
         <Route path="/auth/action" element={<AuthActionPage />} />
-        <Route path="/login" element={<p>login page</p>} />
+        <Route path="/login/staff" element={<p>login page</p>} />
         <Route path="/forgot-password" element={<p>forgot page</p>} />
         <Route path="*" element={<p>elsewhere</p>} />
       </Routes>
@@ -66,7 +66,7 @@ describe('/auth/action resetPassword', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save new password' }))
     expect(await screen.findByText('Password updated')).toBeInTheDocument()
     expect(confirmReset).toHaveBeenCalledWith(authMock, OOB, 'Correct-horse-battery-9')
-    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login')
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login/staff')
     expect(document.body.textContent).not.toContain(OOB)
   })
   it('refuses a password equal to the account email', async () => {

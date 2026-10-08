@@ -1,7 +1,7 @@
 // Staff password rules for new passwords chosen in the app (workspace setup, reset link, account page).
-// Mirrors `assertSetupPassword` in functions/src/setup.ts. Drivers use a 6-digit PIN instead (see `pinProblem`).
+// Mirrors `assertSetupPassword` in functions/src/setup.ts. Drivers and security have server-generated PINs (Module 12).
 import { isCommonPassword } from './commonPasswords'
-import { isTrivialPin, isValidPin, PASSWORD_MAX_LENGTH } from './credentials'
+import { PASSWORD_MAX_LENGTH } from './credentials'
 
 export const STAFF_PASSWORD_MIN_LENGTH = 10
 
@@ -23,8 +23,3 @@ export function checkStaffPassword(password: string, email: string = ''): Passwo
 }
 
 export const passwordAcceptable = (c: PasswordChecks): boolean => c.length && c.notEmail && c.notCommon
-
-export type PinProblem = 'format' | 'trivial' | null
-
-/** Driver PIN: exactly 6 digits and not one of the Module 2 weak patterns (000000, 123456, 121212 ...). */
-export const pinProblem = (pin: string): PinProblem => (!isValidPin(pin) ? 'format' : isTrivialPin(pin) ? 'trivial' : null)

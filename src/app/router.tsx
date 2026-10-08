@@ -18,7 +18,8 @@ import {
   ForgotPasswordPage,
   DriversPage,
   GateHome,
-  LoginPage,
+  PinLoginPage,
+  StaffLoginPage,
   NotificationsPage,
   OfficerLayout,
   OfficerQueue,
@@ -55,7 +56,8 @@ export const router = createBrowserRouter([
   {
     errorElement: <RouteErrorPage />,
     children: [
-      { path: '/login', element: lazyEl(<LoginPage />) },
+      { path: '/login', element: lazyEl(<PinLoginPage />) },
+      { path: '/login/staff', element: lazyEl(<StaffLoginPage />) },
       { path: '/privacy', element: lazyEl(<PrivacyPage />) },
       // Public, outside the auth guard: workspace setup (invite link), staff password reset and Firebase's email action page.
       { path: '/setup', element: lazyEl(<SetupPage />) },
