@@ -14,8 +14,11 @@ client's staff or the contractor's supervisor register.
 
 | Data | About whom | Why | Where | Who can see it |
 |---|---|---|---|---|
-| Name, role, email (staff) or mobile number (drivers), account status | every user | sign-in and showing who did what | Firestore (`users`, `drivers`) and Firebase Authentication | Admin: all users of the tenant. Supervisor: drivers of their own contractor. Everyone: their own record. Drivers sign in with their mobile number turned into an internal address that is never shown and never receives mail. |
-| Sign-in credentials | every user | authentication | Firebase Authentication only (passwords and PINs are hashed by Google; ConvoyPass never stores or logs them) | nobody can read them |
+| Name, role, email (office staff) or an optional contact number (drivers and security), account status | every user | sign-in (staff) and showing who did what | Firestore (`users`, `drivers`) and Firebase Authentication | Admin: all users of the tenant. Supervisor: drivers of their own contractor. Everyone: their own record. Drivers' and guards' contact numbers are for contacting them only, never a login. |
+| Sign-in credentials: staff passwords | office staff | authentication | Firebase Authentication only (hashed by Google; ConvoyPass never stores or logs them) | nobody can read them |
+| **PIN sign-in** (drivers and security): an HMAC-SHA256 of the 8-digit PIN under a secret key (never the PIN itself) | drivers, security | identify who typed the PIN | Firestore (`pinIndex`) | nobody in the app (server only). The PIN is shown once to the admin or supervisor who issued it and is never stored, logged or shown again. |
+| **Sign-in throttling**: keyed hashes (HMAC) of the network address and of a random device id, with failure counts and lock times | anyone who tries a PIN | stop PIN guessing | Firestore (`pinAttempts`), deleted by a time-to-live policy about 2 days after use | nobody in the app (server only) |
+| **Known devices** (up to 5): a hash of the random device id, first and last seen; last sign-in time | drivers, security | show "Last signed in" and the number of phones; tell admins when a guard signs in on a new phone | Firestore (`users`) | Admin; supervisors for their drivers; the person |
 | Driver licence number (optional) | drivers | identify the driver at the gate | Firestore (`drivers`) | Admin, officers and security (tenant), the contractor's supervisor, the driver |
 | **Driver photo** (optional) | drivers | the guard compares the face with the person at the gate | Cloud Storage, `tenants/<tenant>/contractors/<contractor>/drivers/<id>.jpg` | Admin, officers, security, the contractor's supervisor, the driver |
 | Vehicle plate, type, make and model | vehicles (and so their owners) | the pass | Firestore (`vehicles`, `passes`) | Admin, officers, security, the contractor's supervisor, drivers assigned to the vehicle |
@@ -43,6 +46,8 @@ Cloud) acts as processor; reCAPTCHA (App Check) is used to tell the real app fro
 | Audit log | until the client deletes it. It has no automatic expiry. |
 | Notifications | 30 days, then deleted by a Firestore time-to-live policy |
 | Rate-limit counters | minutes (deleted by the same policy) |
+| PIN throttle counters | about 2 days after the last attempt (deleted by a time-to-live policy) |
+| Known devices | until the PIN is reissued (cleared) or replaced by newer devices (at most 5) |
 | Push tokens | until the person turns alerts off, signs out, or the token stops working (then it is deleted automatically); at most 5 per person |
 | Logs | Google Cloud Logging default (30 days for `_Default`) unless the client changes the bucket retention |
 | Backups | daily backups 7 days, weekly backups 14 weeks, point-in-time recovery 7 days. **Deleted data can remain in backups until they expire.** Photos in Cloud Storage are not part of Firestore backups. |
