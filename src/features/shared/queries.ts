@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, where, type QueryConstraint } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { downloadUrl } from '@/lib/storage'
-import type { Contractor, Driver, Vehicle, WithId } from '@/types'
+import type { Contractor, Driver, UserDoc, Vehicle, WithId } from '@/types'
 import { useScope, type Scope } from './scope'
 
 /** Lists load once per scope, capped; search and filters run client-side. */
@@ -43,6 +43,30 @@ export function useDrivers(scope: Scope, opts: { enabled?: boolean } = {}) {
     queryKey: ['drivers', tenantId, contractorId ?? 'all'],
     enabled: ready && (opts.enabled ?? true),
     queryFn: () => load<Driver>('drivers', scoped(tenantId, contractorId, 'name')),
+  })
+}
+
+/**
+ * The drivers' `users` docs, for "Last signed in" and the device count (Module 12). Equality filters only (no composite
+ * index); a supervisor's query carries `role == driver` and their contractor, exactly what the rules require.
+ */
+export function useDriverAccounts(scope: Scope) {
+  const { tenantId, contractorId, ready } = useScope(scope)
+  return useQuery({
+    queryKey: ['users', tenantId, 'driver', contractorId ?? 'all'],
+    enabled: ready,
+    queryFn: async (): Promise<Map<string, UserDoc>> => {
+      const snap = await getDocs(
+        query(
+          collection(db, 'users'),
+          where('tenantId', '==', tenantId),
+          where('role', '==', 'driver'),
+          ...(contractorId ? [where('contractorId', '==', contractorId)] : []),
+          limit(LIST_CAP),
+        ),
+      )
+      return new Map(snap.docs.map((d) => [d.id, d.data() as UserDoc]))
+    },
   })
 }
 

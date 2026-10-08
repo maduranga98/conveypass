@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
-import { Dices } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -9,7 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { createUser, updateUser } from '@/lib/api'
-import { formatPhone, generatePin, isTrivialPin, isValidPin, normalisePhone } from '@/lib/credentials'
+import { formatPhone, normalisePhone } from '@/lib/credentials'
 import { apiErrorMessage } from '@/lib/errors'
 import { driverPhotoPath } from '@/lib/photoPath'
 import { strings } from '@/lib/strings'
@@ -17,7 +16,8 @@ import { useSession } from '@/features/auth/useAuth'
 import { useContractorList, useDriverPhotoUrl } from '@/features/shared/queries'
 import { useScope, type Scope } from '@/features/shared/scope'
 import type { Driver, WithId } from '@/types'
-import { DriverCredentials } from './DriverCredentials'
+import { PinCard } from '@/features/admin/PinCard'
+import { useIssuedPin, type IssuedPin } from '@/features/admin/pinCardState'
 import { uploadDriverPhoto } from './photo'
 import { PhotoField } from './PhotoField'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
@@ -31,13 +31,9 @@ interface Props {
   onClose: () => void
 }
 
-interface Created {
-  phone: string
-  pin: string
-}
-
+/** Create or edit a driver. A new driver gets a server-generated PIN, shown once on the PIN card (Module 12). */
 export function DriverFormModal({ scope, target, onClose }: Props) {
-  const [created, setCreated] = useState<Created | null>(null)
+  const [created, setCreated] = useIssuedPin()
   const close = () => {
     setCreated(null)
     onClose()
@@ -46,12 +42,13 @@ export function DriverFormModal({ scope, target, onClose }: Props) {
     <Modal
       open={target !== null}
       onClose={close}
-      title={created ? strings.drivers.credentials.title : target === 'new' ? strings.drivers.add : strings.drivers.edit}
+      dismissible={created === null}
+      title={created ? strings.pinCard.title : target === 'new' ? strings.drivers.add : strings.drivers.edit}
       variant="drawer"
     >
       {target &&
         (created ? (
-          <DriverCredentials {...created} onDone={close} />
+          <PinCard issued={created} onDone={close} />
         ) : (
           <DriverForm scope={scope} target={target} onClose={close} onCreated={setCreated} />
         ))}
@@ -64,12 +61,11 @@ const schema = z
     name: z.string().trim().min(1, t.nameRequired).max(100),
     phone: z.string().trim(),
     contractorId: z.string(),
-    pin: z.string(),
     licenseNo: z.string().trim().max(30),
   })
 type Values = z.infer<typeof schema>
 
-function DriverForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'> & { target: WithId<Driver> | 'new'; onCreated: (c: Created) => void }) {
+function DriverForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'> & { target: WithId<Driver> | 'new'; onCreated: (c: IssuedPin) => void }) {
   const queryClient = useQueryClient()
   const { claims } = useSession()
   const { isAdmin, contractorId: ownContractorId } = useScope(scope)
@@ -85,10 +81,9 @@ function DriverForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'>
       zodResolver(
         schema.superRefine((v, ctx) => {
           const issue = (path: keyof Values, message: string) => ctx.addIssue({ code: 'custom', path: [path], message })
+          // Contact number only: optional, not unique, never a login.
+          if (v.phone !== '' && !normalisePhone(v.phone)) issue('phone', strings.auth.invalidPhone)
           if (existing) return
-          if (!normalisePhone(v.phone)) issue('phone', strings.auth.invalidPhone)
-          if (!isValidPin(v.pin)) issue('pin', strings.auth.invalidPin)
-          else if (isTrivialPin(v.pin)) issue('pin', t.pinTrivial)
           if (isAdmin && !v.contractorId) issue('contractorId', t.contractorRequired)
         }),
       ),
@@ -108,7 +103,6 @@ function DriverForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'>
       name: existing?.name ?? '',
       phone: existing ? formatPhone(existing.phone) : '',
       contractorId: '',
-      pin: existing ? '' : generatePin(),
       licenseNo: existing?.licenseNo ?? '',
     },
   })
@@ -135,11 +129,14 @@ function DriverForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'>
       if (existing) {
         const photoOk = await uploadAndAttach(existing.id, existing.contractorId)
         const name = v.name.trim()
-        if (name !== existing.name || licenseNo !== (existing.licenseNo ?? '')) {
+        const phone = v.phone.trim() === '' ? null : normalisePhone(v.phone)
+        const phoneChanged = phone !== (existing.phone ?? null)
+        if (name !== existing.name || licenseNo !== (existing.licenseNo ?? '') || phoneChanged) {
           await updateUser({
             uid: existing.id,
             ...(name !== existing.name ? { name } : {}),
             ...(licenseNo !== (existing.licenseNo ?? '') ? { licenseNo: licenseNo || null } : {}),
+            ...(phoneChanged ? { phone: phone === null ? null : v.phone } : {}), // as typed: the server normalises it
           })
         }
         await Promise.all([queryClient.invalidateQueries({ queryKey: ['drivers'] }), queryClient.invalidateQueries({ queryKey: ['driverPhotoUrl'] })])
@@ -149,19 +146,21 @@ function DriverForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'>
       }
 
       const contractorId = isAdmin ? v.contractorId : (ownContractorId ?? '')
-      const phone = normalisePhone(v.phone) as string
-      const { uid } = await createUser({
+      const { uid, pin } = await createUser({
         role: 'driver',
         name: v.name.trim(),
-        phone: v.phone, // as typed: the server normalises it (it does not accept the 94… form)
-        password: v.pin,
+        // Contact number as typed (the server normalises it); optional. No password: the server makes the PIN.
+        ...(v.phone.trim() ? { phone: v.phone } : {}),
         contractorId,
         ...(licenseNo ? { licenseNo } : {}),
       })
       await uploadAndAttach(uid, contractorId)
       await queryClient.invalidateQueries({ queryKey: ['drivers'] })
       toast.success(t.created)
-      onCreated({ phone, pin: v.pin })
+      if (pin) {
+        const company = (contractors.data ?? []).find((c) => c.id === contractorId)?.name ?? ''
+        onCreated({ pin, name: v.name.trim(), role: 'driver', company })
+      }
     } catch (e) {
       setFormError(apiErrorMessage(e))
     }
@@ -175,27 +174,22 @@ function DriverForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'>
 
       <Input label={t.name} autoComplete="off" error={errors.name?.message} {...register('name')} />
 
-      {existing ? (
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-slate-700">{t.phone}</p>
-          <p className="font-mono text-sm text-slate-600">{formatPhone(existing.phone)}</p>
-        </div>
-      ) : (
-        <Input
-          label={t.phone}
-          type="tel"
-          inputMode="tel"
-          autoComplete="off"
-          placeholder={strings.auth.phoneHint}
-          error={errors.phone?.message}
-          {...register('phone', {
-            onBlur: () => {
-              const n = normalisePhone(getValues('phone'))
-              if (n) setValue('phone', formatPhone(n))
-            },
-          })}
-        />
-      )}
+      <Input
+        label={t.phone}
+        optional
+        type="tel"
+        inputMode="tel"
+        autoComplete="off"
+        placeholder={strings.auth.phoneHint}
+        hint={t.phoneHint}
+        error={errors.phone?.message}
+        {...register('phone', {
+          onBlur: () => {
+            const n = normalisePhone(getValues('phone'))
+            if (n) setValue('phone', formatPhone(n))
+          },
+        })}
+      />
 
       {isAdmin && !existing && (
         <Select label={t.contractor} error={errors.contractorId?.message} disabled={contractors.isPending} {...register('contractorId')}>
@@ -209,17 +203,6 @@ function DriverForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'>
       )}
 
       <Input label={t.licenseNo} optional autoComplete="off" error={errors.licenseNo?.message} {...register('licenseNo')} />
-
-      {!existing && (
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <Input label={t.pin} type="text" inputMode="numeric" maxLength={6} autoComplete="off" spellCheck={false} className="font-mono tracking-widest" error={errors.pin?.message} {...register('pin')} />
-          </div>
-          <Button variant="secondary" className="mb-px" icon={<Dices aria-hidden className="size-4" />} onClick={() => setValue('pin', generatePin(), { shouldValidate: true })}>
-            {t.generate}
-          </Button>
-        </div>
-      )}
 
       <PhotoField name={watchedName} currentUrl={currentUrl ?? null} value={photo} onChange={setPhoto} disabled={isSubmitting} />
 

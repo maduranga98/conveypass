@@ -24,7 +24,7 @@ async function completeSetup(page: Page, link: string, who = OWNER): Promise<voi
 }
 
 async function loginWith(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login')
+  await page.goto('/login/staff')
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Sign in' }).click()
@@ -154,7 +154,7 @@ test.describe('uniform invalid-link answers', () => {
 
 test.describe('staff forgot password', () => {
   test('same confirmation for known and unknown emails; the emulator email completes the reset; the new password signs in', async ({ page }) => {
-    await page.goto('/login')
+    await page.goto('/login/staff')
     await page.getByRole('link', { name: 'Forgot password?' }).click()
     await expect(page).toHaveURL(/\/forgot-password$/)
 
@@ -195,11 +195,13 @@ test.describe('staff forgot password', () => {
     await expect(page).toHaveURL(/\/supervisor/)
   })
 
-  test('drivers see the supervisor help instead of a reset link', async ({ page }) => {
+  test('the PIN screen has no reset link; it links office staff to the email form', async ({ page }) => {
     await page.goto('/login')
-    await page.getByRole('button', { name: 'Driver' }).click()
-    await expect(page.getByText('Forgot your PIN? Ask your supervisor to reset it.')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Enter your PIN' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Forgot password?' })).toHaveCount(0)
+    await page.getByRole('link', { name: 'Office staff? Sign in with email' }).click()
+    await expect(page).toHaveURL(/\/login\/staff/)
+    await expect(page.getByText(/PIN/)).toHaveCount(0)
   })
 })
 
@@ -274,10 +276,10 @@ test.describe('accessibility: the new screens on a phone', () => {
   }
 
   test('login links, forgot password, setup (form and invalid), action page', async ({ page }) => {
-    await page.goto('/login')
+    await page.goto('/login/staff')
     await audit(page, 'login with forgot link')
-    await page.getByRole('button', { name: 'Driver' }).click()
-    await audit(page, 'login driver help')
+    await page.goto('/login')
+    await audit(page, 'PIN screen')
     await page.goto('/forgot-password')
     await audit(page, 'forgot password')
     await page.getByLabel('Email').fill('someone@acme.test')

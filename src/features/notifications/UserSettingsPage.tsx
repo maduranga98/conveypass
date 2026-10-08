@@ -4,7 +4,13 @@ import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { AccountDetails } from '@/features/account/AccountDetails'
 import { ChangeCredentialCard } from '@/features/account/ChangeCredentialCard'
-import { useSession } from '@/features/auth/useAuth'
+import { useAuth, useSession } from '@/features/auth/useAuth'
+import { useTenant } from '@/features/passes/queries'
+import { isPinRole } from '@/lib/session'
+import { useQuery } from '@tanstack/react-query'
+import { doc, getDoc } from 'firebase/firestore'
+import { LogOut } from 'lucide-react'
+import { db } from '@/lib/firebase'
 import { cn } from '@/lib/cn'
 import { ROLE_HOME } from '@/lib/roles'
 import { strings } from '@/lib/strings'
@@ -13,8 +19,60 @@ import { disablePush, enablePush, isPushEnabledHere } from './push/registration'
 
 const t = strings.push
 
-/** `/settings` for every role: alert settings for this device. */
+/** `/settings`: drivers and security see only who they are and Sign out (Module 12); office staff get the full page. */
 export default function UserSettingsPage() {
+  const { claims } = useSession()
+  return isPinRole(claims.role) ? <PinUserSettings /> : <StaffSettings />
+}
+
+/** Name, role, company and Sign out. No PIN or password screens: a lost PIN is reissued by a supervisor or admin. */
+function PinUserSettings() {
+  const { claims, profile } = useSession()
+  const { signOut } = useAuth()
+  const tenant = useTenant(claims.tenantId)
+  const contractorId = claims.contractorId
+  // Drivers may read their own contractor document (and only that one).
+  const contractor = useQuery({
+    queryKey: ['contractor-name', contractorId],
+    enabled: Boolean(contractorId),
+    staleTime: 5 * 60_000,
+    queryFn: async () => ((await getDoc(doc(db, 'contractors', contractorId as string))).data() as { name?: string } | undefined)?.name ?? null,
+  })
+  const company = contractorId ? contractor.data : tenant.data?.name
+  const a = strings.account
+  const rows: [string, string][] = [
+    [a.name, profile.name],
+    [a.role, strings.roles[claims.role]],
+    [a.company, company ?? (contractor.isLoading || tenant.isLoading ? strings.common.loading : strings.common.none)],
+  ]
+  return (
+    <div className="mx-auto min-h-dvh max-w-md space-y-6 px-4 py-6 text-lg">
+      <Link to={ROLE_HOME[claims.role]} className="inline-flex min-h-14 items-center gap-1 font-semibold text-slate-700 hover:underline focus-visible:outline-2 focus-visible:outline-focus">
+        <ArrowLeft aria-hidden className="size-5" />
+        {strings.userSettings.back}
+      </Link>
+      <h1 className="text-2xl font-extrabold tracking-tight">{strings.userSettings.title}</h1>
+      <dl className="divide-y divide-slate-200 rounded-2xl border border-slate-300 bg-surface">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex items-center justify-between gap-4 px-4 py-3">
+            <dt className="text-slate-600">{k}</dt>
+            <dd className="text-right font-bold text-brand">{v}</dd>
+          </div>
+        ))}
+      </dl>
+      <button
+        type="button"
+        onClick={() => void signOut()}
+        className="flex h-16 w-full items-center justify-center gap-3 rounded-2xl border-2 border-slate-300 bg-surface text-xl font-bold text-brand hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+      >
+        <LogOut aria-hidden className="size-6" />
+        {strings.common.signOut}
+      </button>
+    </div>
+  )
+}
+
+function StaffSettings() {
   const { uid, claims } = useSession()
   const [env, setEnv] = useState(readPushEnv)
   const [on, setOn] = useState(() => isPushEnabledHere(uid))

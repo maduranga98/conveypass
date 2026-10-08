@@ -85,7 +85,7 @@ describe('GateVehicleView', () => {
     expect(screen.getByText('No photo on file')).toBeInTheDocument()
     expect(screen.getByText(/Supervisor: Kasun/)).toBeInTheDocument()
     expect(screen.getByText(/Officer: Olivia/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /check in/i })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /^let in/i })).toBeEnabled()
     expect(h.feedback).toHaveBeenCalledWith('ok', true)
   })
 
@@ -93,7 +93,7 @@ describe('GateVehicleView', () => {
     for (const role of ['admin', 'officer', 'supervisor'] as const) {
       const { unmount } = view(role)
       expect(screen.getByRole('heading', { name: 'APPROVED' })).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: /check in/i })).toBeNull()
+      expect(screen.queryByRole('button', { name: /^let in/i })).toBeNull()
       expect(screen.queryByRole('button', { name: /deny entry|record denied entry/i })).toBeNull()
       expect(screen.queryByRole('button', { name: /scan next/i })).toBeNull()
       expect(screen.getByText(/Read only/)).toBeInTheDocument()
@@ -107,7 +107,7 @@ describe('GateVehicleView', () => {
     view()
     expect(screen.getByRole('heading', { name: 'NOT APPROVED' })).toBeInTheDocument()
     expect(screen.getByText('Waiting for the officer to approve.')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /check in/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^let in/i })).toBeNull()
     expect(screen.getByRole('button', { name: 'Record denied entry' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Scan next' })).toBeInTheDocument()
     expect(h.feedback).toHaveBeenCalledWith('blocked', true)
@@ -118,17 +118,17 @@ describe('GateVehicleView', () => {
     view()
     expect(screen.getByRole('heading', { name: 'NOT APPROVED' })).toBeInTheDocument()
     expect(screen.getByText('This vehicle is suspended.')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /check in/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^let in/i })).toBeNull()
   })
 
   it('flips to green by itself when the pass is approved while the guard is looking', () => {
     h.pass = approvedPass({ status: 'supervisor_approved', officer: undefined })
     const v = view()
-    expect(screen.queryByRole('button', { name: /check in/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^let in/i })).toBeNull()
     h.pass = approvedPass()
     v.again()
     expect(screen.getByRole('heading', { name: 'APPROVED' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /check in/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^let in/i })).toBeInTheDocument()
   })
 
   it('no pass today: a denied read of a missing pass is "no pass", any other read error is "could not load"', () => {
@@ -154,7 +154,7 @@ describe('GateVehicleView', () => {
     let resolve: (v: unknown) => void = () => undefined
     h.checkIn.mockReturnValue(new Promise((r) => (resolve = r)))
     view()
-    const button = screen.getByRole('button', { name: /check in/i })
+    const button = screen.getByRole('button', { name: /^let in/i })
     fireEvent.click(button)
     fireEvent.click(button)
     fireEvent.click(button)
@@ -162,14 +162,14 @@ describe('GateVehicleView', () => {
     expect(h.checkIn.mock.calls[0]?.[0]).toMatchObject({ passId: `${VID}_${TODAY}`, expectedAttempt: 2, gateId: 'main' })
     expect((h.checkIn.mock.calls[0]?.[0] as { requestId: string }).requestId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
     await act(async () => resolve({ passId: `${VID}_${TODAY}`, status: 'checked_in', at: Date.now() }))
-    expect(screen.getByRole('heading', { name: 'CHECKED IN' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'LET IN' })).toBeInTheDocument()
   })
 
   it('already checked in shows who, when and where, in amber, without CHECK IN', () => {
     h.pass = approvedPass({ status: 'checked_in', checkIn: { uid: 'x', name: 'Nimal', at: ts(new Date(2026, 2, 10, 8, 14).getTime()), gateId: 'main', gateName: 'Main Gate', requestId: 'r' } })
     view()
-    expect(screen.getByRole('heading', { name: 'ALREADY CHECKED IN' })).toBeInTheDocument()
-    expect(screen.getByText(/Checked in at .*08:14.* by Nimal · Main Gate/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /check in/i })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'ALREADY LET IN' })).toBeInTheDocument()
+    expect(screen.getByText(/Let in at .*08:14.* by Nimal · Main Gate/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^let in/i })).toBeNull()
   })
 })

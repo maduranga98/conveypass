@@ -1,7 +1,9 @@
 import { lazy } from 'react'
 import { loadStorage } from '@/lib/storage'
 
-export const LoginPage = lazy(() => import('@/features/auth/LoginPage'))
+// Module 12: `/login` is the PIN screen (drivers and security); office staff sign in on `/login/staff`.
+export const PinLoginPage = lazy(() => import('@/features/auth/PinLoginPage'))
+export const StaffLoginPage = lazy(() => import('@/features/auth/StaffLoginPage'))
 export const ForgotPasswordPage = lazy(() => import('@/features/auth/ForgotPasswordPage'))
 export const AuthActionPage = lazy(() => import('@/features/auth/AuthActionPage'))
 export const SetupPage = lazy(() => import('@/features/setup/SetupPage'))

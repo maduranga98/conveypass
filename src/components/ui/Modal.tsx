@@ -15,10 +15,12 @@ interface ModalProps {
    */
   variant?: 'center' | 'drawer' | 'sheet'
   footer?: ReactNode
+  /** `false`: no close button, Escape and the backdrop do nothing; the content's own button closes it (one-time PIN card). */
+  dismissible?: boolean
 }
 
 /** Built on the native <dialog>: focus trapping, Escape to close and inert background come for free. */
-export function Modal({ open, onClose, title, children, variant = 'center', footer }: ModalProps) {
+export function Modal({ open, onClose, title, children, variant = 'center', footer, dismissible = true }: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
 
@@ -36,8 +38,11 @@ export function Modal({ open, onClose, title, children, variant = 'center', foot
       ref={ref}
       aria-labelledby={titleId}
       onClose={onClose}
+      onCancel={(e) => {
+        if (!dismissible) e.preventDefault() // Escape
+      }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose() // backdrop click
+        if (dismissible && e.target === e.currentTarget) onClose() // backdrop click
       }}
       className={cn(
         'bg-surface p-0 text-brand shadow-xl backdrop:bg-brand/40',
@@ -53,9 +58,11 @@ export function Modal({ open, onClose, title, children, variant = 'center', foot
             <h2 id={titleId} className="text-base font-semibold">
               {title}
             </h2>
-            <Button variant="ghost" size="icon" onClick={onClose} aria-label={strings.common.close}>
-              <X aria-hidden className="size-5" />
-            </Button>
+            {dismissible && (
+              <Button variant="ghost" size="icon" onClick={onClose} aria-label={strings.common.close}>
+                <X aria-hidden className="size-5" />
+              </Button>
+            )}
           </header>
           <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
           {footer && <footer className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">{footer}</footer>}

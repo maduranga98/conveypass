@@ -9,7 +9,6 @@ export type Reason =
   | 'user-not-found'
   | 'contractor-invalid'
   | 'email-exists'
-  | 'phone-exists'
   | 'self-status'
   | 'self-reset'
   | 'recent-login-required'
@@ -67,6 +66,10 @@ export type Reason =
   | 'invite-not-revocable'
   | 'config-missing'
   | 'signup-disabled'
+  | 'pin-invalid'
+  | 'pin-user'
+  | 'not-pin-user'
+  | 'session-expired'
   | 'internal'
 
 /** Typed error: `code` is the gRPC-style code, `details.reason` is a stable key the client maps to a string. */

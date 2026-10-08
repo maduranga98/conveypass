@@ -20,11 +20,11 @@ test('the production build is installable (manifest, icons, service worker) and 
   expect(manifest).toMatchObject({ name: 'ConvoyPass', display: 'standalone' })
   expect(manifest.icons.map((i) => `${i.sizes}${i.purpose ? `:${i.purpose}` : ''}`)).toEqual(expect.arrayContaining(['192x192:any', '512x512:any', '512x512:maskable']))
 
-  // Offline: the precached app shell still renders the sign-in screen.
+  // Offline: the precached app shell still renders the PIN sign-in screen.
   await context.setOffline(true)
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'ConvoyPass' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Enter your PIN' })).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Number keys' })).toBeVisible()
   await context.setOffline(false)
 })
 

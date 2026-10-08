@@ -4,7 +4,7 @@ import { appBase } from './appUrl'
 import { auth } from './firebase'
 
 /** Where the "continue" link in Firebase's emails leads. Unset when VITE_APP_BASE_URL is not configured. */
-const continueUrl = (): { url: string } | undefined => (appBase ? { url: `${appBase.url}/login` } : undefined)
+const continueUrl = (): { url: string } | undefined => (appBase ? { url: `${appBase.url}/login/staff` } : undefined)
 
 const isContinueUriProblem = (e: unknown): boolean =>
   e instanceof FirebaseError && (e.code === 'auth/unauthorized-continue-uri' || e.code === 'auth/invalid-continue-uri' || e.code === 'auth/missing-continue-uri')

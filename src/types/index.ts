@@ -40,6 +40,14 @@ export interface UserDoc {
   createdAt: Timestamp
   createdBy: string
   updatedAt: Timestamp
+  /** Module 12: `pin` for drivers and security, `password` for office staff. Absent on accounts that predate it. */
+  loginType?: 'pin' | 'password'
+  /** PIN users: last successful PIN sign-in (function-written). */
+  lastLoginAt?: Timestamp
+  /** PIN users: up to 5 devices, keyed by a hash of the device id (function-written). */
+  knownDevices?: Record<string, { firstSeenAt: Timestamp; lastSeenAt: Timestamp }>
+  /** PIN users: seconds. Sessions that signed in before this were ended by a reissued PIN. */
+  sessionsRevokedAt?: number
 }
 
 export interface Contractor {
@@ -78,7 +86,8 @@ export interface Driver {
   tenantId: string
   contractorId: string
   name: string
-  phone: string
+  /** Contact number only (Module 12): optional, never a login. */
+  phone: string | null
   licenseNo?: string | null
   photoPath?: string | null
   status: UserStatus

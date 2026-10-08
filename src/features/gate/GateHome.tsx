@@ -22,7 +22,7 @@ const STALE_MS = 60_000
 
 // The camera library is large: load it on its own, but start fetching it as soon as the gate opens (while online),
 // so the scanner still opens if the connection drops later in the shift.
-const loadScanner = () => import('./QrScanner').then((m) => ({ default: m.QrScanner }))
+const loadScanner = () => import('@/features/scan/QrScanner').then((m) => ({ default: m.QrScanner }))
 const QrScanner = lazy(loadScanner)
 
 const hhmm = (ms: number | null | undefined): string =>
@@ -242,7 +242,7 @@ export default function GateHome() {
       </div>
 
       {scanning && (
-        <Suspense fallback={<div role="status" className="fixed inset-0 z-50 grid place-items-center bg-scrim text-lg font-semibold text-on-solid">{t.scanner.starting}</div>}>
+        <Suspense fallback={<div role="status" className="fixed inset-0 z-50 grid place-items-center bg-scrim text-lg font-semibold text-on-solid">{strings.scanner.starting}</div>}>
           <QrScanner
             onClose={closeScanner}
             onVehicle={(id) => void navigate(`/v/${id}`, { replace: false, state: { from: 'scan' } })}

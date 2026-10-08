@@ -12,6 +12,7 @@ export type NotificationType =
   | 'checked_in'
   | 'entry_denied'
   | 'sla_overdue'
+  | 'security_new_device'
 
 export interface Text {
   title: string
@@ -52,6 +53,10 @@ export const templates = {
   entryDenied: (p: { plateNo: string; reasonCode: string }): Text => ({
     title: `Entry denied: ${p.plateNo}`,
     body: `Entry denied: ${p.plateNo}, ${denyReasonLabel(p.reasonCode)}`,
+  }),
+  securityNewDevice: (p: { name: string }): Text => ({
+    title: 'Security sign-in on a new device',
+    body: `${p.name} signed in on a new device`,
   }),
   slaOverdue: (p: { plateNo: string; waitingFor: 'supervisor' | 'officer'; minutes: number }): Text => ({
     title: 'Approval overdue',

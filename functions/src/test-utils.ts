@@ -1,6 +1,7 @@
 import { expect } from 'vitest'
 // In-memory fakes for the ports, shared by the function tests. Not part of the build (see tsconfig.json).
-import { PlateTakenError, VehicleIdTakenError, type Deps } from './core.js'
+import { PinTakenError, PlateTakenError, VehicleIdTakenError, type Deps } from './core.js'
+import { generatePin } from './pin.js'
 import { planSubmit } from './passRules.js'
 import type {
   AuditEntry,
@@ -10,6 +11,7 @@ import type {
   DriverData,
   GateEventData,
   PassData,
+  PinIndexEntry,
   StoredFile,
   TenantData,
   UserData,
@@ -17,6 +19,8 @@ import type {
 } from './types.js'
 
 export const NOW = 1_700_000_000
+/** The pepper the fakes hash PINs with (32+ characters, like the real secret). */
+export const TEST_PEPPER = 'test-pepper-0123456789abcdefghijklmnopqrstuvwxyz'
 
 export const userDoc = (over: Partial<UserData> = {}): UserData => ({
   tenantId: 'T1',
@@ -47,7 +51,13 @@ export interface World {
   vehicles: Map<string, VehicleData>
   /** `${tenantId}_${plateKey}` -> vehicleId */
   plates: Map<string, string>
-  authUsers: Map<string, { email: string; password: string; disabled: boolean; displayName: string }>
+  authUsers: Map<string, { email?: string | undefined; password?: string | undefined; disabled: boolean; displayName: string }>
+  /** `pinIndex/{hmac}` */
+  pins: Map<string, PinIndexEntry>
+  /** PINs handed out by `newPin`, in order. Set to force collisions. */
+  pinQueue: string[]
+  /** What `pinPepper` returns (undefined = the secret is not configured). */
+  pepper: string | undefined
   claims: Map<string, Claims>
   tenants: Map<string, TenantData>
   passes: Map<string, PassData>
@@ -71,6 +81,9 @@ export function makeWorld(): World {
     vehicles: new Map(),
     plates: new Map(),
     authUsers: new Map(),
+    pins: new Map(),
+    pinQueue: [],
+    pepper: TEST_PEPPER,
     claims: new Map(),
     tenants: new Map(),
     passes: new Map(),
@@ -88,17 +101,32 @@ export function makeWorld(): World {
   w.deps = {
     now: () => NOW,
     newVehicleId: () => w.idQueue.shift() ?? `veh_${String(++idn).padStart(10, 'a')}`,
+    newPin: () => w.pinQueue.shift() ?? generatePin(),
+    pinPepper: () => w.pepper,
     storage: { readFile: async (path) => w.files.get(path) ?? null },
     auth: {
       createUser: async (p) => {
-        if ([...w.authUsers.values()].some((u) => u.email === p.email)) {
+        if (p.email !== undefined && [...w.authUsers.values()].some((u) => u.email === p.email)) {
           throw Object.assign(new Error('exists'), { code: 'auth/email-already-exists' })
         }
-        const uid = `new${++n}`
-        w.authUsers.set(uid, { email: p.email, password: p.password, disabled: false, displayName: p.displayName })
+        const uid = p.uid ?? `new${++n}`
+        if (w.authUsers.has(uid)) throw Object.assign(new Error('exists'), { code: 'auth/uid-already-exists' })
+        w.authUsers.set(uid, {
+          ...(p.email !== undefined ? { email: p.email } : {}),
+          ...(p.password !== undefined ? { password: p.password } : {}),
+          disabled: p.disabled ?? false,
+          displayName: p.displayName,
+        })
         return { uid }
       },
-      deleteUser: async (uid) => void w.authUsers.delete(uid),
+      getUser: async (uid) => {
+        const u = w.authUsers.get(uid)
+        return u ? { email: u.email ?? null, hasPassword: u.password !== undefined, disabled: u.disabled } : null
+      },
+      deleteUser: async (uid) => {
+        w.authUsers.delete(uid)
+        w.claims.delete(uid)
+      },
       updateUser: async (uid, p) => {
         const u = w.authUsers.get(uid) ?? { email: '', password: '', disabled: false, displayName: '' }
         w.authUsers.set(uid, { ...u, ...p })
@@ -115,10 +143,22 @@ export function makeWorld(): World {
       getDriver: async (uid) => w.drivers.get(uid) ?? null,
       getDrivers: async (uids) => new Map(uids.flatMap((u) => (w.drivers.has(u) ? [[u, w.drivers.get(u) as DriverData] as const] : []))),
       getVehicle: async (id) => w.vehicles.get(id) ?? null,
-      createUserWithAudit: async (uid, data, _actor, audit, driver) => {
+      createUserWithAudit: async (uid, data, _actor, audit, driver, pin) => {
         if (w.failFirestoreCreate) throw new Error('boom')
+        // Synchronous from the check to the write, which models the transaction.
+        if (pin && w.pins.has(pin.key)) throw new PinTakenError()
+        if (pin) w.pins.set(pin.key, structuredClone(pin.entry))
         w.users.set(uid, data)
         if (driver) w.drivers.set(uid, driver)
+        w.audits.push(audit)
+      },
+      reissuePinTx: async ({ uid, key, entry, patch, audit }) => {
+        if (w.pins.has(key)) throw new PinTakenError()
+        for (const [k, e] of [...w.pins]) if (e.uid === uid) w.pins.delete(k)
+        w.pins.set(key, structuredClone(entry))
+        const { knownDevices: _k, ...rest } = w.users.get(uid) as UserData & { knownDevices?: unknown }
+        void _k
+        w.users.set(uid, { ...rest, ...patch })
         w.audits.push(audit)
       },
       updateUserWithAudit: async (uid, patch, audit, driver) => {

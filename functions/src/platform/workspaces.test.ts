@@ -81,7 +81,7 @@ describe('createWorkspace', () => {
   it('creates exactly the provisionTenant defaults, the admin, claims, forced change and both audit entries', async () => {
     f.nextTenantIds.push('ten_aaaaaaaaaa'); f.nextPasswords.push(PW)
     const res = await f.ws.createWorkspace(t(), NEW)
-    expect(res).toEqual({ tenantId: 'ten_aaaaaaaaaa', adminUid: expect.any(String), loginUrl: 'https://app.convoypass.test/login', tempPassword: PW })
+    expect(res).toEqual({ tenantId: 'ten_aaaaaaaaaa', adminUid: expect.any(String), loginUrl: 'https://app.convoypass.test/login/staff', tempPassword: PW })
 
     expect(f.tenantDocs.get('ten_aaaaaaaaaa')).toMatchObject({ name: 'Acme Quarry', status: 'active', ...tenantDefaults('Asia/Colombo') })
     expect(f.users.get(res.adminUid)).toMatchObject({ tenantId: 'ten_aaaaaaaaaa', role: 'admin', name: 'Ada Admin', email: 'ada@acme.test', status: 'active', mustChangePassword: true, createdBy: 'platform' })
@@ -178,7 +178,7 @@ describe('resetTenantAdminCredential', () => {
     f.users.get(a)!.mustChangePassword = false
     f.nextPasswords.push('Zzzzzzzz22222222')
     const res = await f.ws.resetTenantAdminCredential(t(), { tenantId, uid: a })
-    expect(res).toMatchObject({ tenantId, adminUid: a, tempPassword: 'Zzzzzzzz22222222', loginUrl: 'https://app.convoypass.test/login' })
+    expect(res).toMatchObject({ tenantId, adminUid: a, tempPassword: 'Zzzzzzzz22222222', loginUrl: 'https://app.convoypass.test/login/staff' })
     expect(f.authUsers.get(a)?.password).toBe('Zzzzzzzz22222222')
     expect(f.users.get(a)?.mustChangePassword).toBe(true)
     expect(f.revoked).toContain(a)

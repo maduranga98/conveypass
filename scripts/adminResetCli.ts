@@ -69,7 +69,7 @@ export async function runAdminReset(argv: string[], io: AdminResetIo): Promise<n
 
     const method = values.link ? 'link' : 'temp-password'
     if (values.link) {
-      const url = io.appBaseUrl ? `${io.appBaseUrl.replace(/\/+$/, '')}/login` : undefined
+      const url = io.appBaseUrl ? `${io.appBaseUrl.replace(/\/+$/, '')}/login/staff` : undefined
       const link = await io.auth.generatePasswordResetLink(email, url)
       await audit(io, doc.tenantId, user.uid, method, target.env)
       io.out(`admin:reset (${target.env}): reset link for ${email}. Shown once; send it over a secure channel.`)

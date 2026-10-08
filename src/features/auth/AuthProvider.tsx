@@ -9,6 +9,8 @@ import type { Contractor, UserDoc } from '@/types'
 import { getOperatorProfile } from '@/lib/api'
 import { apiErrorReason } from '@/lib/errors'
 import { clearSensitiveState } from '@/features/platform/sensitive'
+import { isPinRole, sessionExpired } from '@/lib/session'
+import { onSessionExpired } from '@/lib/sessionEvents'
 import { isOperatorToken, parseClaims } from './claims'
 import { AuthContext, type AuthContextValue, type OperatorSession, type Session } from './useAuth'
 
@@ -71,6 +73,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await endSession(strings.authErrors.accountMissing)
           return
         }
+        // Module 12: drivers (90 days) and security (16 hours) sign in again with their PIN after the session limit.
+        const authTime = Math.floor(Date.parse(tokenResult.authTime) / 1000) || 0
+        if (sessionExpired(claims.role, authTime, Math.floor(Date.now() / 1000))) {
+          await endSession(strings.authErrors.pinAgain)
+          return
+        }
 
         // Contractor users are locked out while their contractor is suspended: checked before the app renders,
         // then watched so a suspension while signed in ends the session too.
@@ -107,6 +115,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               void endSession(strings.authErrors.accountDisabled)
               return
             }
+            // A reissued PIN ends every older session at once (the server refuses them too).
+            if (claims && isPinRole(claims.role) && typeof data.sessionsRevokedAt === 'number' && authTime < data.sessionsRevokedAt) {
+              void endSession(strings.authErrors.pinAgain)
+              return
+            }
             if (claims && (data.role !== claims.role || data.tenantId !== claims.tenantId)) {
               // Stale token: pick up the new claims.
               void user.getIdTokenResult(true).then((r) => {
@@ -121,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               status: 'signedIn',
               notice: null,
               operator: null,
-              session: { uid: user.uid, claims, profile: { ...data, id: snap.id } },
+              session: { uid: user.uid, claims, profile: { ...data, id: snap.id }, authTime },
             })
           },
           () => {
@@ -137,6 +150,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsubContractor?.()
     }
   }, [endSession])
+
+  // A callable said `session-expired`: end the session; RequireAuth sends the person to the PIN screen with the return URL.
+  useEffect(() => {
+    return onSessionExpired(() => void endSession(strings.authErrors.pinAgain))
+  }, [endSession])
+
+  // A PIN session also expires while the app stays open (a guard's 16-hour shift limit): checked every minute.
+  const pinSession = state.session && isPinRole(state.session.claims.role) ? state.session : null
+  useEffect(() => {
+    if (!pinSession) return
+    const check = () => {
+      if (sessionExpired(pinSession.claims.role, pinSession.authTime, Math.floor(Date.now() / 1000))) void endSession(strings.authErrors.pinAgain)
+    }
+    check()
+    const timer = window.setInterval(check, 60_000)
+    return () => window.clearInterval(timer)
+  }, [pinSession, endSession])
 
   const refreshClaims = useCallback(async () => {
     const user = auth.currentUser

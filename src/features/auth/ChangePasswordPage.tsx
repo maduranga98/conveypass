@@ -8,7 +8,7 @@ import { z } from '@/lib/zod'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { changeOwnPassword } from '@/lib/api'
-import { isValidPassword, isValidPin } from '@/lib/credentials'
+import { isValidPassword } from '@/lib/credentials'
 import { apiErrorMessage, apiErrorReason } from '@/lib/errors'
 import { auth } from '@/lib/firebase'
 import { ROLE_HOME } from '@/lib/roles'
@@ -30,7 +30,6 @@ export default function ChangePasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const [needsSignIn, setNeedsSignIn] = useState(false)
 
-  const isDriver = session.claims.role === 'driver'
   const t = strings.auth
 
   const schema = useMemo(
@@ -38,14 +37,10 @@ export default function ChangePasswordPage() {
       z
         .object({ newPassword: z.string(), confirm: z.string() })
         .superRefine((v, ctx) => {
-          if (isDriver ? !isValidPin(v.newPassword) : !isValidPassword(v.newPassword)) {
-            ctx.addIssue({ code: 'custom', path: ['newPassword'], message: isDriver ? t.invalidPin : t.passwordTooShort })
-          }
-          if (v.confirm !== v.newPassword) {
-            ctx.addIssue({ code: 'custom', path: ['confirm'], message: isDriver ? t.pinMismatch : t.passwordMismatch })
-          }
+          if (!isValidPassword(v.newPassword)) ctx.addIssue({ code: 'custom', path: ['newPassword'], message: t.passwordTooShort })
+          if (v.confirm !== v.newPassword) ctx.addIssue({ code: 'custom', path: ['confirm'], message: t.passwordMismatch })
         }),
-    [isDriver, t],
+    [t],
   )
 
   const {
@@ -73,7 +68,7 @@ export default function ChangePasswordPage() {
       await signOut()
       return
     }
-    toast.success(isDriver ? t.pinUpdated : t.passwordUpdated)
+    toast.success(t.passwordUpdated)
     navigate(nextForRole(session.claims.role, params.get('next')) ?? ROLE_HOME[session.claims.role], { replace: true })
   }
 
@@ -81,8 +76,8 @@ export default function ChangePasswordPage() {
     <main className="grid min-h-dvh place-items-center px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="rounded-2xl border border-slate-200 bg-surface p-6 shadow-sm">
-          <h1 className="text-xl font-semibold">{isDriver ? t.changePinTitle : t.changePasswordTitle}</h1>
-          <p className="mt-1 mb-6 text-sm text-slate-500">{isDriver ? t.changePinIntro : t.changePasswordIntro}</p>
+          <h1 className="text-xl font-semibold">{t.changePasswordTitle}</h1>
+          <p className="mt-1 mb-6 text-sm text-slate-500">{t.changePasswordIntro}</p>
 
           {error && (
             <NotificationBanner tone="error" className="mb-4">{error}</NotificationBanner>
@@ -90,23 +85,21 @@ export default function ChangePasswordPage() {
 
           <form onSubmit={handleSubmit(submit)} className="space-y-4" noValidate>
             <Input
-              label={isDriver ? t.newPin : t.newPassword}
+              label={t.newPassword}
               type="password"
               autoComplete="new-password"
-              {...(isDriver ? { inputMode: 'numeric' as const, pattern: '[0-9]*', maxLength: 6 } : {})}
               error={errors.newPassword?.message}
               {...register('newPassword')}
             />
             <Input
-              label={isDriver ? t.confirmPin : t.confirmPassword}
+              label={t.confirmPassword}
               type="password"
               autoComplete="new-password"
-              {...(isDriver ? { inputMode: 'numeric' as const, pattern: '[0-9]*', maxLength: 6 } : {})}
               error={errors.confirm?.message}
               {...register('confirm')}
             />
             <Button type="submit" className="w-full" loading={isSubmitting}>
-              {isDriver ? t.updatePin : t.updatePassword}
+              {t.updatePassword}
             </Button>
           </form>
 

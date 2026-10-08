@@ -117,7 +117,7 @@ export function createWorkspaceApi(deps: WorkspaceDeps) {
       throw fail('failed-precondition', 'config-missing', 'The app address is not configured')
     }
     if (u.protocol !== 'https:' && !(deps.inEmulator && u.protocol === 'http:')) throw fail('failed-precondition', 'config-missing', 'The app address is not configured')
-    return `${u.origin}${u.pathname.replace(/\/+$/, '')}/login`
+    return `${u.origin}${u.pathname.replace(/\/+$/, '')}/login/staff`
   }
 
   /** Any account with this email (Auth user, operator, tenant user) blocks creation. */

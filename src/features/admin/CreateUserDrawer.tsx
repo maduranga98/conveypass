@@ -9,21 +9,18 @@ import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { createUser } from '@/lib/api'
-import {
-  formatPhone,
-  generatePassword,
-  generatePin,
-  isValidPassword,
-  isValidPin,
-  normalisePhone,
-} from '@/lib/credentials'
+import { generatePassword, isValidPassword, normalisePhone } from '@/lib/credentials'
 import { apiErrorMessage } from '@/lib/errors'
 import { CREATABLE_ROLES, ROLES, type Role } from '@/lib/roles'
+import { isPinRole } from '@/lib/session'
 import { strings } from '@/lib/strings'
+import { useSession } from '@/features/auth/useAuth'
+import { useTenant } from '@/features/passes/queries'
 import { useContractors } from './queries'
 import { CredentialsReveal } from './CredentialsReveal'
+import { PinCard } from './PinCard'
+import { useIssuedPin, type IssuedPin } from './pinCardState'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
-
 
 const t = strings.admin.createUser
 const needsContractor = (r: Role) => r === 'supervisor' || r === 'driver'
@@ -39,9 +36,9 @@ const schema = z
   })
   .superRefine((v, ctx) => {
     const issue = (path: string, message: string) => ctx.addIssue({ code: 'custom', path: [path], message })
-    if (v.role === 'driver') {
-      if (!normalisePhone(v.phone)) issue('phone', strings.auth.invalidPhone)
-      if (!isValidPin(v.password)) issue('password', strings.auth.invalidPin)
+    if (isPinRole(v.role)) {
+      // Drivers and security (Module 12): a name, an optional contact number; the server makes the PIN.
+      if (v.phone !== '' && !normalisePhone(v.phone)) issue('phone', strings.auth.invalidPhone)
     } else {
       if (!z.string().email().safeParse(v.email).success) issue('email', strings.auth.invalidEmail)
       if (!isValidPassword(v.password)) issue('password', strings.auth.passwordTooShort)
@@ -50,29 +47,48 @@ const schema = z
   })
 type Values = z.infer<typeof schema>
 
-interface Revealed {
+interface StaffCredentials {
   loginId: string
   secret: string
-  isPin: boolean
 }
 
+/**
+ * Create a user. Office staff get an email and a temporary password (shown once). Drivers and security get NO password:
+ * the server returns their PIN once and the PIN card shows it until "I've given it to them".
+ */
 export function CreateUserDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [revealed, setRevealed] = useState<Revealed | null>(null)
+  const [staff, setStaff] = useState<StaffCredentials | null>(null)
+  const [issued, setIssued] = useIssuedPin()
 
   const close = () => {
-    setRevealed(null)
+    setStaff(null)
+    setIssued(null)
     onClose()
   }
 
   return (
-    <Modal open={open} onClose={close} title={revealed ? t.credentialsTitle : t.title} variant="drawer">
-      {revealed ? <CredentialsReveal {...revealed} onDone={close} /> : <CreateUserForm onCreated={setRevealed} />}
+    <Modal
+      open={open}
+      onClose={close}
+      dismissible={issued === null}
+      title={issued ? strings.pinCard.title : staff ? t.credentialsTitle : t.title}
+      variant="drawer"
+    >
+      {issued ? (
+        <PinCard issued={issued} onDone={close} />
+      ) : staff ? (
+        <CredentialsReveal {...staff} onDone={close} />
+      ) : (
+        <CreateUserForm onStaff={setStaff} onPin={setIssued} />
+      )}
     </Modal>
   )
 }
 
-function CreateUserForm({ onCreated }: { onCreated: (r: Revealed) => void }) {
+function CreateUserForm({ onStaff, onPin }: { onStaff: (c: StaffCredentials) => void; onPin: (p: IssuedPin) => void }) {
   const queryClient = useQueryClient()
+  const { claims } = useSession()
+  const tenant = useTenant(claims.tenantId)
   const contractors = useContractors()
   const activeContractors = (contractors.data ?? []).filter((c) => c.status === 'active')
   const [formError, setFormError] = useState<string | null>(null)
@@ -89,26 +105,25 @@ function CreateUserForm({ onCreated }: { onCreated: (r: Revealed) => void }) {
   })
 
   const role = useWatch({ control, name: 'role' })
-  const isDriver = role === 'driver'
+  const pinRole = isPinRole(role)
 
   const submit = async (v: Values) => {
     setFormError(null)
     try {
-      await createUser({
+      const res = await createUser({
         role: v.role,
         name: v.name,
-        password: v.password,
-        ...(isDriver ? { phone: v.phone } : { email: v.email }),
+        ...(isPinRole(v.role) ? (v.phone ? { phone: v.phone } : {}) : { email: v.email, password: v.password }),
         ...(needsContractor(v.role) ? { contractorId: v.contractorId } : {}),
       })
       await queryClient.invalidateQueries({ queryKey: ['users'] })
       toast.success(t.created)
-      const phone = normalisePhone(v.phone)
-      onCreated({
-        loginId: isDriver && phone ? formatPhone(phone) : v.email,
-        secret: v.password,
-        isPin: isDriver,
-      })
+      if (res.pin) {
+        const company = v.role === 'driver' ? (activeContractors.find((c) => c.id === v.contractorId)?.name ?? '') : (tenant.data?.name ?? '')
+        onPin({ pin: res.pin, name: v.name.trim(), role: v.role, company })
+      } else {
+        onStaff({ loginId: v.email, secret: v.password })
+      }
     } catch (e) {
       setFormError(apiErrorMessage(e))
     }
@@ -147,50 +162,55 @@ function CreateUserForm({ onCreated }: { onCreated: (r: Revealed) => void }) {
         </Select>
       )}
 
-      {isDriver ? (
-        <Input
-          label={t.phone}
-          type="tel"
-          inputMode="tel"
-          autoComplete="off"
-          placeholder={strings.auth.phoneHint}
-          error={errors.phone?.message}
-          {...register('phone')}
-        />
-      ) : (
-        <Input
-          label={t.email}
-          type="email"
-          inputMode="email"
-          autoComplete="off"
-          autoCapitalize="none"
-          error={errors.email?.message}
-          {...register('email')}
-        />
-      )}
-
-      <div className="flex items-end gap-2">
-        <div className="flex-1">
+      {pinRole ? (
+        <>
           <Input
-            label={isDriver ? t.pin : t.password}
-            type="text"
+            label={t.phone}
+            optional
+            type="tel"
+            inputMode="tel"
             autoComplete="off"
-            spellCheck={false}
-            className="font-mono"
-            {...(isDriver ? { inputMode: 'numeric' as const, maxLength: 6 } : {})}
-            error={errors.password?.message}
-            {...register('password')}
+            placeholder={strings.auth.phoneHint}
+            hint={t.phoneHint}
+            error={errors.phone?.message}
+            {...register('phone')}
           />
-        </div>
-        <Button
-          variant="secondary"
-          className="mb-px"
-          icon={<Dices aria-hidden className="size-4" />}
-          onClick={() => setValue('password', isDriver ? generatePin() : generatePassword(), { shouldValidate: true })}
-        >
-          {t.generate}
-        </Button>
-      </div>
+          <NotificationBanner tone="info">{t.pinNote}</NotificationBanner>
+        </>
+      ) : (
+        <>
+          <Input
+            label={t.email}
+            type="email"
+            inputMode="email"
+            autoComplete="off"
+            autoCapitalize="none"
+            error={errors.email?.message}
+            {...register('email')}
+          />
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <Input
+                label={t.password}
+                type="text"
+                autoComplete="off"
+                spellCheck={false}
+                className="font-mono"
+                error={errors.password?.message}
+                {...register('password')}
+              />
+            </div>
+            <Button
+              variant="secondary"
+              className="mb-px"
+              icon={<Dices aria-hidden className="size-4" />}
+              onClick={() => setValue('password', generatePassword(), { shouldValidate: true })}
+            >
+              {t.generate}
+            </Button>
+          </div>
+        </>
+      )}
 
       <Button type="submit" className="w-full" loading={isSubmitting}>
         {t.submit}

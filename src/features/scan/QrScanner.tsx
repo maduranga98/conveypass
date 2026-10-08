@@ -1,18 +1,36 @@
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
-import { CameraOff, Flashlight, FlashlightOff, ScanLine, TriangleAlert, X } from 'lucide-react'
+import { Camera, CameraOff, Flashlight, FlashlightOff, ScanLine, TriangleAlert, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { appBase } from '@/lib/appUrl'
 import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
 import { parseVehicleQr } from '@/lib/vehicleQr'
 
-const t = strings.gate.scanner
+const t = strings.scanner
+
+/** Set once the first-use explainer was accepted on this phone. */
+const EXPLAINED_KEY = 'cp_scan_explained'
+const explained = (): boolean => {
+  try {
+    return localStorage.getItem(EXPLAINED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+const rememberExplained = (): void => {
+  try {
+    localStorage.setItem(EXPLAINED_KEY, '1')
+  } catch {
+    /* storage blocked: the explainer shows again next time */
+  }
+}
+const isIos = (): boolean => /iPhone|iPad|iPod/i.test(navigator.userAgent)
 
 /** The same code read again within this window is ignored (the camera sees it many times a second). */
 const REPEAT_MS = 2500
 const MESSAGE_MS = 3000
 
-type Phase = 'starting' | 'scanning' | 'denied' | 'nocamera' | 'failed' | 'insecure'
+type Phase = 'explain' | 'starting' | 'scanning' | 'denied' | 'nocamera' | 'failed' | 'insecure'
 
 function classify(e: unknown): Phase {
   const text = `${(e as { name?: unknown } | null)?.name ?? ''} ${String(e)}`
@@ -31,7 +49,8 @@ function stopTracks(el: HTMLElement | null): void {
 }
 
 /**
- * Full-screen in-app scanner (html5-qrcode), back camera preferred. Every read goes through `parseVehicleQr`;
+ * Full-screen in-app scanner (html5-qrcode), back camera preferred. Shared by drivers and security (Module 12): on first
+ * use it explains the camera prompt in one line; a blocked camera shows short steps for Android and iPhone. Every read goes through `parseVehicleQr`;
  * anything that is not ours shows "Not a ConvoyPass QR code" and scanning continues. On a valid code the camera is
  * stopped first, then `onVehicle` is called. All tracks are stopped on unmount.
  */
@@ -40,9 +59,11 @@ export function QrScanner({ onVehicle, onClose }: { onVehicle: (vehicleId: strin
   const onVehicleRef = useRef(onVehicle)
   // The camera API exists only in secure contexts (https or localhost).
   const [phase, setPhase] = useState<Phase>(() =>
-    window.isSecureContext && typeof navigator.mediaDevices?.getUserMedia === 'function' ? 'starting' : 'insecure',
+    !(window.isSecureContext && typeof navigator.mediaDevices?.getUserMedia === 'function') ? 'insecure' : explained() ? 'starting' : 'explain',
   )
   const insecure = phase === 'insecure'
+  // The camera starts only after the explainer (first use on this phone) was accepted.
+  const waiting = phase === 'explain'
   const [message, setMessage] = useState<string | null>(null)
   const [torch, setTorch] = useState<{ supported: boolean; on: boolean }>({ supported: false, on: false })
   const torchRef = useRef<{ apply: (on: boolean) => Promise<void> } | null>(null)
@@ -60,7 +81,7 @@ export function QrScanner({ onVehicle, onClose }: { onVehicle: (vehicleId: strin
 
   useEffect(() => {
     const host = hostRef.current
-    if (!host || insecure) return
+    if (!host || insecure || waiting) return
     // A fresh element per run, so a quick unmount/remount (StrictMode, retry) never shares one with a stopping scanner.
     const el = document.createElement('div')
     el.id = `qr-${Math.random().toString(36).slice(2)}`
@@ -140,7 +161,7 @@ export function QrScanner({ onVehicle, onClose }: { onVehicle: (vehicleId: strin
       void started.finally(() => stop().finally(() => el.remove()))
       stopTracks(el)
     }
-  }, [attempt, insecure])
+  }, [attempt, insecure, waiting])
 
   const toggleTorch = async () => {
     const cap = torchRef.current
@@ -154,11 +175,13 @@ export function QrScanner({ onVehicle, onClose }: { onVehicle: (vehicleId: strin
   }
 
   const problem =
-    phase === 'denied' ? { title: t.deniedTitle, body: t.deniedBody }
+    phase === 'denied' ? { title: t.deniedTitle, body: t.deniedIntro }
     : phase === 'nocamera' ? { title: t.deniedTitle, body: t.noCamera }
     : phase === 'insecure' ? { title: t.deniedTitle, body: t.insecure }
     : phase === 'failed' ? { title: t.deniedTitle, body: t.failed }
     : null
+  const ios = isIos()
+  const steps = ios ? { title: t.iphoneTitle, items: t.iphoneSteps } : { title: t.androidTitle, items: t.androidSteps }
 
   return (
     <div role="dialog" aria-modal="true" aria-label={t.title} className="fixed inset-0 z-50 flex flex-col bg-scrim text-on-solid">
@@ -188,7 +211,24 @@ export function QrScanner({ onVehicle, onClose }: { onVehicle: (vehicleId: strin
       </div>
 
       <div className="relative flex flex-1 items-center justify-center overflow-hidden">
-        <div ref={hostRef} className={cn('w-full max-w-lg', problem && 'hidden')} />
+        <div ref={hostRef} className={cn('w-full max-w-lg', (problem || waiting) && 'hidden')} />
+        {waiting && (
+          <div className="mx-6 max-w-sm space-y-4 rounded-2xl bg-surface p-6 text-center text-brand">
+            <Camera aria-hidden className="mx-auto size-12" />
+            <p className="text-xl font-extrabold">{t.explainTitle}</p>
+            <p className="text-lg">{t.explainBody}</p>
+            <button
+              type="button"
+              onClick={() => {
+                rememberExplained()
+                setPhase('starting')
+              }}
+              className="h-14 w-full rounded-xl bg-brand text-lg font-bold text-on-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              {t.explainGo}
+            </button>
+          </div>
+        )}
         {phase === 'starting' && (
           <p role="status" className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-lg font-semibold">{t.starting}</p>
         )}
@@ -196,7 +236,17 @@ export function QrScanner({ onVehicle, onClose }: { onVehicle: (vehicleId: strin
           <div role="alert" className="mx-6 max-w-sm space-y-4 rounded-2xl bg-surface p-6 text-center text-brand">
             <CameraOff aria-hidden className="mx-auto size-12 text-danger-strong" />
             <p className="text-xl font-extrabold">{problem.title}</p>
-            <p className="text-base">{problem.body}</p>
+            <p className="text-lg">{problem.body}</p>
+            {phase === 'denied' && (
+              <div className="text-left">
+                <p className="font-bold">{steps.title}</p>
+                <ol className="mt-1 list-decimal space-y-1 pl-6 text-base">
+                  {steps.items.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+            )}
             <div className="flex flex-col gap-2">
               {phase !== 'insecure' && phase !== 'nocamera' && (
                 <button

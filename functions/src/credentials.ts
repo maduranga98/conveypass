@@ -2,9 +2,7 @@
 // Keep both copies, and their tests, in sync.
 import { z } from 'zod'
 
-export const DRIVER_EMAIL_DOMAIN = 'drivers.convoypass.com'
-
-/** `07XXXXXXXX` or `+947XXXXXXXX` -> `947XXXXXXXX`. Anything else -> null. */
+/** `07XXXXXXXX` or `+947XXXXXXXX` -> `947XXXXXXXX`. Anything else -> null. Contact numbers only (Module 12): never a login. */
 export function normalisePhone(input: string): string | null {
   const compact = input.trim().replace(/[\s\-()]/g, '')
   let national: string | null = null
@@ -13,16 +11,10 @@ export function normalisePhone(input: string): string | null {
   return national ? `94${national}` : null
 }
 
-export function driverEmail(normalisedPhone: string): string {
-  return `${normalisedPhone}@${DRIVER_EMAIL_DOMAIN}`
-}
-
 export const PASSWORD_MIN_LENGTH = 8
 export const PASSWORD_MAX_LENGTH = 128
 
-export const isValidPin = (v: string): boolean => /^\d{6}$/.test(v)
 export const isValidPassword = (v: string): boolean =>
   v.length >= PASSWORD_MIN_LENGTH && v.length <= PASSWORD_MAX_LENGTH
 
 export const staffPasswordSchema = z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH)
-export const pinSchema = z.string().regex(/^\d{6}$/)

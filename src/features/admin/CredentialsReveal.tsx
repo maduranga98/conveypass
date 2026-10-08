@@ -7,12 +7,12 @@ import { strings } from '@/lib/strings'
 interface Props {
   loginId: string
   secret: string
-  isPin: boolean
   onDone: () => void
 }
 
 /** Shown once, right after a credential is set. Nothing here is persisted. */
-export function CredentialsReveal({ loginId, secret, isPin, onDone }: Props) {
+/** Office staff only (drivers and security get the PIN card, Module 12). */
+export function CredentialsReveal({ loginId, secret, onDone }: Props) {
   const [copied, setCopied] = useState(false)
   const t = strings.admin.createUser
 
@@ -37,7 +37,7 @@ export function CredentialsReveal({ loginId, secret, isPin, onDone }: Props) {
           <dd className="break-all font-mono">{loginId}</dd>
         </div>
         <div className="flex items-center justify-between gap-4 px-4 py-3">
-          <dt className="text-slate-500">{isPin ? t.secretPin : t.secretPassword}</dt>
+          <dt className="text-slate-500">{t.secretPassword}</dt>
           <dd className="font-mono text-base tracking-wider">{secret}</dd>
         </div>
       </dl>

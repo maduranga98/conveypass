@@ -18,11 +18,11 @@ async function audit(page: Page, what: string): Promise<void> {
 }
 
 test.describe('accessibility: login', () => {
-  test('login (both modes) and privacy', async ({ page }) => {
+  test('PIN screen, staff form and privacy', async ({ page }) => {
     await page.goto('/login')
+    await audit(page, 'login: PIN')
+    await page.getByRole('link', { name: 'Office staff? Sign in with email' }).click()
     await audit(page, 'login: staff')
-    await page.getByRole('button', { name: 'Driver' }).click()
-    await audit(page, 'login: driver')
     await page.getByRole('link', { name: 'Privacy' }).click()
     await audit(page, 'privacy')
   })
@@ -73,12 +73,14 @@ test.describe('accessibility: security', () => {
     await loginStaff(page, 'security')
     await audit(page, 'gate home')
     await page.goto(`/v/${VEHICLE}`)
-    await expect(page.getByRole('button', { name: /check in/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^let in/i })).toBeVisible()
     await audit(page, 'gate vehicle view')
     await page.goto('/security/queue')
     await audit(page, 'gate queue')
     await page.goto('/security')
     await page.getByRole('button', { name: /scan/i }).first().click()
+    await audit(page, 'gate scanner explainer')
+    await page.getByRole('button', { name: 'OK, open camera' }).click()
     await audit(page, 'gate scanner')
   })
 })

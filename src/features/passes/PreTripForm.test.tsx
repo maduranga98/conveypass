@@ -37,7 +37,7 @@ const ctx: FormContext = {
 const renderForm = (over: Partial<FormContext> = {}) =>
   render(<PreTripForm ctx={{ ...ctx, ...over }} onSubmitted={vi.fn()} onReload={vi.fn()} />)
 
-const submitButton = () => screen.getByRole('button', { name: /^submit$/i })
+const submitButton = () => screen.getByRole('button', { name: /^send$/i })
 const radio = (group: string, name: 'Yes' | 'No') => within(screen.getByRole('radiogroup', { name: group })).getByRole('radio', { name })
 
 async function takePhoto(user: ReturnType<typeof userEvent.setup>, tileName: RegExp, label: string) {
@@ -133,7 +133,7 @@ describe('PreTripForm', () => {
     await user.click(radio('Dashcam is recording', 'Yes'))
     await user.click(radio('Brakes work', 'No'))
     await user.type(screen.getByLabelText('What is wrong?'), 'Spongy pedal')
-    expect(screen.getByText(/must be fixed before the trip/i)).toBeTruthy()
+    expect(screen.getByText(/Fix this before the trip/i)).toBeTruthy()
     expect(submitButton().hasAttribute('disabled')).toBe(true)
   })
 

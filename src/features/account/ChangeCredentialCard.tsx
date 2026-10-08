@@ -12,7 +12,7 @@ import { useSession } from '@/features/auth/useAuth'
 import { changeOwnPassword } from '@/lib/api'
 import { apiErrorMessage } from '@/lib/errors'
 import { auth } from '@/lib/firebase'
-import { checkStaffPassword, passwordAcceptable, pinProblem } from '@/lib/passwordRules'
+import { checkStaffPassword, passwordAcceptable } from '@/lib/passwordRules'
 import { strings } from '@/lib/strings'
 import { z } from '@/lib/zod'
 
@@ -24,31 +24,27 @@ interface Values {
 }
 
 /**
- * Voluntary password / PIN change. The current secret is checked first (reauthenticateWithCredential, then a fresh
+ * Voluntary password change (office staff; PIN users have none, Module 12). The current secret is checked first (reauthenticateWithCredential, then a fresh
  * ID token, so the server's 5-minute `auth_time` rule is satisfied); only then does `changeOwnPassword` run. The
  * device stays signed in: the new credential is used to refresh the session straight away.
  */
 export function ChangeCredentialCard() {
-  const { claims, profile } = useSession()
-  const isDriver = claims.role === 'driver'
+  const { profile } = useSession()
   const email = auth.currentUser?.email ?? profile.email ?? ''
   const [formError, setFormError] = useState<string | null>(null)
 
   const schema = useMemo(
     () =>
       z
-        .object({ current: z.string().min(1, isDriver ? t.currentPinRequired : t.currentRequired), next: z.string(), confirm: z.string() })
+        .object({ current: z.string().min(1, t.currentRequired), next: z.string(), confirm: z.string() })
         .superRefine((v, ctx) => {
-          if (isDriver) {
-            const p = pinProblem(v.next)
-            if (p) ctx.addIssue({ code: 'custom', path: ['next'], message: p === 'format' ? strings.passwordRules.tooShortPin : strings.passwordRules.weakPin })
-          } else if (!passwordAcceptable(checkStaffPassword(v.next, email))) {
+          if (!passwordAcceptable(checkStaffPassword(v.next, email))) {
             ctx.addIssue({ code: 'custom', path: ['next'], message: strings.passwordRules.unacceptable })
           }
           if (v.next !== '' && v.next === v.current) ctx.addIssue({ code: 'custom', path: ['next'], message: t.sameAsCurrent })
-          if (v.confirm !== v.next) ctx.addIssue({ code: 'custom', path: ['confirm'], message: isDriver ? strings.auth.pinMismatch : strings.passwordRules.mismatch })
+          if (v.confirm !== v.next) ctx.addIssue({ code: 'custom', path: ['confirm'], message: strings.passwordRules.mismatch })
         }),
-    [isDriver, email],
+    [email],
   )
   const {
     register,
@@ -73,7 +69,7 @@ export function ChangeCredentialCard() {
       const code = e instanceof FirebaseError ? e.code : ''
       if (code === 'auth/too-many-requests') return setFormError(t.tooMany)
       if (code === 'auth/network-request-failed') return setFormError(strings.authErrors.network)
-      return setError('current', { message: isDriver ? t.currentWrongPin : t.currentWrong })
+      return setError('current', { message: t.currentWrong })
     }
 
     // 2. The change itself, on the server.
@@ -95,21 +91,21 @@ export function ChangeCredentialCard() {
       }
     }
     reset()
-    toast.success(isDriver ? t.updatedPin : t.updated)
+    toast.success(t.updated)
   }
 
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-4" noValidate aria-labelledby="change-credential-h">
-      <h3 id="change-credential-h" className="font-semibold">{isDriver ? t.changePin : t.changePassword}</h3>
+      <h3 id="change-credential-h" className="font-semibold">{t.changePassword}</h3>
       {formError && <Notice>{formError}</Notice>}
-      <PasswordInput label={isDriver ? t.currentPin : t.current} pin={isDriver} autoComplete="current-password" error={errors.current?.message} {...register('current')} />
+      <PasswordInput label={t.current} autoComplete="current-password" error={errors.current?.message} {...register('current')} />
       <div className="space-y-2">
-        <PasswordInput label={isDriver ? t.newPin : t.new} pin={isDriver} autoComplete="new-password" error={errors.next?.message} {...register('next')} />
-        {!isDriver && <PasswordChecklist checks={checkStaffPassword(next, email)} />}
+        <PasswordInput label={t.new} autoComplete="new-password" error={errors.next?.message} {...register('next')} />
+        <PasswordChecklist checks={checkStaffPassword(next, email)} />
       </div>
-      <PasswordInput label={isDriver ? t.confirmPin : t.confirm} pin={isDriver} autoComplete="new-password" error={errors.confirm?.message} {...register('confirm')} />
+      <PasswordInput label={t.confirm} autoComplete="new-password" error={errors.confirm?.message} {...register('confirm')} />
       <Button type="submit" loading={isSubmitting}>
-        {isSubmitting ? t.saving : isDriver ? t.submitPin : t.submit}
+        {isSubmitting ? t.saving : t.submit}
       </Button>
     </form>
   )

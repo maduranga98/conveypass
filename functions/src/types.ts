@@ -26,6 +26,21 @@ export interface UserData {
   phone: string | null
   status: UserStatus
   mustChangePassword: boolean
+  /** Module 12: `pin` for drivers and security (no email, no password on the Auth user), `password` for everyone else. Absent on accounts that predate it. */
+  loginType?: LoginType
+  /** PIN users: incremented by every reissue (keys the "new device" notification so a reissue can alert again). */
+  pinVersion?: number
+  /** PIN users: seconds. A session that signed in before this (token `auth_time`) is refused (`session-expired`). */
+  sessionsRevokedAt?: number
+}
+
+export type LoginType = 'pin' | 'password'
+
+/** `pinIndex/{hmacHex}`: the only place a PIN exists, as an HMAC under PIN_PEPPER. Server only (rules deny everyone). */
+export interface PinIndexEntry {
+  uid: string
+  tenantId: string
+  role: 'driver' | 'security'
 }
 
 export type ContractorStatus = 'active' | 'suspended'
@@ -57,7 +72,8 @@ export interface DriverData {
   tenantId: string
   contractorId: string
   name: string
-  phone: string
+  /** Contact number only (Module 12): optional, not unique, never a login. */
+  phone: string | null
   licenseNo?: string | null
   photoPath?: string | null
   status: UserStatus

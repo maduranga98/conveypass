@@ -79,8 +79,9 @@ describe('ForgotPasswordPage', () => {
     expect(await screen.findByRole('button', { name: /Send again in \d+ s/ })).toBeDisabled()
   })
 
-  it('tells drivers to ask their supervisor', () => {
+  it('is for office staff only: no PIN talk, and back goes to the staff sign-in', () => {
     renderPage()
-    expect(screen.getByText(/ask your supervisor to reset your PIN/i)).toBeInTheDocument()
+    expect(screen.queryByText(/PIN/)).toBeNull()
+    expect(screen.getByRole('link', { name: 'Back to sign in' })).toHaveAttribute('href', '/login/staff')
   })
 })

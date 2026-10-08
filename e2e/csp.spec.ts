@@ -56,7 +56,8 @@ test('a full run through every role produces no CSP violations (report-only)', a
   expect(headers['permissions-policy']).toBe('camera=(self), geolocation=(self), microphone=()')
   expect(headers['cache-control']).toBe('no-cache')
 
-  // Sign-in (Auth) and the service worker registration.
+  // Sign-in (Auth) and the service worker registration. /login is the PIN screen; office staff use /login/staff.
+  await page.getByRole('link', { name: 'Office staff? Sign in with email' }).click()
   await page.getByLabel('Email').fill('supervisor@e2e.test')
   await page.getByLabel('Password', { exact: true }).fill('Passw0rd!e2e')
   await page.getByRole('button', { name: 'Sign in' }).click()
@@ -83,15 +84,18 @@ test('a full run through every role produces no CSP violations (report-only)', a
   await page.getByRole('button', { name: /^capture$/i }).click()
   await expect(page.getByText(/uploaded/i).first()).toBeVisible({ timeout: 30_000 })
   await page.goto('/driver')
+  await page.getByRole('button', { name: 'Menu' }).click()
   await page.getByRole('button', { name: /sign out/i }).click()
 
   // Security: gate home, the QR scanner (camera, html5-qrcode), the vehicle view, the queue.
   await loginStaff(page, 'security')
   await page.getByRole('button', { name: /scan/i }).first().click()
+  await page.getByRole('button', { name: 'OK, open camera' }).click() // first use on this browser: the camera explainer
   await page.waitForTimeout(1500)
   await page.goto(`/v/${VEHICLE}`)
   await page.waitForTimeout(800)
   await page.goto('/security/queue')
+  await page.getByRole('button', { name: 'Menu' }).click()
   await page.getByRole('button', { name: /sign out/i }).click()
 
   // Officer: queue, overview (charts), reports.
