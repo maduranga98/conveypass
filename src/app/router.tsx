@@ -128,8 +128,12 @@ export const router = createBrowserRouter([
                 element: lazyEl(<SupervisorLayout />),
                 children: [
                   { index: true, element: lazyEl(<SupervisorHome />) },
-                  { path: 'approvals', element: lazyEl(<ApprovalsPage />) },
-                  { path: 'approvals/:passId', element: lazyEl(<ReviewPage />) },
+                  // The list stays beside the open pass on desktop; on a phone the review takes the whole screen.
+                  {
+                    path: 'approvals',
+                    element: lazyEl(<ApprovalsPage />),
+                    children: [{ path: ':passId', element: lazyEl(<ReviewPage />) }],
+                  },
                   { path: 'vehicles', element: lazyEl(<VehiclesPage scope="supervisor" />) },
                   { path: 'drivers', element: lazyEl(<DriversPage scope="supervisor" />) },
                   { path: 'qr', element: lazyEl(<QrLabelsPage scope="supervisor" />) },

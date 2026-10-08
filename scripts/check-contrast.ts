@@ -62,6 +62,8 @@ const PAIRS: [string, string, string, Kind][] = [
   ['warning-ink', 'warning-soft', 'Warning banner', 'text'],
   ['warning-ink', 'accent-soft', 'Warning banner (stronger fill)', 'text'],
   ['brand', 'warning-soft', 'Gate notice', 'text'],
+  ['slate-300', 'brand', 'Supervisor sidebar and top bar: secondary text', 'text'],
+  ['on-solid', 'brand-hover', 'Supervisor sidebar item (hover)', 'text'],
   // Non-text: icons, borders, rings and the thin parts of controls.
   ['focus', 'surface', 'Focus ring on white', 'ui'],
   ['focus', 'slate-50', 'Focus ring on the page background', 'ui'],
@@ -70,6 +72,8 @@ const PAIRS: [string, string, string, Kind][] = [
   ['warning', 'surface', 'Warning icon', 'ui'],
   ['slate-500', 'surface', 'Unchecked control border', 'ui'],
   ['brand', 'surface', 'Switch / checkbox on', 'ui'],
+  ['on-solid', 'brand', 'Focus ring on the navy bars', 'ui'],
+  ['accent', 'brand', 'Active item and badges on the navy sidebar', 'ui'],
 ]
 
 let failed = 0

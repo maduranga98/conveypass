@@ -762,7 +762,6 @@ export const strings = {
     },
     card: {
       issues: (n: number) => `${n} ${n === 1 ? 'issue' : 'issues'}`,
-      openToReview: 'Open to review',
       select: (plate: string) => `Select ${plate}`,
       attempt: (n: number) => `Attempt ${n}`,
       overdue: 'Overdue',
@@ -1051,8 +1050,9 @@ export const strings = {
   },
 
   supervisor: {
-    nav: { home: 'Home', approvals: 'Approvals', vehicles: 'Vehicles', drivers: 'Drivers', qr: 'QR' },
+    nav: { home: 'Home', approvals: 'Approvals', vehicles: 'Vehicles', drivers: 'Drivers', qr: 'QR labels', qrShort: 'QR', account: 'Account settings' },
     mainNav: 'Main navigation',
+    role: 'Supervisor',
     approvals: {
       title: 'Approvals',
       tabsLabel: 'Pass lists',
@@ -1064,20 +1064,29 @@ export const strings = {
       rejectedEmptyTitle: 'Nothing rejected today',
       rejectedEmptyBody: 'Passes rejected today, by you or the officer, are listed here.',
       oldestFirst: 'Longest waiting first.',
+      search: 'Search plate or driver',
+      noMatch: 'No pass matches your search.',
+      pickTitle: 'Pick a pass to review',
+      pickBody: 'Choose a pass from the list. After each decision the next one opens by itself.',
+      listLabel: (tab: string) => `${tab} passes`,
       waiting: (n: number) => `${n} ${n === 1 ? 'pass' : 'passes'} waiting.`,
       overdue: (n: number, minutes: number) =>
         `${n} ${n === 1 ? 'pass has' : 'passes have'} waited longer than ${minutes} min. Longest waiting first.`,
       review: {
         title: 'Review pass',
         back: 'Back to approvals',
+        backShort: 'Approvals',
         position: (i: number, n: number) => `${i} of ${n} waiting`,
         alreadyDecided: 'This pass has already been decided.',
-        skip: 'Skip',
-        skipLabel: 'Skip to the next waiting pass',
+        previous: 'Previous pass',
+        next: 'Next pass',
         overdue: (ago: string, minutes: number) => `Sent ${ago}. That is past the ${minutes} min target: please decide now.`,
       },
     },
     homeOldest: (ago: string) => `Oldest sent ${ago}`,
+    homeAllClear: 'Nothing is waiting. New passes appear here the moment a driver submits.',
+    nextUp: 'Next up',
+    seeAll: 'Open queue',
     homeOverdue: (n: number) => `${n} past the time target`,
     reviewNow: 'Review now',
     todayTitle: 'Today',
@@ -1090,7 +1099,6 @@ export const strings = {
     vehicles: 'Vehicles',
     drivers: 'Drivers',
     quickActions: 'Quick actions',
-    approvalsTitle: 'Approvals',
     noContractor: 'Your account is not linked to a contractor. Contact your administrator.',
   },
 

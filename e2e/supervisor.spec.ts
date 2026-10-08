@@ -36,5 +36,5 @@ test('a supervisor approves a pass from home and lands on an empty queue', async
   expect(errors).toEqual([])
 
   await page.getByRole('tab', { name: 'Approved' }).click()
-  await expect(page.getByText(PLATE)).toBeVisible()
+  await expect(page.getByRole('list', { name: 'Approved passes' }).getByText(PLATE)).toBeVisible()
 })
