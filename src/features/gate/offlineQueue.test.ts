@@ -117,6 +117,6 @@ describe('flushQueue', () => {
   })
   it('"already checked in by someone else" reads as a sentence with the time and the guard', () => {
     const at = new Date(2026, 2, 10, 8, 14).getTime()
-    expect(gateErrorMessage(typed('already-exists', 'pass-checked-in', { at, byName: 'Nimal' }))).toMatch(/^Already checked in at .*08:14.* by Nimal$/)
+    expect(gateErrorMessage(typed('already-exists', 'pass-checked-in', { at, byName: 'Nimal' }))).toMatch(/^Already let in at .*08:14.* by Nimal$/)
   })
 })

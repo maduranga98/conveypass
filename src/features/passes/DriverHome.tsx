@@ -1,140 +1,132 @@
-import { CheckCircle2, LogOut, ScanLine, TriangleAlert } from 'lucide-react'
-import { Link } from 'react-router-dom'
-import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
+import { CircleHelp, LogOut, ScanLine, TriangleAlert } from 'lucide-react'
+import { lazy, Suspense, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { ErrorState } from '@/components/ui/ErrorState'
+import { Modal } from '@/components/ui/Modal'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
 import { useAuth, useSession } from '@/features/auth/useAuth'
 import { Bell } from '@/features/notifications/Bell'
 import { PushOptInCard } from '@/features/notifications/PushOptInCard'
+import { SimpleMenu } from '@/features/shared/SimpleMenu'
 import type { PassStatus } from '@/types/passes'
-import { PassTimeline } from './PassTimeline'
-import { RECENT_PASSES, todayKey, useMyPasses, useMyVehicles, useTenant } from './queries'
+import { todayKey, useMyPasses, useMyVehicles, useTenant } from './queries'
 
 const t = strings.driverHome
 
-const TONE: Record<PassStatus | 'none', 'neutral' | 'accent' | 'success' | 'danger'> = {
-  none: 'neutral',
-  submitted: 'accent',
-  supervisor_approved: 'accent',
-  officer_approved: 'success',
-  checked_in: 'success',
-  rejected: 'danger',
+// The camera library is large: its own chunk, loaded when the scan button is pressed.
+const QrScanner = lazy(() => import('@/features/scan/QrScanner').then((m) => ({ default: m.QrScanner })))
+
+type Chip = PassStatus | 'none'
+
+/** One status vocabulary (CLAUDE.md): approved/let in = success fill, waiting = amber, fix needed = danger. */
+const CHIP_CLASS: Record<Chip, string> = {
+  none: 'border-2 border-slate-300 text-slate-700',
+  submitted: 'bg-accent text-brand',
+  supervisor_approved: 'bg-accent text-brand',
+  officer_approved: 'bg-success-strong text-on-solid',
+  checked_in: 'bg-success-strong text-on-solid',
+  rejected: 'bg-danger-strong text-on-solid',
 }
 
-const Chip = ({ status }: { status: PassStatus | 'none' }) => <Badge tone={TONE[status]}>{t.chips[status]}</Badge>
+function StatusChip({ status }: { status: Chip }) {
+  return <span className={cn('inline-flex shrink-0 items-center rounded-full px-3 py-1 text-base font-bold', CHIP_CLASS[status])}>{t.chips[status]}</span>
+}
 
-const day = (dateKey: string): string =>
-  new Date(Number(dateKey.slice(0, 4)), Number(dateKey.slice(4, 6)) - 1, Number(dateKey.slice(6, 8))).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
-
+/**
+ * `/driver` (Module 12): the simplest possible screen. A greeting, ONE giant "Scan vehicle QR" button, one hint line,
+ * then today's vehicles with a plain chip. Cards are not tappable (scanning the sticker proves the driver is at the
+ * vehicle), except "Fix needed", which reopens that vehicle's check. Sign out and Help sit in the menu.
+ */
 export default function DriverHome() {
   const { claims, uid, profile } = useSession()
   const { signOut } = useAuth()
+  const navigate = useNavigate()
   const tenant = useTenant(claims.tenantId)
   const vehicles = useMyVehicles(claims.tenantId, uid)
   const passes = useMyPasses(claims.tenantId, uid)
   const today = todayKey(tenant.data)
+  const [scanning, setScanning] = useState(false)
+  const [help, setHelp] = useState(false)
 
   const todayPass = (vehicleId: string) => passes.data?.find((p) => p.vehicleId === vehicleId && p.dateKey === today)
-  const reload = () => { void vehicles.refetch(); passes.retry() }
+  const reload = () => {
+    void vehicles.refetch()
+    passes.retry()
+  }
 
   return (
-    <div className="mx-auto min-h-dvh max-w-md space-y-6 px-4 py-6">
-      <header className="flex items-start justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">{strings.home.welcome(profile.name)}</h1>
-        <div className="flex shrink-0 items-center">
+    <div className="mx-auto min-h-dvh max-w-md space-y-5 px-4 py-5 text-lg">
+      <header className="flex items-center justify-between gap-2">
+        <h1 className="min-w-0 truncate text-2xl font-extrabold tracking-tight text-brand">{t.hello(profile.name)}</h1>
+        <div className="flex shrink-0 items-center gap-1">
           <Bell />
-          <Button variant="ghost" size="icon" className="size-12" aria-label={strings.common.signOut} title={strings.common.signOut} onClick={() => void signOut()}>
-            <LogOut aria-hidden className="size-5" />
-          </Button>
+          <SimpleMenu
+            label={t.menu}
+            items={[
+              { label: t.help, icon: <CircleHelp aria-hidden className="size-6" />, onSelect: () => setHelp(true) },
+              { label: strings.common.signOut, icon: <LogOut aria-hidden className="size-6" />, onSelect: () => void signOut() },
+            ]}
+          />
         </div>
       </header>
 
-      <PushOptInCard />
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => setScanning(true)}
+          className="flex h-28 w-full items-center justify-center gap-4 rounded-3xl bg-brand text-3xl font-black tracking-tight text-on-solid shadow-sm hover:bg-brand-hover focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        >
+          <ScanLine aria-hidden className="size-11" />
+          {t.scan}
+        </button>
+        <p className="text-center text-lg text-slate-700">{t.hint}</p>
+      </div>
 
-      <section aria-labelledby="how-h" className="flex items-start gap-3 rounded-2xl border border-slate-300 bg-surface p-4">
-        <ScanLine aria-hidden className="mt-0.5 size-6 shrink-0 text-brand" />
-        <div>
-          <h2 id="how-h" className="font-semibold">{t.howTitle}</h2>
-          <p className="text-base text-slate-700">{t.howBody}</p>
-        </div>
-      </section>
-
-      <section aria-labelledby="veh-h" className="space-y-3">
-        <h2 id="veh-h" className="text-lg font-bold">{t.vehiclesTitle}</h2>
+      <section aria-labelledby="today-h" className="space-y-3">
+        <h2 id="today-h" className="text-xl font-bold text-brand">{t.todayTitle}</h2>
         {vehicles.isPending || passes.isPending ? (
           <div role="status" className="space-y-3">
-            <Skeleton className="h-20 w-full rounded-2xl" />
-            <Skeleton className="h-20 w-full rounded-2xl" />
+            <Skeleton className="h-16 w-full rounded-2xl" />
+            <Skeleton className="h-16 w-full rounded-2xl" />
           </div>
         ) : vehicles.isError || passes.isError ? (
           <ErrorState message={t.loadFailed} onRetry={reload} />
         ) : vehicles.data.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-slate-400 p-6 text-center text-slate-700">{t.vehiclesEmpty}</p>
+          <p className="rounded-2xl border border-dashed border-slate-400 p-5 text-center text-slate-700">{t.vehiclesEmpty}</p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="space-y-3" data-testid="today-list">
             {vehicles.data.map((v) => {
               const pass = todayPass(v.id)
-              const status = pass?.status ?? 'none'
-
-              // Rejected: red, with the reason and the way back into the form.
+              const status: Chip = pass?.status ?? 'none'
               if (pass && status === 'rejected') {
+                // The only tappable card: it reopens the check so the driver can fix it.
                 return (
-                  <li key={v.id} className="space-y-3 rounded-2xl border-2 border-danger-strong bg-danger-soft p-4">
-                    <div className="flex items-start gap-3">
-                      <TriangleAlert aria-hidden className="mt-0.5 size-7 shrink-0 text-danger-strong" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xl font-bold tracking-tight">{v.plateNo}</p>
-                        <p className="text-sm text-slate-700">{v.type}</p>
-                      </div>
-                      <Chip status="rejected" />
-                    </div>
-                    {pass.rejection && (
-                      <div className="rounded-xl bg-surface px-3 py-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-danger-ink">{t.rejectedReason}</p>
-                        <p className="text-base font-medium text-brand">{pass.rejection.reason}</p>
-                        {pass.rejection.byName && <p className="mt-1 text-xs text-slate-600">{t.rejectedBy(pass.rejection.byName)}</p>}
-                      </div>
-                    )}
+                  <li key={v.id}>
                     <Link
                       to={`/v/${v.id}`}
-                      className="flex h-14 items-center justify-center rounded-xl bg-danger-strong text-lg font-bold text-on-solid hover:bg-danger-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                      className="block space-y-2 rounded-2xl border-2 border-danger-strong bg-danger-soft p-4 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus"
                     >
-                      {t.fixAndResubmit}
+                      <span className="flex items-center gap-3">
+                        <TriangleAlert aria-hidden className="size-7 shrink-0 text-danger-strong" />
+                        <span className="min-w-0 flex-1 text-xl font-bold text-brand">{v.plateNo}</span>
+                        <StatusChip status="rejected" />
+                      </span>
+                      {pass.rejection?.reason && (
+                        <span className="block text-base text-danger-ink">
+                          {t.reason}: {pass.rejection.reason}
+                        </span>
+                      )}
+                      <span className="block text-base font-bold text-danger-ink underline underline-offset-2">{t.fixNow}</span>
                     </Link>
                   </li>
                 )
               }
-
-              // Approved (or already through the gate): green, as bright as the status screen.
-              if (pass && (status === 'officer_approved' || status === 'checked_in')) {
-                return (
-                  <li key={v.id} className="space-y-4 rounded-2xl bg-success-strong p-4 text-on-solid">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 aria-hidden className="size-9 shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-2xl font-extrabold tracking-tight">{status === 'checked_in' ? t.chips.checked_in : t.approvedTitle}</p>
-                        <p className="text-base font-semibold">{v.plateNo} · {v.type}</p>
-                      </div>
-                    </div>
-                    <p className="text-base">{t.approvedBody}</p>
-                    <PassTimeline status={pass.status} tone="success" pass={pass} />
-                  </li>
-                )
-              }
-
-              // Waiting for a supervisor or an officer: the timeline moves by itself as they approve.
               return (
-                <li key={v.id} className="space-y-4 rounded-2xl border border-slate-300 bg-surface p-4">
-                  <div className="flex min-h-12 items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xl font-bold tracking-tight">{v.plateNo}</p>
-                      <p className="text-sm text-slate-600">{v.type}</p>
-                    </div>
-                    <Chip status={status} />
-                  </div>
-                  {pass && <PassTimeline status={pass.status} pass={pass} />}
+                <li key={v.id} className="flex min-h-16 items-center gap-3 rounded-2xl border border-slate-300 bg-surface px-4 py-3">
+                  <span className="min-w-0 flex-1 text-xl font-bold text-brand">{v.plateNo}</span>
+                  <StatusChip status={status} />
                 </li>
               )
             })}
@@ -142,26 +134,22 @@ export default function DriverHome() {
         )}
       </section>
 
-      <section aria-labelledby="rec-h" className="space-y-3">
-        <h2 id="rec-h" className="text-lg font-bold">{t.recentTitle}</h2>
-        {passes.isPending ? (
-          <Skeleton className="h-16 w-full rounded-2xl" />
-        ) : passes.isError ? null : passes.data.length === 0 ? (
-          <p className="text-slate-600">{t.recentEmpty}</p>
-        ) : (
-          <ul className="divide-y divide-slate-200 rounded-2xl border border-slate-300 bg-surface">
-            {passes.data.slice(0, RECENT_PASSES).map((p) => (
-              <li key={p.id} className="flex min-h-14 items-center gap-3 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold">{p.plateNo}</p>
-                  <p className="text-sm text-slate-600">{day(p.dateKey)} · {t.attempt(p.attempt)}</p>
-                </div>
-                <Chip status={p.status} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <PushOptInCard />
+
+      <Modal open={help} onClose={() => setHelp(false)} title={t.helpTitle} variant="sheet">
+        <ol className="list-decimal space-y-2 pl-6 text-lg">
+          {t.helpSteps.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ol>
+        <p className="mt-4 text-lg font-semibold">{t.helpMore}</p>
+      </Modal>
+
+      {scanning && (
+        <Suspense fallback={<div role="status" className="fixed inset-0 z-50 grid place-items-center bg-scrim text-lg font-semibold text-on-solid">{strings.scanner.starting}</div>}>
+          <QrScanner onClose={() => setScanning(false)} onVehicle={(id) => void navigate(`/v/${id}`, { state: { from: 'scan' } })} />
+        </Suspense>
+      )}
     </div>
   )
 }
