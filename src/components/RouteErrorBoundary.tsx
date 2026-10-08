@@ -1,7 +1,20 @@
-import type { ReactNode } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useEffect, type ReactNode } from 'react'
+import { useLocation, useRouteError } from 'react-router-dom'
 import { useAuth } from '@/features/auth/useAuth'
-import { ErrorBoundary, type BoundaryVariant } from './ErrorBoundary'
+import { logClientError } from '@/lib/clientErrors'
+import { ErrorBoundary, ErrorFallback, type BoundaryVariant } from './ErrorBoundary'
+
+/**
+ * The router's `errorElement`. React Router catches render errors inside its routes before the app's
+ * `ErrorBoundary` sees them, and its own fallback is a developer screen; this shows ours instead.
+ */
+export function RouteErrorPage() {
+  const error = useRouteError()
+  useEffect(() => {
+    logClientError(error, 'boundary')
+  }, [error])
+  return <ErrorFallback />
+}
 
 /** A boundary that resets when the route changes, so navigating away from a crashed screen works. */
 export function RouteErrorBoundary({ variant, children }: { variant: BoundaryVariant; children: ReactNode }) {

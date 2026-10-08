@@ -48,7 +48,7 @@ export function PassReview({ pass, today, contractorName, historyHref, layout = 
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-3xl font-extrabold tracking-tight">{pass.plateNo}</h2>
-          <p className="text-base text-slate-700">{pass.vehicleType}</p>
+          <p className="text-base text-slate-700">{pass.vehicleType} · {pass.driverName}</p>
           {historyHref && (
             <Link to={historyHref} className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline focus-visible:outline-2 focus-visible:outline-focus">
               <History aria-hidden className="size-4" />

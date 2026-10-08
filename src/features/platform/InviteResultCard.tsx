@@ -25,7 +25,9 @@ export function InviteResultCard({ result, onClose }: { result: InviteResult; on
   const { invite, company, lockEmail } = result
   const [copied, setCopied] = useState(false)
   const input = useRef<HTMLInputElement>(null)
-  useEffect(() => input.current?.focus(), [])
+  useEffect(() => {
+    input.current?.focus()
+  }, [])
 
   const text = inviteMessage({ company, link: invite.link, expiresAt: invite.expiresAt })
 

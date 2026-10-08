@@ -249,7 +249,9 @@ export default function SettingsPage() {
   const { claims } = useSession()
   const tenant = useTenant(claims.tenantId)
   // The onboarding checklist's last step: the admin has looked at the defaults (remembered on this device).
-  useEffect(() => markSettingsVisited(claims.tenantId), [claims.tenantId])
+  useEffect(() => {
+    markSettingsVisited(claims.tenantId)
+  }, [claims.tenantId])
 
   return (
     <div className="max-w-2xl space-y-6">

@@ -1,6 +1,7 @@
-import { ArrowLeft, SearchX } from 'lucide-react'
+import { ArrowLeft, SearchX, SkipForward } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -9,16 +10,18 @@ import { useSession } from '@/features/auth/useAuth'
 import { DecisionBar } from '@/features/passes/DecisionBar'
 import { PassChangedBanner } from '@/features/passes/PassChangedBanner'
 import { PassReview } from '@/features/passes/PassReview'
-import { isExpired } from '@/features/passes/passView'
+import { isExpired, timeAgo, toMs } from '@/features/passes/passView'
 import { useRejectionReasons } from '@/features/passes/queries'
 import { RejectSheet, type RejectChoice } from '@/features/passes/RejectSheet'
 import { useDecisions } from '@/features/passes/useDecisions'
 import { useReviewLock } from '@/features/passes/useReviewLock'
 import { usePass } from '@/features/passes/usePass'
 import { usePassQueue } from '@/features/passes/usePassQueue'
-import { useToday } from '@/features/passes/useToday'
+import { useNow, useToday } from '@/features/passes/useToday'
 import type { PassWithId } from '@/types/passes'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
+import { isOverdue, nextInQueue, oldestFirst } from './queue'
+import { useSupervisorTarget } from './useSupervisorTarget'
 
 const t = strings.supervisor.approvals
 const a = strings.approvals
@@ -29,6 +32,8 @@ function Review({ pass, today }: { pass: PassWithId; today: string | null }) {
   const { claims } = useSession()
   const reasons = useRejectionReasons(claims.tenantId)
   const decisions = useDecisions()
+  const now = useNow()
+  const target = useSupervisorTarget()
   const pending = usePassQueue({ scope: 'supervisor', status: 'submitted', ...(today ? { dateKey: today } : {}), enabled: today !== null })
 
   const [rejecting, setRejecting] = useState(false)
@@ -42,13 +47,15 @@ function Review({ pass, today }: { pass: PassWithId; today: string | null }) {
   const decidable = pass.status === 'submitted' && !expired
   const locked = changed || !decidable
 
-  const queueIds = useMemo(() => pending.items.filter((p) => !decisions.isHidden(p)).map((p) => p.id), [pending.items, decisions])
+  // Same order as the Pending list: longest waiting first.
+  const queueIds = useMemo(() => oldestFirst(pending.items.filter((p) => !decisions.isHidden(p))).map((p) => p.id), [pending.items, decisions])
   const position = queueIds.indexOf(pass.id)
+  const nextId = nextInQueue(queueIds, pass.id)
+  const overdue = decidable && isOverdue(pass, now, target)
 
   const goNext = () => {
     lock.leave()
-    const next = pending.items.find((p) => p.id !== pass.id && !decisions.isHidden(p))
-    void navigate(next ? `/supervisor/approvals/${next.id}` : '/supervisor/approvals', { replace: true })
+    void navigate(nextId ? `/supervisor/approvals/${nextId}` : '/supervisor/approvals', { replace: true })
   }
 
   const approve = async () => {
@@ -75,12 +82,28 @@ function Review({ pass, today }: { pass: PassWithId; today: string | null }) {
           <ArrowLeft aria-hidden className="size-5" />
           {t.review.back}
         </Link>
-        {position >= 0 && <p className="text-sm font-medium text-slate-700">{t.review.position(position + 1, queueIds.length)}</p>}
+        <div className="flex items-center gap-2">
+          {position >= 0 && <p className="text-sm font-medium text-slate-700">{t.review.position(position + 1, queueIds.length)}</p>}
+          {nextId && !busy && (
+            <Button
+              variant="secondary"
+              className="h-11 px-3"
+              aria-label={t.review.skipLabel}
+              icon={<SkipForward aria-hidden className="size-4" />}
+              onClick={() => void navigate(`/supervisor/approvals/${nextId}`, { replace: true })}
+            >
+              {t.review.skip}
+            </Button>
+          )}
+        </div>
       </div>
 
       {changed && <PassChangedBanner onAcknowledge={lock.acknowledge} />}
-      {!changed && expired && <p role="status" className="rounded-xl bg-slate-200 px-4 py-3 text-base font-medium">{a.decision.expired}</p>}
-      {!changed && !expired && !decidable && <p role="status" className="rounded-xl bg-slate-200 px-4 py-3 text-base font-medium">{t.review.alreadyDecided}</p>}
+      {!changed && expired && <NotificationBanner tone="info" size="lg">{a.decision.expired}</NotificationBanner>}
+      {!changed && !expired && !decidable && <NotificationBanner tone="info" size="lg">{t.review.alreadyDecided}</NotificationBanner>}
+      {!changed && overdue && (
+        <NotificationBanner tone="warning">{t.review.overdue(timeAgo(toMs(pass.submittedAt), now).toLowerCase(), target)}</NotificationBanner>
+      )}
       {!changed && decidable && pass.checklist.some((c) => c.answer === 'no') && (
         <NotificationBanner tone="error" role="note" size="lg">{a.decision.issuesWarning}</NotificationBanner>
       )}
@@ -115,7 +138,11 @@ export default function ReviewPage() {
   const today = useToday()
   const [retryKey, setRetryKey] = useState(0)
 
-  useEffect(() => window.scrollTo?.({ top: 0 }), [passId])
+  // A block body on purpose: window.scrollTo returns a Promise in current Chrome, and React would call whatever the
+  // effect returns as its cleanup ("is not a function" on the next pass).
+  useEffect(() => {
+    window.scrollTo?.({ top: 0 })
+  }, [passId])
 
   if (state.status === 'loading') {
     return (
