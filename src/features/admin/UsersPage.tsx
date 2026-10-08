@@ -17,6 +17,10 @@ import { ROLES, type Role } from '@/lib/roles'
 import { strings } from '@/lib/strings'
 import type { UserDoc, UserStatus, WithId } from '@/types'
 import { useSession } from '@/features/auth/useAuth'
+import { useTenant } from '@/features/passes/queries'
+import { isPinRole } from '@/lib/session'
+import { LastSignIn } from './LastSignIn'
+import { ReissuePinDialog, type ReissueTarget } from './ReissuePinDialog'
 import { CreateUserDrawer } from './CreateUserDrawer'
 import { EditUserModal } from './EditUserModal'
 import { ResetCredentialModal } from './ResetCredentialModal'
@@ -25,7 +29,8 @@ import { useContractors, useUsers } from './queries'
 const t = strings.admin.users
 
 export default function UsersPage() {
-  const { uid } = useSession()
+  const { uid, claims } = useSession()
+  const tenant = useTenant(claims.tenantId)
   const queryClient = useQueryClient()
   const [role, setRole] = useState<Role | ''>('')
   const [status, setStatus] = useState<UserStatus | ''>('')
@@ -33,6 +38,7 @@ export default function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState<WithId<UserDoc> | null>(null)
   const [resetting, setResetting] = useState<WithId<UserDoc> | null>(null)
+  const [reissuing, setReissuing] = useState<ReissueTarget | null>(null)
   const [toggling, setToggling] = useState<WithId<UserDoc> | null>(null)
 
   const users = useUsers(role)
@@ -78,7 +84,11 @@ export default function UsersPage() {
       cell: (u) => (
         <div>
           <span className="font-medium text-brand">{u.name}</span>
-          {u.mustChangePassword && <p className="text-xs font-normal text-slate-600">{t.mustChange}</p>}
+          {isPinRole(u.role) ? (
+            <p className="text-xs font-normal text-slate-600">{t.pinSignIn}</p>
+          ) : (
+            u.mustChangePassword && <p className="text-xs font-normal text-slate-600">{t.mustChange}</p>
+          )}
         </div>
       ),
     },
@@ -94,6 +104,11 @@ export default function UsersPage() {
       cell: (u) => (u.contractorId ? (contractorNames.get(u.contractorId) ?? strings.common.none) : strings.common.none),
     },
     {
+      key: 'lastSignIn',
+      header: t.columns.lastSignIn,
+      cell: (u) => (isPinRole(u.role) ? <LastSignIn user={u} /> : strings.common.none),
+    },
+    {
       key: 'status',
       header: t.columns.status,
       cell: (u) => <Badge tone={u.status === 'active' ? 'success' : 'danger'}>{strings.status[u.status]}</Badge>,
@@ -104,7 +119,9 @@ export default function UsersPage() {
     // Admin accounts are managed by the platform super admin: no edit, reset or disable here (the functions refuse too).
     if (u.role === 'admin') return <Badge tone="neutral">{t.managedBy}</Badge>
     const isSelf = u.id === uid
-    const resetLabel = u.role === 'driver' ? strings.admin.reset.resetPin : strings.admin.reset.resetPassword
+    const pin = isPinRole(u.role)
+    const resetLabel = pin ? strings.reissue.action : strings.admin.reset.resetPassword
+    const company = u.contractorId ? (contractorNames.get(u.contractorId) ?? '') : (tenant.data?.name ?? '')
     const toggleLabel = u.status === 'active' ? strings.admin.toggle.disable : strings.admin.toggle.enable
     return (
       <div className="inline-flex gap-1">
@@ -113,7 +130,7 @@ export default function UsersPage() {
         </Button>
         {!isSelf && (
           <>
-            <Button variant="ghost" size="icon" title={resetLabel} aria-label={`${resetLabel}: ${u.name}`} onClick={() => setResetting(u)}>
+            <Button variant="ghost" size="icon" title={resetLabel} aria-label={`${resetLabel}: ${u.name}`} onClick={() => (pin ? setReissuing({ id: u.id, name: u.name, role: u.role, company }) : setResetting(u))}>
               <KeyRound aria-hidden className="size-4" />
             </Button>
             <Button variant="ghost" size="icon" title={toggleLabel} aria-label={`${toggleLabel}: ${u.name}`} onClick={() => setToggling(u)}>
@@ -178,6 +195,7 @@ export default function UsersPage() {
       <CreateUserDrawer open={createOpen} onClose={() => setCreateOpen(false)} />
       <EditUserModal user={editing} onClose={() => setEditing(null)} />
       <ResetCredentialModal user={resetting} onClose={() => setResetting(null)} />
+      <ReissuePinDialog target={reissuing} onClose={() => setReissuing(null)} />
       <ConfirmDialog
         open={toggling !== null}
         title={toggling?.status === 'active' ? strings.admin.toggle.disableTitle : strings.admin.toggle.enableTitle}
@@ -197,3 +215,4 @@ export default function UsersPage() {
     </div>
   )
 }
+

@@ -15,12 +15,13 @@ import { updateUser } from '@/lib/api'
 import { formatPhone } from '@/lib/credentials'
 import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
-import { ResetCredentialModal, type ResetTarget } from '@/features/admin/ResetCredentialModal'
+import { ReissuePinDialog, type ReissueTarget } from '@/features/admin/ReissuePinDialog'
+import { LastSignIn } from '@/features/admin/LastSignIn'
 import { useSession } from '@/features/auth/useAuth'
 import { matchesSearch, usePaged } from '@/features/shared/list'
 import { ListToolbar } from '@/features/shared/ListToolbar'
 import { CapNotice, ClearFilters, ShowMore } from '@/features/shared/ListStates'
-import { useContractorList, useDrivers, useVehicles } from '@/features/shared/queries'
+import { useContractorList, useDriverAccounts, useDrivers, useVehicles } from '@/features/shared/queries'
 import { useScope, type Scope } from '@/features/shared/scope'
 import type { Driver, Vehicle, WithId } from '@/types'
 import { DriverAvatar } from './DriverAvatar'
@@ -35,13 +36,14 @@ export default function DriversPage({ scope }: { scope: Scope }) {
   const drivers = useDrivers(scope)
   const vehicles = useVehicles(scope)
   const contractors = useContractorList(scope)
+  const accounts = useDriverAccounts(scope)
 
   const [params, setParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [contractorId, setContractorId] = useState(isAdmin ? (params.get('contractor') ?? '') : '')
   const [formFor, setFormFor] = useState<WithId<Driver> | 'new' | null>(params.get('new') ? 'new' : null)
-  const [resetting, setResetting] = useState<WithId<Driver> | null>(null)
+  const [reissuing, setReissuing] = useState<ReissueTarget | null>(null)
   const [toggling, setToggling] = useState<WithId<Driver> | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -112,7 +114,7 @@ export default function DriversPage({ scope }: { scope: Scope }) {
         </span>
       ),
     },
-    { key: 'phone', header: t.columns.phone, cell: (d) => <span className="font-mono text-sm">{formatPhone(d.phone)}</span> },
+    { key: 'phone', header: t.columns.phone, cell: (d) => <span className="font-mono text-sm">{d.phone ? formatPhone(d.phone) : strings.common.none}</span> },
     {
       key: 'vehicles',
       header: t.columns.vehicles,
@@ -131,6 +133,14 @@ export default function DriversPage({ scope }: { scope: Scope }) {
         )
       },
     },
+    {
+      key: 'lastSignIn',
+      header: t.columns.lastSignIn,
+      cell: (d) => {
+        const account = accounts.data?.get(d.id)
+        return account ? <LastSignIn user={account} /> : strings.common.none
+      },
+    },
     { key: 'status', header: t.columns.status, cell: (d) => <StatusBadge status={d.status} /> },
   ]
 
@@ -142,7 +152,13 @@ export default function DriversPage({ scope }: { scope: Scope }) {
         <Button variant="ghost" size="icon" title={strings.common.edit} aria-label={`${strings.common.edit}: ${d.name}`} onClick={() => setFormFor(d)}>
           <Pencil aria-hidden className="size-4" />
         </Button>
-        <Button variant="ghost" size="icon" title={t.resetPin} aria-label={`${t.resetPin}: ${d.name}`} onClick={() => setResetting(d)}>
+        <Button
+          variant="ghost"
+          size="icon"
+          title={strings.reissue.action}
+          aria-label={`${strings.reissue.action}: ${d.name}`}
+          onClick={() => setReissuing({ id: d.id, name: d.name, role: 'driver', company: contractorNames.get(d.contractorId) ?? '' })}
+        >
           <KeyRound aria-hidden className="size-4" />
         </Button>
         {d.id !== uid && (
@@ -156,9 +172,6 @@ export default function DriversPage({ scope }: { scope: Scope }) {
 
   const loading = drivers.isPending || vehicles.isPending || contractors.isPending
   const failed = drivers.isError || vehicles.isError || contractors.isError
-  const resetTarget: ResetTarget | null = resetting
-    ? { id: resetting.id, role: 'driver', name: resetting.name, phone: resetting.phone, email: null }
-    : null
 
   return (
     <div className="space-y-5">
@@ -206,7 +219,7 @@ export default function DriversPage({ scope }: { scope: Scope }) {
       )}
 
       <DriverFormModal scope={scope} target={formFor} onClose={closeForm} />
-      <ResetCredentialModal user={resetTarget} onClose={() => setResetting(null)} />
+      <ReissuePinDialog target={reissuing} onClose={() => setReissuing(null)} />
       <ConfirmDialog
         open={toggling !== null}
         title={toggling?.status === 'active' ? t.disableTitle : t.enableTitle}

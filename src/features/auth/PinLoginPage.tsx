@@ -32,6 +32,9 @@ const isNetworkError = (e: unknown): boolean =>
   e instanceof FirebaseError &&
   ['functions/unavailable', 'functions/deadline-exceeded', 'auth/network-request-failed', 'unavailable'].includes(e.code)
 
+/** Wall-clock helpers, kept outside the component (they run in event handlers, never while rendering). */
+const clock = () => Date.now()
+
 const mmss = (ms: number): string => {
   const s = Math.max(0, Math.ceil(ms / 1000))
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
@@ -71,7 +74,7 @@ export function PinScreen({ notice, staffHref }: { notice: string | null; staffH
   // The lockout countdown ticks every second and frees the keypad when it ends.
   useEffect(() => {
     if (problem?.kind !== 'locked') return
-    const timer = setInterval(() => setNow(Date.now()), 1000)
+    const timer = setInterval(() => setNow(clock()), 1000)
     return () => clearInterval(timer)
   }, [problem])
 
@@ -97,8 +100,9 @@ export function PinScreen({ notice, staffHref }: { notice: string | null; staffH
       setDigits('')
       const retry = retryAfterOf(e)
       if (retry !== null) {
-        const until = Date.now() + retry * 1000
-        setNow(Date.now())
+        const at = clock()
+        setNow(at)
+        const until = at + retry * 1000
         setProblem({ kind: 'locked', until })
       } else if (isNetworkError(e) || !navigator.onLine) {
         setProblem({ kind: 'offline' })

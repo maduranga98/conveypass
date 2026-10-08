@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { resetCredential } from '@/lib/api'
-import { formatPhone, generatePassword, generatePin, isValidPassword, isValidPin } from '@/lib/credentials'
+import { generatePassword, isValidPassword } from '@/lib/credentials'
 import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
 import type { Role } from '@/lib/roles'
@@ -17,7 +17,7 @@ import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.admin.reset
 
-/** The few fields needed to reset a credential: a `users` doc fits, and so does a driver profile. */
+/** Office staff passwords only: drivers and security have a PIN, which is reissued instead (Module 12). */
 export interface ResetTarget {
   id: string
   role: Role
@@ -36,19 +36,13 @@ export function ResetCredentialModal({ user, onClose }: { user: ResetTarget | nu
     setRevealed(null)
     onClose()
   }
-  const isPin = user?.role === 'driver'
-  const title = user ? (isPin ? t.resetPin : t.resetPassword) : t.title
+  const title = user ? t.resetPassword : t.title
 
   return (
     <Modal open={user !== null} onClose={close} title={revealed ? strings.admin.createUser.credentialsTitle : title}>
       {user &&
         (revealed ? (
-          <CredentialsReveal
-            loginId={isPin && user.phone ? formatPhone(user.phone) : (user.email ?? '')}
-            secret={revealed.secret}
-            isPin={isPin}
-            onDone={close}
-          />
+          <CredentialsReveal loginId={user.email ?? ''} secret={revealed.secret} onDone={close} />
         ) : (
           <ResetForm user={user} onReset={(secret) => setRevealed({ secret })} onCancel={close} />
         ))}
@@ -65,11 +59,10 @@ function ResetForm({
   onReset: (secret: string) => void
   onCancel: () => void
 }) {
-  const isPin = user.role === 'driver'
   const [formError, setFormError] = useState<string | null>(null)
 
   const schema = z.object({
-    secret: z.string().refine(isPin ? isValidPin : isValidPassword, isPin ? strings.auth.invalidPin : strings.auth.passwordTooShort),
+    secret: z.string().refine(isValidPassword, strings.auth.passwordTooShort),
   })
   const {
     register,
@@ -98,12 +91,11 @@ function ResetForm({
       <div className="flex items-end gap-2">
         <div className="flex-1">
           <Input
-            label={isPin ? t.newPin : t.newPassword}
+            label={t.newPassword}
             type="text"
             autoComplete="off"
             spellCheck={false}
             className="font-mono"
-            {...(isPin ? { inputMode: 'numeric' as const, maxLength: 6 } : {})}
             error={errors.secret?.message}
             {...register('secret')}
           />
@@ -112,7 +104,7 @@ function ResetForm({
           variant="secondary"
           className="mb-px"
           icon={<Dices aria-hidden className="size-4" />}
-          onClick={() => setValue('secret', isPin ? generatePin() : generatePassword(), { shouldValidate: true })}
+          onClick={() => setValue('secret', generatePassword(), { shouldValidate: true })}
         >
           {strings.admin.createUser.generate}
         </Button>

@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal'
 import { updateUser } from '@/lib/api'
 import { formatPhone, normalisePhone } from '@/lib/credentials'
 import { apiErrorMessage } from '@/lib/errors'
+import { isPinRole } from '@/lib/session'
 import { strings } from '@/lib/strings'
 import type { UserDoc, WithId } from '@/types'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
@@ -31,12 +32,13 @@ export function EditUserModal({ user, onClose }: { user: WithId<UserDoc> | null;
 
 function EditUserForm({ user, onClose }: { user: WithId<UserDoc>; onClose: () => void }) {
   const queryClient = useQueryClient()
-  const isDriver = user.role === 'driver'
+  // Drivers and security keep an optional contact number (Module 12); office staff have none.
+  const hasPhone = isPinRole(user.role)
   const [formError, setFormError] = useState<string | null>(null)
 
   const schema = z
     .object({ name: z.string().trim().min(1, strings.admin.createUser.nameRequired).max(100), phone: z.string().trim() })
-    .refine((v) => !isDriver || normalisePhone(v.phone) !== null, { path: ['phone'], message: strings.auth.invalidPhone })
+    .refine((v) => !hasPhone || v.phone === '' || normalisePhone(v.phone) !== null, { path: ['phone'], message: strings.auth.invalidPhone })
 
   const {
     register,
@@ -49,12 +51,13 @@ function EditUserForm({ user, onClose }: { user: WithId<UserDoc>; onClose: () =>
 
   const submit = async (v: Values) => {
     setFormError(null)
-    const phone = isDriver ? normalisePhone(v.phone) : null
+    const phone = hasPhone && v.phone.trim() !== '' ? normalisePhone(v.phone) : null
+    const phoneChanged = hasPhone && phone !== (user.phone ?? null)
     try {
       await updateUser({
         uid: user.id,
         ...(v.name !== user.name ? { name: v.name } : {}),
-        ...(phone && phone !== user.phone ? { phone: v.phone } : {}), // as typed; the server normalises it
+        ...(phoneChanged ? { phone: phone === null ? null : v.phone } : {}), // as typed; the server normalises it
       })
       await queryClient.invalidateQueries({ queryKey: ['users'] })
       toast.success(t.updated)
@@ -70,8 +73,8 @@ function EditUserForm({ user, onClose }: { user: WithId<UserDoc>; onClose: () =>
         <NotificationBanner tone="error">{formError}</NotificationBanner>
       )}
       <Input label={t.name} autoComplete="off" error={errors.name?.message} {...register('name')} />
-      {isDriver && (
-        <Input label={t.phone} type="tel" inputMode="tel" autoComplete="off" error={errors.phone?.message} {...register('phone')} />
+      {hasPhone && (
+        <Input label={t.phone} optional hint={strings.admin.createUser.phoneHint} type="tel" inputMode="tel" autoComplete="off" error={errors.phone?.message} {...register('phone')} />
       )}
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="secondary" onClick={onClose}>
