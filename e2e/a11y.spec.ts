@@ -79,6 +79,8 @@ test.describe('accessibility: security', () => {
     await audit(page, 'gate queue')
     await page.goto('/security')
     await page.getByRole('button', { name: /scan/i }).first().click()
+    await audit(page, 'gate scanner explainer')
+    await page.getByRole('button', { name: 'OK, open camera' }).click()
     await audit(page, 'gate scanner')
   })
 })
