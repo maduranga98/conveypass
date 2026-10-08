@@ -111,6 +111,7 @@ describe('audit redaction: every write path', () => {
     const files = readdirSync(__dirname).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
     const writers = files.filter((f) => readFileSync(join(__dirname, f), 'utf8').includes("'auditLog'"))
     // ports.ts is the Admin SDK adapter; notifications/retention reuse deps.data.writeAudit rather than writing directly.
-    expect(writers).toEqual(['ports.ts'])
+    // pinLoginPort.ts writes the `auth.pin_login` entry built by `audit()` in pinLogin.ts (checked in pinLogin.test.ts).
+    expect(writers).toEqual(['pinLoginPort.ts', 'ports.ts'])
   })
 })

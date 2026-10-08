@@ -17,6 +17,7 @@ export type PlatformAction =
   | 'admin.updated'
   | 'admin.disabled'
   | 'admin.enabled'
+  | 'security.pin_probe_suspected'
 
 export interface PlatformAuditEntry {
   /** The operator's uid, or `script` for the operator scripts. */

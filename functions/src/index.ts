@@ -11,7 +11,7 @@ import * as gate from './gate.js'
 import * as passes from './passes.js'
 import * as reportsApi from './reportsApi.js'
 import { devicePort } from './notifyPorts.js'
-import { operatorCallable, callable, publicCallable, runOperatorCall } from './runtime.js'
+import { clientIpOf, operatorCallable, callable, publicCallable, runOperatorCall } from './runtime.js'
 import { APP_BASE_URL, IN_EMULATOR, SUPERADMIN_SIGNUP_ENABLED } from './config.js'
 import { createPlatformApi } from './platform/platform.js'
 import { platformPort, signupAuthPort, signupPort } from './platform/platformPort.js'
@@ -25,7 +25,12 @@ import { newTenantId } from './tenants/tenantDefaults.js'
 import * as setup from './setup.js'
 import { newClaimId, setupPort } from './setupPort.js'
 import { authPort } from './ports.js'
-import { PIN_PEPPER } from './pinSecret.js'
+import { PIN_PEPPER, readPinPepper } from './pinSecret.js'
+import * as pinLogin from './pinLogin.js'
+import { pinLoginPort } from './pinLoginPort.js'
+import { deliver } from './notifications.js'
+import { notifyDeps } from './notificationTriggers.js'
+import { PIN_LIMITS } from './config.js'
 import * as vehicles from './vehicles.js'
 
 initializeApp()
@@ -36,6 +41,22 @@ setGlobalOptions({ region: REGION, maxInstances: 10, enforceAppCheck: ENFORCE_AP
 // Drivers and security get a server-generated PIN (Module 12): the PIN functions bind the PIN_PEPPER secret.
 export const createUser = callable('createUser', core.createUser, { rateLimit: true, secrets: [PIN_PEPPER] })
 export const reissuePin = callable('reissuePin', core.reissuePin, { rateLimit: true, secrets: [PIN_PEPPER] })
+// Module 12: PIN sign-in. Unauthenticated: throttled per hashed IP and device, one uniform failure, App Check through the
+// global flag. Returns a custom token; the client calls signInWithCustomToken.
+const pinLoginDeps = (): pinLogin.PinLoginDeps => ({
+  port: pinLoginPort(),
+  limits: PIN_LIMITS,
+  pepper: readPinPepper,
+  now: () => Date.now(),
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  random: () => Math.random(),
+  notify: async (tenantId, planned, actorUid) => {
+    await deliver(notifyDeps(), tenantId, [planned], actorUid, { fn: 'loginWithPin', tenantId })
+  },
+})
+export const loginWithPin = onCall({ secrets: [PIN_PEPPER] }, (request) =>
+  pinLogin.loginWithPin(pinLoginDeps(), request.data, clientIpOf(request.rawRequest)),
+)
 export const updateUser = callable('updateUser', core.updateUser)
 export const resetCredential = callable('resetCredential', core.resetCredential, { rateLimit: true })
 // One callable for everyone's own password. A super admin (platform claims, no tenant) goes to the platform API (verified

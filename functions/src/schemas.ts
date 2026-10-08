@@ -52,6 +52,12 @@ export const reissuePinSchema = z.object({
   uid: z.string().min(1).max(128),
 })
 
+/** Unauthenticated (Module 12). The PIN is normalised (spaces stripped) and checked in `pinLogin.ts`. */
+export const loginWithPinSchema = z.object({
+  pin: z.string().max(32),
+  deviceId: z.uuid(),
+})
+
 export const changeOwnPasswordSchema = z.object({
   newPassword: z.string().min(1).max(128),
 })

@@ -34,3 +34,25 @@ export const RATE_LIMIT_WINDOW_SECONDS = intFromEnv(process.env.RATE_LIMIT_WINDO
 
 /** Public origin of the web app (https), used for push links. Empty = push messages carry no absolute link. */
 export const APP_BASE_URL = (process.env.APP_BASE_URL ?? '').replace(/\/+$/, '')
+
+/**
+ * PIN sign-in throttling (Module 12). Per hashed IP and per hashed device, fixed windows; a lockout doubles for repeat
+ * lockouts up to the maximum. The env values (functions/.env.<alias>) can only make the limits STRICTER than these
+ * defaults (fewer failures, longer locks): a loosened limit is clamped back. There is deliberately no global lockout.
+ */
+export const PIN_LIMITS = {
+  ipFailures: intFromEnv(process.env.PIN_IP_FAILURES, 10, 3, 10),
+  deviceFailures: intFromEnv(process.env.PIN_DEVICE_FAILURES, 8, 3, 8),
+  windowMs: intFromEnv(process.env.PIN_WINDOW_MINUTES, 15, 15, 24 * 60) * 60_000,
+  lockMs: intFromEnv(process.env.PIN_LOCK_MINUTES, 15, 15, 24 * 60) * 60_000,
+  maxLockMs: intFromEnv(process.env.PIN_LOCK_MAX_MINUTES, 120, 120, 7 * 24 * 60) * 60_000,
+  /** A lockout older than this no longer counts toward doubling. */
+  lockoutMemoryMs: 24 * 3_600_000,
+  /** Platform-wide failures in one window that raise `security.pin_probe_suspected` (an alert, never a lockout). */
+  probeFailures: intFromEnv(process.env.PIN_PROBE_FAILURES, 200, 10, 1_000_000),
+  probeWindowMs: intFromEnv(process.env.PIN_PROBE_WINDOW_MINUTES, 5, 1, 60) * 60_000,
+  /** Every failure answers after at least this long, plus up to `jitterMs`. */
+  minDelayMs: 400,
+  jitterMs: 150,
+} as const
+export type PinLimits = typeof PIN_LIMITS
