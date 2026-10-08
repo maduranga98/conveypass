@@ -58,6 +58,7 @@ describe('PIN screen', () => {
     expect(screen.getByRole('heading', { name: 'Enter your PIN' })).toBeInTheDocument()
     expect(boxes()).toHaveLength(8)
     expect(boxes()[4]?.className).toContain('ml-3')
+    expect(boxes()[3]?.className).not.toContain('ml-3')
     for (const d of '0123456789') expect(keypad().getByRole('button', { name: d })).toBeInTheDocument()
     expect(keypad().getByRole('button', { name: 'Delete' })).toBeInTheDocument()
     expect(screen.queryByText(/email/i, { selector: 'h1, label' })).toBeNull()
