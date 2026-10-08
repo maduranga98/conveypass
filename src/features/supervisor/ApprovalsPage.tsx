@@ -1,21 +1,22 @@
-import { CheckCheck, ClipboardCheck, ListChecks } from 'lucide-react'
+import { CheckCheck, ClipboardCheck, ListChecks, MousePointerClick, SearchX } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Outlet, useLocation, useMatch, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
-import { Skeleton } from '@/components/ui/Skeleton'
+import { NotificationBanner } from '@/components/ui/NotificationBanner'
+import { SearchField } from '@/components/ui/SearchField'
+import { ListSkeleton } from '@/components/ui/Skeleton'
 import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
 import { BulkResultsDialog } from '@/features/passes/BulkResultsDialog'
 import { isBulkSelectable, useBulkSelection } from '@/features/passes/bulk'
-import { PassCard } from '@/features/passes/PassCard'
 import { useDecisions } from '@/features/passes/useDecisions'
 import { QUEUE_LIMIT, usePassQueue } from '@/features/passes/usePassQueue'
 import { useNow, useToday } from '@/features/passes/useToday'
 import type { BulkItemResult, PassWithId } from '@/types/passes'
-import { NotificationBanner } from '@/components/ui/NotificationBanner'
+import { PassRow } from './PassRow'
 import { isOverdue, oldestFirst, TAB_STATUSES as STATUSES, type SupervisorTab as Tab } from './queue'
 import { useSupervisorTarget } from './useSupervisorTarget'
 
@@ -25,33 +26,45 @@ const a = strings.approvals
 const TABS: readonly Tab[] = ['pending', 'approved', 'rejected']
 const isTab = (v: string | null): v is Tab => v === 'pending' || v === 'approved' || v === 'rejected'
 
-/** The line shown under an Approved/Rejected card. */
-const noteFor = (tab: Tab, p: PassWithId): string | undefined =>
-  tab === 'approved' ? a.status[p.status === 'supervisor_approved' ? 'supervisor_approved' : p.status] : tab === 'rejected' ? p.rejection?.reason : undefined
+/** The line shown under an Approved/Rejected row. */
+const noteFor = (tab: Tab, p: PassWithId): string | undefined => (tab === 'rejected' ? p.rejection?.reason : undefined)
 
+const matches = (p: PassWithId, q: string): boolean => {
+  if (!q) return true
+  const plain = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const needle = plain(q)
+  return plain(p.plateNo).includes(needle) || plain(p.driverName).includes(needle)
+}
+
+/**
+ * Approvals: a dense live list, with the review of the open pass beside it on desktop (`lg`) and on its own screen on
+ * smaller ones. The review is the nested route `/supervisor/approvals/:passId`.
+ */
 export default function ApprovalsPage() {
-  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
+  const location = useLocation()
+  const openId = useMatch('/supervisor/approvals/:passId')?.params.passId ?? null
   const tab: Tab = isTab(params.get('tab')) ? (params.get('tab') as Tab) : 'pending'
   const today = useToday()
   const now = useNow()
   const decisions = useDecisions()
   const target = useSupervisorTarget()
+  const [search, setSearch] = useState('')
 
   const enabled = today !== null
   const day = today ? { dateKey: today } : {}
-  // Pending is also what the nav badge counts, so it is always on and shared; the other tabs load when opened.
-  const pending = usePassQueue({ scope: 'supervisor', status: STATUSES.pending, ...day, enabled })
-  const approved = usePassQueue({ scope: 'supervisor', status: STATUSES.approved, ...day, enabled: enabled && tab === 'approved' })
-  const rejected = usePassQueue({ scope: 'supervisor', status: STATUSES.rejected, ...day, enabled: enabled && tab === 'rejected' })
-  const queue = { pending, approved, rejected }[tab]
+  // All three stay live so every tab shows its count (Home reads the same listeners).
+  const queues = {
+    pending: usePassQueue({ scope: 'supervisor', status: STATUSES.pending, ...day, enabled }),
+    approved: usePassQueue({ scope: 'supervisor', status: STATUSES.approved, ...day, enabled }),
+    rejected: usePassQueue({ scope: 'supervisor', status: STATUSES.rejected, ...day, enabled }),
+  }
+  const queue = queues[tab]
 
   // Pending is worked through longest waiting first; the other tabs stay newest first.
-  const pendingVisible = useMemo(() => oldestFirst(pending.items.filter((p) => !decisions.isHidden(p))), [pending.items, decisions])
-  const visible = useMemo(
-    () => (tab === 'pending' ? pendingVisible : queue.items.filter((p) => !decisions.isHidden(p))),
-    [tab, pendingVisible, queue.items, decisions],
-  )
+  const pendingVisible = useMemo(() => oldestFirst(queues.pending.items.filter((p) => !decisions.isHidden(p))), [queues.pending.items, decisions])
+  const all = useMemo(() => (tab === 'pending' ? pendingVisible : queue.items.filter((p) => !decisions.isHidden(p))), [tab, pendingVisible, queue.items, decisions])
+  const visible = useMemo(() => all.filter((p) => matches(p, search.trim())), [all, search])
   const overdueCount = pendingVisible.filter((p) => isOverdue(p, now, target)).length
   const sel = useBulkSelection(pendingVisible, today)
 
@@ -65,7 +78,7 @@ export default function ApprovalsPage() {
   }, [tab, sel])
 
   const setTab = (next: Tab) => setParams(next === 'pending' ? {} : { tab: next }, { replace: true })
-  const open = (p: PassWithId) => void navigate(`/supervisor/approvals/${p.id}`)
+  const linkTo = (p: PassWithId) => `/supervisor/approvals/${p.id}${location.search}`
 
   const runBulk = async () => {
     setSending(true)
@@ -82,113 +95,141 @@ export default function ApprovalsPage() {
 
   const selectingNow = sel.active && tab === 'pending'
   const selectableCount = today ? pendingVisible.filter((p) => isBulkSelectable(p, today)).length : 0
+  const countOf = (id: Tab) => (id === 'pending' ? pendingVisible.length : queues[id].items.filter((p) => !decisions.isHidden(p)).length)
 
   return (
-    <div className="space-y-4 pb-24">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">{t.title}</h1>
-        {tab === 'pending' && pendingVisible.length > 0 && (
-          <Button
-            variant={selectingNow ? 'secondary' : 'primary'}
-            className="h-12 px-5 text-base"
-            icon={<ListChecks aria-hidden className="size-5" />}
-            onClick={selectingNow ? sel.exit : sel.enter}
-          >
-            {selectingNow ? a.bulk.done : a.bulk.select}
-          </Button>
+    <div className="lg:grid lg:grid-cols-[22rem_minmax(0,1fr)] lg:items-start lg:gap-6 xl:grid-cols-[26rem_minmax(0,1fr)]">
+      <section
+        aria-labelledby="approvals-title"
+        className={cn(
+          'flex-col lg:sticky lg:top-8 lg:flex lg:max-h-[calc(100dvh-4rem)]',
+          openId ? 'hidden' : 'flex',
         )}
-      </div>
-
-      <div role="tablist" aria-label={t.tabsLabel} className="grid grid-cols-3 gap-1 rounded-xl bg-slate-200 p-1">
-        {TABS.map((id) => (
-          <button
-            key={id}
-            role="tab"
-            id={`tab-${id}`}
-            aria-selected={tab === id}
-            aria-controls="approvals-panel"
-            onClick={() => setTab(id)}
-            className={cn(
-              'flex h-12 items-center justify-center gap-2 rounded-lg text-base font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
-              tab === id ? 'bg-surface text-brand shadow-sm' : 'text-slate-700 hover:bg-slate-100',
+      >
+        <div className="space-y-3 pb-3">
+          <div className="flex items-center justify-between gap-3">
+            <h1 id="approvals-title" className="text-2xl font-bold tracking-tight">{t.title}</h1>
+            {tab === 'pending' && pendingVisible.length > 0 && (
+              <Button
+                variant={selectingNow ? 'secondary' : 'primary'}
+                size="sm"
+                icon={<ListChecks aria-hidden className="size-4" />}
+                onClick={selectingNow ? sel.exit : sel.enter}
+              >
+                {selectingNow ? a.bulk.done : a.bulk.select}
+              </Button>
             )}
-          >
-            {t.tabs[id]}
-            {id === 'pending' && pendingVisible.length > 0 && (
-              <span className="rounded-full bg-brand px-2 py-0.5 text-xs font-bold text-on-solid">{pendingVisible.length >= QUEUE_LIMIT ? `${QUEUE_LIMIT - 1}+` : pendingVisible.length}</span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      <div id="approvals-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} className="space-y-3">
-        {queue.isError && queue.items.length === 0 ? (
-          <ErrorState message={a.queue.loadFailed} error={queue.error} onRetry={queue.retry} />
-        ) : queue.isLoading || !today ? (
-          <div role="status" aria-busy="true" className="space-y-3">
-            <span className="sr-only">{strings.common.loading}</span>
-            {[0, 1, 2].map((i) => <Skeleton key={i} className="h-64 w-full rounded-2xl" />)}
           </div>
-        ) : visible.length === 0 ? (
-          <EmptyState
-            icon={tab === 'pending' ? <CheckCheck aria-hidden /> : <ClipboardCheck aria-hidden />}
-            title={{ pending: t.pendingEmptyTitle, approved: t.approvedEmptyTitle, rejected: t.rejectedEmptyTitle }[tab]}
-            body={{ pending: t.pendingEmptyBody, approved: t.approvedEmptyBody, rejected: t.rejectedEmptyBody }[tab]}
-          />
-        ) : (
-          <>
-            {queue.isError && <NotificationBanner tone="warning" role="alert">{a.queue.loadFailed}</NotificationBanner>}
-            {tab === 'pending' &&
-              (overdueCount > 0 ? (
-                <NotificationBanner tone="warning">{t.overdue(overdueCount, target)}</NotificationBanner>
-              ) : (
-                <p className="text-sm text-slate-700">{`${t.waiting(visible.length)} ${t.oldestFirst}`}</p>
-              ))}
-            <ul className="space-y-3">
-              {visible.map((p) => {
-                const pickable = today !== null && isBulkSelectable(p, today)
-                const note = noteFor(tab, p)
-                return (
-                  <li key={p.id}>
-                    <PassCard
-                      pass={p}
-                      now={now}
-                      mode={selectingNow ? 'select' : 'open'}
-                      selectable={pickable}
-                      selected={sel.selected.has(p.id)}
-                      {...(note ? { note } : {})}
-                      overdue={tab === 'pending' && isOverdue(p, now, target)}
-                      onOpen={() => open(p)}
-                      onToggle={() => sel.toggle(p)}
-                    />
-                  </li>
-                )
-              })}
-            </ul>
-            {queue.capped && <p role="status" className="text-center text-sm text-slate-600">{a.queue.capNotice}</p>}
-          </>
-        )}
-      </div>
 
-      {selectingNow && (
-        <div className="fixed inset-x-0 bottom-16 z-20 border-t border-slate-300 bg-surface px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <div className="mx-auto flex max-w-5xl items-center gap-3">
-            <p aria-live="polite" className="flex-1 text-base font-semibold">{a.bulk.selectedCount(sel.selected.size)}</p>
-            {sel.selected.size > 0 ? (
-              <Button variant="secondary" className="h-14 px-4 text-base" onClick={sel.clear}>{a.bulk.clear}</Button>
+          <div role="tablist" aria-label={t.tabsLabel} className="grid grid-cols-3 gap-1 rounded-xl bg-slate-200/70 p-1">
+            {TABS.map((id) => {
+              const n = countOf(id)
+              return (
+                <button
+                  key={id}
+                  role="tab"
+                  id={`tab-${id}`}
+                  aria-selected={tab === id}
+                  aria-controls="approvals-panel"
+                  onClick={() => setTab(id)}
+                  className={cn(
+                    'flex h-11 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
+                    tab === id ? 'bg-surface text-brand shadow-sm' : 'text-slate-700 hover:bg-slate-100',
+                  )}
+                >
+                  {t.tabs[id]}
+                  <span className={cn('min-w-5 rounded-full px-1.5 text-xs font-bold leading-5', id === 'pending' && n > 0 ? 'bg-accent text-brand' : 'bg-slate-100 text-slate-700')}>
+                    {n >= QUEUE_LIMIT ? `${QUEUE_LIMIT - 1}+` : n}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          <SearchField label={t.search} placeholder={t.search} value={search} onChange={(e) => setSearch(e.target.value)} className="sm:max-w-none!" />
+
+          {tab === 'pending' && pendingVisible.length > 0 &&
+            (overdueCount > 0 ? (
+              <NotificationBanner tone="warning">{t.overdue(overdueCount, target)}</NotificationBanner>
             ) : (
-              selectableCount > 0 && <Button variant="secondary" className="h-14 px-4 text-base" onClick={sel.selectAll}>{`${strings.common.all} (${selectableCount})`}</Button>
-            )}
-            <Button
-              className="h-14 bg-success-strong px-6 text-lg font-bold hover:bg-success-hover"
-              disabled={sel.selected.size === 0}
-              onClick={() => setConfirming(true)}
-            >
-              {a.bulk.approveN(sel.selected.size)}
-            </Button>
-          </div>
+              <p className="text-sm text-slate-600">{`${t.waiting(pendingVisible.length)} ${t.oldestFirst}`}</p>
+            ))}
         </div>
-      )}
+
+        <div id="approvals-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} className="min-h-0 lg:flex-1 lg:overflow-y-auto">
+          {queue.isError && queue.items.length === 0 ? (
+            <ErrorState message={a.queue.loadFailed} error={queue.error} onRetry={queue.retry} />
+          ) : queue.isLoading || !today ? (
+            <ListSkeleton rows={5} />
+          ) : all.length === 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-surface">
+              <EmptyState
+                icon={tab === 'pending' ? <CheckCheck aria-hidden /> : <ClipboardCheck aria-hidden />}
+                title={{ pending: t.pendingEmptyTitle, approved: t.approvedEmptyTitle, rejected: t.rejectedEmptyTitle }[tab]}
+                body={{ pending: t.pendingEmptyBody, approved: t.approvedEmptyBody, rejected: t.rejectedEmptyBody }[tab]}
+              />
+            </div>
+          ) : visible.length === 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-surface">
+              <EmptyState icon={<SearchX aria-hidden />} title={t.noMatch} />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {queue.isError && <NotificationBanner tone="warning" role="alert">{a.queue.loadFailed}</NotificationBanner>}
+              <ul aria-label={t.listLabel(t.tabs[tab])} className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-surface">
+                {visible.map((p) => (
+                  <PassRow
+                    key={p.id}
+                    pass={p}
+                    now={now}
+                    today={today}
+                    to={linkTo(p)}
+                    active={p.id === openId}
+                    overdue={tab === 'pending' && isOverdue(p, now, target)}
+                    showStatus={tab !== 'pending'}
+                    note={noteFor(tab, p)}
+                    selecting={selectingNow}
+                    selectable={today !== null && isBulkSelectable(p, today)}
+                    selected={sel.selected.has(p.id)}
+                    onToggle={() => sel.toggle(p)}
+                  />
+                ))}
+              </ul>
+              {queue.capped && <p role="status" className="text-center text-sm text-slate-600">{a.queue.capNotice}</p>}
+            </div>
+          )}
+        </div>
+
+        {selectingNow && (
+          <div className="sticky bottom-16 z-10 mt-3 rounded-xl border border-brand bg-surface p-3 shadow-lg lg:bottom-0">
+            <p aria-live="polite" className="pb-2 text-sm font-semibold">{a.bulk.selectedCount(sel.selected.size)}</p>
+            <div className="flex gap-2">
+              {sel.selected.size > 0 ? (
+                <Button variant="secondary" className="flex-1" onClick={sel.clear}>{a.bulk.clear}</Button>
+              ) : (
+                selectableCount > 0 && <Button variant="secondary" className="flex-1" onClick={sel.selectAll}>{`${strings.common.all} (${selectableCount})`}</Button>
+              )}
+              <Button
+                className="flex-[1.4] bg-success-strong font-bold hover:bg-success-hover"
+                disabled={sel.selected.size === 0}
+                onClick={() => setConfirming(true)}
+              >
+                {a.bulk.approveN(sel.selected.size)}
+              </Button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <div className={cn('min-w-0', openId ? 'block' : 'hidden lg:block')}>
+        {openId ? (
+          <Outlet />
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-surface">
+            <EmptyState icon={<MousePointerClick aria-hidden />} title={t.pickTitle} body={t.pickBody} />
+          </div>
+        )}
+      </div>
 
       <ConfirmDialog
         open={confirming}

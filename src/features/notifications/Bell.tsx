@@ -14,11 +14,13 @@ const t = strings.notifications
 interface Props {
   /** Which edge of the button the panel lines up with on wide screens. Narrow screens use the full width. */
   align?: 'left' | 'right'
+  /** `dark` sits on a brand navy bar (supervisor layout). */
+  tone?: 'light' | 'dark'
   className?: string
 }
 
 /** Header bell with an unread badge (live) and a panel of the latest items. */
-export function Bell({ align = 'right', className }: Props) {
+export function Bell({ align = 'right', tone = 'light', className }: Props) {
   const { items, unread, status, markRead, markAllRead } = useNotificationFeed()
   const navigate = useNavigate()
   const location = useLocation()
@@ -65,7 +67,10 @@ export function Bell({ align = 'right', className }: Props) {
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         onClick={toggle}
-        className="relative inline-flex size-11 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        className={cn(
+          'relative inline-flex size-11 items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2',
+          tone === 'dark' ? 'text-on-solid hover:bg-brand-hover focus-visible:outline-on-solid' : 'text-slate-700 hover:bg-slate-100 focus-visible:outline-focus',
+        )}
       >
         <BellIcon aria-hidden className="size-5" />
         {unread > 0 && (

@@ -1,10 +1,11 @@
-import { ArrowLeft, SearchX, SkipForward } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, SearchX } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
 import { useSession } from '@/features/auth/useAuth'
 import { DecisionBar } from '@/features/passes/DecisionBar'
@@ -13,6 +14,7 @@ import { PassReview } from '@/features/passes/PassReview'
 import { isExpired, timeAgo, toMs } from '@/features/passes/passView'
 import { useRejectionReasons } from '@/features/passes/queries'
 import { RejectSheet, type RejectChoice } from '@/features/passes/RejectSheet'
+import { useReviewShortcuts } from '@/features/passes/shortcuts'
 import { useDecisions } from '@/features/passes/useDecisions'
 import { useReviewLock } from '@/features/passes/useReviewLock'
 import { usePass } from '@/features/passes/usePass'
@@ -29,6 +31,7 @@ const a = strings.approvals
 /** The review step for one pass. Remounted per pass id, so what the reviewer "saw" always starts fresh. */
 function Review({ pass, today }: { pass: PassWithId; today: string | null }) {
   const navigate = useNavigate()
+  const { search } = useLocation()
   const { claims } = useSession()
   const reasons = useRejectionReasons(claims.tenantId)
   const decisions = useDecisions()
@@ -51,11 +54,15 @@ function Review({ pass, today }: { pass: PassWithId; today: string | null }) {
   const queueIds = useMemo(() => oldestFirst(pending.items.filter((p) => !decisions.isHidden(p))).map((p) => p.id), [pending.items, decisions])
   const position = queueIds.indexOf(pass.id)
   const nextId = nextInQueue(queueIds, pass.id)
+  const prevId = position > 0 ? (queueIds[position - 1] ?? null) : null
   const overdue = decidable && isOverdue(pass, now, target)
+  const listPath = `/supervisor/approvals${search}`
+  const open = (id: string) => void navigate(`/supervisor/approvals/${id}${search}`, { replace: true })
 
   const goNext = () => {
     lock.leave()
-    void navigate(nextId ? `/supervisor/approvals/${nextId}` : '/supervisor/approvals', { replace: true })
+    if (nextId) open(nextId)
+    else void navigate(listPath, { replace: true })
   }
 
   const approve = async () => {
@@ -75,27 +82,39 @@ function Review({ pass, today }: { pass: PassWithId; today: string | null }) {
     else setRejectError(res.message ?? strings.common.somethingWrong)
   }
 
+  const canDecide = decidable && !locked && busy === null && !rejecting
+  useReviewShortcuts(!rejecting, {
+    next: () => nextId && !busy && open(nextId),
+    previous: () => prevId && !busy && open(prevId),
+    approve: () => canDecide && void approve(),
+    reject: () => {
+      if (!canDecide) return
+      setRejectError(null)
+      setRejecting(true)
+    },
+  })
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <Link to="/supervisor/approvals" className="inline-flex h-12 items-center gap-2 rounded-lg px-1 text-base font-semibold text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
+    <article
+      aria-label={pass.plateNo}
+      className={cn('space-y-4 sm:rounded-2xl sm:border sm:border-slate-200 sm:bg-surface sm:px-6 sm:pt-5 sm:shadow-sm', !decidable && 'sm:pb-6')}
+    >
+      <div className={cn('flex items-center justify-between gap-3', position < 0 && 'lg:hidden')}>
+        <Link to={listPath} aria-label={t.review.back} className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-lg px-1 text-base font-semibold text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus lg:hidden">
           <ArrowLeft aria-hidden className="size-5" />
-          {t.review.back}
+          {t.review.backShort}
         </Link>
-        <div className="flex items-center gap-2">
-          {position >= 0 && <p className="text-sm font-medium text-slate-700">{t.review.position(position + 1, queueIds.length)}</p>}
-          {nextId && !busy && (
-            <Button
-              variant="secondary"
-              className="h-11 px-3"
-              aria-label={t.review.skipLabel}
-              icon={<SkipForward aria-hidden className="size-4" />}
-              onClick={() => void navigate(`/supervisor/approvals/${nextId}`, { replace: true })}
-            >
-              {t.review.skip}
+        {position >= 0 && (
+          <div className="ml-auto flex items-center gap-1">
+            <p className="whitespace-nowrap px-1 text-sm font-medium text-slate-700">{t.review.position(position + 1, queueIds.length)}</p>
+            <Button variant="ghost" size="icon" aria-label={t.review.previous} title={`${t.review.previous} (K)`} disabled={!prevId || busy !== null} onClick={() => prevId && open(prevId)}>
+              <ChevronLeft aria-hidden className="size-5" />
             </Button>
-          )}
-        </div>
+            <Button variant="ghost" size="icon" aria-label={t.review.next} title={`${t.review.next} (J)`} disabled={!nextId || busy !== null} onClick={() => nextId && open(nextId)}>
+              <ChevronRight aria-hidden className="size-5" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {changed && <PassChangedBanner onAcknowledge={lock.acknowledge} />}
@@ -108,11 +127,11 @@ function Review({ pass, today }: { pass: PassWithId; today: string | null }) {
         <NotificationBanner tone="error" role="note" size="lg">{a.decision.issuesWarning}</NotificationBanner>
       )}
 
-      <PassReview pass={pass} today={today} />
+      <PassReview pass={pass} today={today} layout="wide" />
 
       {decidable && (
         <DecisionBar
-          className="-mx-4"
+          className="-mx-4 sm:-mx-6 sm:rounded-b-2xl sm:px-6"
           busy={busy}
           disabled={locked}
           onApprove={() => void approve()}
@@ -128,7 +147,7 @@ function Review({ pass, today }: { pass: PassWithId; today: string | null }) {
         onConfirm={(c) => void confirmReject(c)}
         onCancel={() => setRejecting(false)}
       />
-    </div>
+    </article>
   )
 }
 
