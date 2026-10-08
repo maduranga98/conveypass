@@ -15,7 +15,7 @@ import { auth } from '@/lib/firebase'
 import { OPERATOR_HOME, ROLE_HOME } from '@/lib/roles'
 import { BrandMark } from '@/components/BrandMark'
 import { strings } from '@/lib/strings'
-import { safeNext } from './redirect'
+import { nextForRole, safeNext } from './redirect'
 import { useAuth } from './useAuth'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
@@ -44,7 +44,7 @@ export default function LoginPage() {
     const next = safeNext(params.get('next'))
     return <Navigate to={next && (next === OPERATOR_HOME || next.startsWith(`${OPERATOR_HOME}/`)) ? next : OPERATOR_HOME} replace />
   }
-  if (session) return <Navigate to={safeNext(params.get('next')) ?? ROLE_HOME[session.claims.role]} replace />
+  if (session) return <Navigate to={nextForRole(session.claims.role, params.get('next')) ?? ROLE_HOME[session.claims.role]} replace />
 
   const message = error ?? notice
 
