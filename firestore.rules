@@ -150,6 +150,15 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // PIN sign-in (Module 12): `pinIndex/{hmac}` (the only trace of a PIN, as an HMAC) and `pinAttempts/{hashed ip|device}`
+    // (throttle counters) are Cloud Functions only. No client, admins included, can read, list or write either.
+    match /pinIndex/{id} {
+      allow read, write: if false;
+    }
+    match /pinAttempts/{id} {
+      allow read, write: if false;
+    }
+
     // Setup invites (Module 8): `setupInvites/{sha256hex(code)}`. Cloud Functions and operator scripts only; no client
     // can read, list, create, update or delete one (not even an admin), so a hash can never be probed from a browser.
     match /setupInvites/{id} {

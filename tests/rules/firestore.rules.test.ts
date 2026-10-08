@@ -130,6 +130,8 @@ beforeEach(async () => {
     }
     await setDoc(doc(db, 'users', 'drvA1', 'devices', 'dev1'), { token: 'secret-token', enabled: true })
     await setDoc(doc(db, 'rateLimits', 'drvA1_createUser'), { windowStart: 1, count: 1 })
+    await setDoc(doc(db, 'pinIndex', 'f'.repeat(64)), { uid: 'drvA1', tenantId: A, role: 'driver', createdAt: when })
+    await setDoc(doc(db, 'pinAttempts', `ip-${'e'.repeat(32)}`), { windowStart: when, failures: 3, lockedUntil: when, lockouts: 0, lastLockoutAt: when })
     await setDoc(doc(db, 'operators', 'op1'), { name: 'Olive', email: 'olive@convoypass.test', status: 'active', createdAt: when })
     await setDoc(doc(db, 'platformAuditLog', 'p1'), { actorUid: 'op1', action: 'invite.created', targetRef: 'abcdef12', meta: {}, createdAt: when })
     await setDoc(doc(db, 'setupInvites', 'c'.repeat(64)), { createdAt: when, expiresAt: when, claimedAt: null, claimId: null, usedAt: null, tenantId: null })
@@ -804,6 +806,27 @@ describe('devices and rateLimits (Module 7)', () => {
       await assertFails(getDoc(doc(db, 'rateLimits', 'drvA1_createUser')))
       await assertFails(setDoc(doc(db, 'rateLimits', 'drvA1_createUser'), { windowStart: 1, count: 0 }))
       await assertFails(deleteDoc(doc(db, 'rateLimits', 'drvA1_createUser')))
+    }
+  })
+})
+
+describe('pinIndex and pinAttempts (Module 12)', () => {
+  const PIN_DOC = 'f'.repeat(64)
+  const ATTEMPT_DOC = `ip-${'e'.repeat(32)}`
+  it('are unreadable and unwritable by every role, admin included, and by visitors', async () => {
+    const everyone = [adminA(), officerA(), supA1(), drvA1(), securityA(), as('adminB', { role: 'admin', tenantId: B }), as('op1', { role: 'platform', platformAdmin: true, email_verified: true }), env.unauthenticatedContext().firestore()]
+    for (const db of everyone) {
+      await assertFails(getDoc(doc(db, 'pinIndex', PIN_DOC)))
+      await assertFails(getDocs(collection(db, 'pinIndex')))
+      await assertFails(getDocs(query(collection(db, 'pinIndex'), where('uid', '==', 'drvA1'))))
+      await assertFails(setDoc(doc(db, 'pinIndex', 'a'.repeat(64)), { uid: 'drvA1', tenantId: A, role: 'driver' }))
+      await assertFails(updateDoc(doc(db, 'pinIndex', PIN_DOC), { uid: 'adminA' }))
+      await assertFails(deleteDoc(doc(db, 'pinIndex', PIN_DOC)))
+      await assertFails(getDoc(doc(db, 'pinAttempts', ATTEMPT_DOC)))
+      await assertFails(getDocs(collection(db, 'pinAttempts')))
+      await assertFails(setDoc(doc(db, 'pinAttempts', ATTEMPT_DOC), { failures: 0 }))
+      await assertFails(updateDoc(doc(db, 'pinAttempts', ATTEMPT_DOC), { failures: 0, lockedUntil: null }))
+      await assertFails(deleteDoc(doc(db, 'pinAttempts', ATTEMPT_DOC)))
     }
   })
 })
