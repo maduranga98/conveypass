@@ -48,7 +48,7 @@ export default function DashboardPage({ scope }: { scope: DashboardScope }) {
   const live = passes.updatedAt !== null && !passes.isError && online
 
   return (
-    <div className={scope === 'officer' ? 'space-y-6 p-4 lg:p-6' : 'space-y-6'}>
+    <div className={scope === 'officer' ? 'space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-8' : 'space-y-6'}>
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
