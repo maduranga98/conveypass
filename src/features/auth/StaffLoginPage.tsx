@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { signInWithEmailAndPassword } from 'firebase/auth'
-import { Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, Lock } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
@@ -61,20 +61,29 @@ export default function StaffLoginPage() {
         <StaffForm onSubmit={signIn} />
       </div>
 
-      <footer className="mt-8 flex flex-wrap justify-center gap-x-2 text-center lg:justify-start lg:text-left">
+      <div className="mt-auto pt-8 lg:mt-10">
+        <div className="mb-4 flex items-center gap-3 text-sm text-slate-600" aria-hidden>
+          <span className="h-px flex-1 bg-slate-200" />
+          {strings.pinLogin.or}
+          <span className="h-px flex-1 bg-slate-200" />
+        </div>
         <Link
           to={params.get('next') ? `/login?next=${encodeURIComponent(params.get('next') ?? '')}` : '/login'}
-          className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-700 underline underline-offset-4 hover:text-brand focus-visible:outline-2 focus-visible:outline-focus lg:-ml-3"
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-surface px-4 text-base font-semibold text-brand transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
-          {strings.auth.back}
+          <ArrowLeft aria-hidden className="size-4" />
+          {strings.auth.backToPin}
         </Link>
-        <Link
-          to="/privacy"
-          className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-700 underline underline-offset-4 hover:text-brand focus-visible:outline-2 focus-visible:outline-focus"
-        >
-          {strings.privacy.link}
-        </Link>
-      </footer>
+        <p className="mt-4 text-center lg:text-left">
+          <Link
+            to="/privacy"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm text-slate-600 hover:text-brand focus-visible:outline-2 focus-visible:outline-focus"
+          >
+            <Lock aria-hidden className="size-3.5" />
+            {strings.privacy.link}
+          </Link>
+        </p>
+      </div>
     </AuthSplit>
   )
 }
@@ -118,17 +127,17 @@ function StaffForm({ onSubmit }: { onSubmit: (email: string, password: string) =
         }
         {...register('password')}
       />
-      <Button type="submit" className="h-12 w-full rounded-xl text-base" loading={isSubmitting}>
-        {isSubmitting ? strings.auth.signingIn : strings.auth.signIn}
-      </Button>
-      <p className="text-center lg:text-left">
+      <div className="-mt-2 flex justify-end">
         <Link
           to="/forgot-password"
-          className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-slate-700 underline underline-offset-4 hover:text-brand focus-visible:outline-2 focus-visible:outline-focus lg:-ml-3"
+          className="inline-flex min-h-11 items-center rounded-lg px-1 text-sm font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-focus"
         >
           {strings.auth.forgotPassword}
         </Link>
-      </p>
+      </div>
+      <Button type="submit" className="h-12 w-full rounded-xl text-base" loading={isSubmitting}>
+        {isSubmitting ? strings.auth.signingIn : strings.auth.signIn}
+      </Button>
     </form>
   )
 }

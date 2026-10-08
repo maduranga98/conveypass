@@ -64,19 +64,6 @@ test.describe('invite link -> workspace', () => {
     await expect(page.getByText('Welcome to ConvoyPass. Your workspace is ready.')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Get ConvoyPass ready' })).toBeVisible()
     await expect(page.getByText('0 of 7 done')).toBeVisible()
-    // New admins are unverified: the banner shows and verification clears it.
-    await expect(page.getByRole('region', { name: 'Verify your email so you can recover your account' })).toBeVisible()
-    await expect.poll(async () => (await oobCodes(OWNER.email, 'VERIFY_EMAIL')).length).toBe(1)
-    const oobCode = (await oobCodes(OWNER.email, 'VERIFY_EMAIL'))[0]!.oobCode
-    await page.goto(`/auth/action?mode=verifyEmail&oobCode=${oobCode}`)
-    await expect(page.getByRole('heading', { name: 'Email verified' })).toBeVisible()
-    await expect(page.getByText(oobCode)).toHaveCount(0)
-    await page.getByRole('link', { name: 'Open ConvoyPass' }).click()
-    await expect(page).toHaveURL(/\/admin\/dashboard$/)
-    await expect(page.getByRole('region', { name: 'Verify your email so you can recover your account' })).toHaveCount(0)
-
-    // The same link cannot be used again.
-    await page.context().clearCookies()
   })
 
   test('the tenant has every default, and the new admin can use the app (contractor, settings, onboarding ticks)', async ({ page }) => {
@@ -298,16 +285,16 @@ test.describe('accessibility: the new screens on a phone', () => {
     await audit(page, 'setup form')
   })
 
-  test('the unverified-email banner and the onboarding card (new admin), and the account page', async ({ page }) => {
+  test('the onboarding card (new admin), and the account page', async ({ page }) => {
     const invite = createInvite()
     await completeSetup(page, invite.link)
     await expect(page.getByRole('heading', { name: 'Get ConvoyPass ready' })).toBeVisible()
-    for (const selector of ['[role=region][aria-label^="Verify your email"]', 'section[aria-labelledby="onboarding-h"]']) {
+    for (const selector of ['section[aria-labelledby="onboarding-h"]']) {
       const results = await new AxeBuilder({ page }).include(selector).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
       expect(results.violations.map((v) => `${v.id}: ${v.help}`), selector).toEqual([])
     }
     const banner = await smallTouchTargets(page)
-    expect(banner.filter((t) => /Resend|verified|Dismiss|Open|Import/.test(t)), 'banner and card touch targets').toEqual([])
+    expect(banner.filter((t) => /Dismiss|Open|Import/.test(t)), 'card touch targets').toEqual([])
     await page.goto('/settings')
     await expect(page.getByLabel('Current password')).toBeVisible()
     await audit(page, 'settings with account and change password')

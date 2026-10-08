@@ -130,7 +130,7 @@ describe('/auth/action verifyEmail', () => {
     applyCode.mockRejectedValue(fe(code))
     renderAt(`?mode=verifyEmail&oobCode=${OOB}`)
     expect(await screen.findByText(message)).toBeInTheDocument()
-    expect(screen.getByText(/use "Resend" in the banner/)).toBeInTheDocument()
+    expect(screen.getByText(/Ask your administrator if you still need to verify/)).toBeInTheDocument()
   })
 })
 

@@ -234,6 +234,7 @@ export const strings = {
     redirecting: 'Signing you in…',
     forgotPassword: 'Forgot password?',
     staffTitle: 'Office staff sign in',
+    backToPin: 'Back to PIN sign in',
     staffIntro: 'Use your work email and password.',
     back: 'Back',
     heroTitle: 'Every contractor vehicle, approved before it reaches the gate.',
@@ -291,6 +292,7 @@ export const strings = {
     again: 'Please enter your PIN again.',
     somethingWrong: 'Something went wrong. Please try again.',
     staffLink: 'Office staff? Sign in with email',
+    or: 'or',
   },
 
   forgot: {
@@ -319,7 +321,7 @@ export const strings = {
     linkExpired: 'This link has expired or was already used.',
     linkInvalid: 'This link is not valid.',
     requestNew: 'Request a new reset link',
-    verifyNewHint: 'Sign in and use "Resend" in the banner at the top to get a new verification email.',
+    verifyNewHint: 'Ask your administrator if you still need to verify your email.',
     goToSignIn: 'Go to sign in',
     openApp: 'Open ConvoyPass',
     userDisabled: 'This account is unavailable. Contact your administrator.',
@@ -336,16 +338,6 @@ export const strings = {
     unmet: 'not yet',
     mismatch: 'Passwords do not match',
     unacceptable: 'Choose a password that meets every rule below.',
-  },
-
-  verifyBanner: {
-    message: 'Verify your email so you can recover your account',
-    resend: 'Resend',
-    resendIn: (s: number) => `Resend in ${s} s`,
-    verified: "I've verified",
-    sent: 'Verification email sent.',
-    stillNot: "We can't see the verification yet. Open the link in the email first.",
-    failed: 'Could not send the email. Try again in a moment.',
   },
 
   setup: {
