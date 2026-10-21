@@ -37,6 +37,18 @@ describe('createUser: permission matrix', () => {
     expect(w.users.has('new1')).toBe(false)
   })
 
+  it('admin can create a safety officer: email + password, tenant-wide (no contractor)', async () => {
+    const { uid, pin } = await createUser(w.deps, admin(), { ...staffInput, role: 'safety' })
+    expect(pin).toBeUndefined()
+    expect(w.claims.get(uid)).toEqual({ role: 'safety', tenantId: 'T1' })
+    expect(w.users.get(uid)).toMatchObject({ role: 'safety', contractorId: null, loginType: 'password', mustChangePassword: true })
+    await rejects(createUser(w.deps, admin(), { ...staffInput, role: 'safety', contractorId: 'C1' }), 'invalid-argument', 'invalid-input')
+  })
+
+  it('a safety officer cannot create anyone', async () => {
+    await rejects(createUser(w.deps, caller('safe1', 'safety'), { ...driverInput }), 'permission-denied', 'forbidden')
+  })
+
   it('admin can create a supervisor for an active contractor', async () => {
     const { uid } = await createUser(w.deps, admin(), { ...staffInput, role: 'supervisor', contractorId: 'C2' })
     expect(w.claims.get(uid)).toEqual({ role: 'supervisor', tenantId: 'T1', contractorId: 'C2' })

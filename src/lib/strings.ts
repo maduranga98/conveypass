@@ -204,6 +204,7 @@ export const strings = {
     admin: 'Admin',
     officer: 'Officer',
     supervisor: 'Supervisor',
+    safety: 'Safety Officer',
     driver: 'Driver',
     security: 'Security',
   },
@@ -1074,6 +1075,14 @@ export const strings = {
     selectVisible: 'Select all shown',
     clearSelection: 'Clear',
     brand: 'ConvoyPass',
+  },
+
+  safety: {
+    role: 'Safety Officer',
+    account: 'Account settings',
+    greeting: (name: string) => `Hello, ${name}`,
+    emptyTitle: 'Nothing here yet',
+    emptyBody: 'Inspections, violations and suspensions will appear here in a later release.',
   },
 
   supervisor: {

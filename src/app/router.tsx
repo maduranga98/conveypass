@@ -4,6 +4,7 @@ import { RouteErrorPage, VehicleRouteBoundary } from '@/components/RouteErrorBou
 import { PageSpinner } from '@/components/ui/Spinner'
 import { ForbiddenPage, NotFoundPage } from '@/features/auth/ErrorPages'
 import { RequireAuth, RequireOperator, RequireRole, RoleHomeRedirect } from '@/features/auth/guards'
+import { rolesFor } from '@/lib/permissions'
 import { AuthedShell } from '@/features/auth/AuthedShell'
 import {
   AdminLayout,
@@ -37,6 +38,8 @@ import {
   QueuePage,
   ReportsPage,
   ReviewPage,
+  SafetyHome,
+  SafetyLayout,
   SecurityLayout,
   SetupPage,
   SettingsPage,
@@ -98,7 +101,7 @@ export const router = createBrowserRouter([
           { path: '/change-password', element: lazyEl(<ChangePasswordPage />) },
           { path: '/v/:vehicleId', element: <VehicleRouteBoundary>{lazyEl(<VehicleRoute />)}</VehicleRouteBoundary> },
           {
-            element: <RequireRole roles={['admin']} />,
+            element: <RequireRole roles={rolesFor('area.admin')} />,
             children: [
               {
                 path: '/admin',
@@ -123,7 +126,7 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            element: <RequireRole roles={['supervisor']} />,
+            element: <RequireRole roles={rolesFor('area.supervisor')} />,
             children: [
               {
                 path: '/supervisor',
@@ -144,7 +147,7 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            element: <RequireRole roles={['officer']} />,
+            element: <RequireRole roles={rolesFor('area.officer')} />,
             children: [
               {
                 path: '/officer',
@@ -158,11 +161,21 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            element: <RequireRole roles={['driver']} />,
+            element: <RequireRole roles={rolesFor('area.safety')} />,
+            children: [
+              {
+                path: '/safety',
+                element: lazyEl(<SafetyLayout />),
+                children: [{ index: true, element: lazyEl(<SafetyHome />) }],
+              },
+            ],
+          },
+          {
+            element: <RequireRole roles={rolesFor('area.driver')} />,
             children: [{ path: '/driver', element: lazyEl(<DriverHome />) }],
           },
           {
-            element: <RequireRole roles={['security']} />,
+            element: <RequireRole roles={rolesFor('area.security')} />,
             children: [
               {
                 path: '/security',

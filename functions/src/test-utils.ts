@@ -335,6 +335,7 @@ export function makeWorld(): World {
   w.users.set('admin2', userDoc({ role: 'admin', contractorId: null, email: 'a2@x.com', phone: null }))
   w.users.set('sup1', userDoc({ role: 'supervisor', contractorId: 'C1', email: 's1@x.com', phone: null }))
   w.users.set('sup2', userDoc({ role: 'supervisor', contractorId: 'C2', email: 's2@x.com', phone: null }))
+  w.users.set('safe1', userDoc({ role: 'safety', contractorId: null, email: 'sf@x.com', phone: null }))
   w.users.set('officer', userDoc({ role: 'officer', contractorId: null, email: 'o@x.com', phone: null }))
   w.users.set('sec', userDoc({ role: 'security', contractorId: null, email: 'sec@x.com', phone: null }))
   w.users.set('drv1', userDoc({ contractorId: 'C1' }))

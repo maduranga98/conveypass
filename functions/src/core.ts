@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { isValidPassword, normalisePhone, PASSWORD_MIN_LENGTH } from './credentials.js'
+import { canCreateRole } from './permissions.js'
 import { assertPepper, pinKey } from './pin.js'
 import { isPinRole, sessionExpired } from './session.js'
 import type { SlaSettings } from './defaultSla.js'
@@ -422,9 +423,7 @@ export async function createUser(deps: Deps, caller: Caller, raw: unknown): Prom
   await requireActiveCaller(deps, caller)
 
   // Admin accounts are created by the platform super admin only (`createWorkspace` / `addTenantAdmin`).
-  const allowed =
-    (caller.role === 'admin' && input.role !== 'admin') || (caller.role === 'supervisor' && input.role === 'driver')
-  if (!allowed) throw fail('permission-denied', 'forbidden', 'You are not allowed to create this role')
+  if (!canCreateRole(caller.role, input.role)) throw fail('permission-denied', 'forbidden', 'You are not allowed to create this role')
 
   // Contractor: only supervisors and drivers belong to one. A supervisor caller is forced to their own.
   let contractorId: string | null = null
