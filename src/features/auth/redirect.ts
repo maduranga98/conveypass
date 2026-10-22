@@ -24,7 +24,7 @@ export function nextForRole(role: Role, next: string | null | undefined): string
 
 /** The office staff sign-in (email and password). `/login` itself is the PIN screen for drivers and security (Module 12). */
 export const STAFF_LOGIN = '/login/staff'
-const STAFF_AREAS = ['/admin', '/officer', '/supervisor']
+const STAFF_AREAS = ['/admin', '/officer', '/supervisor', '/safety']
 
 /**
  * Where a signed-out visitor goes: the PIN screen, or the staff form when they were headed for an office-staff area.

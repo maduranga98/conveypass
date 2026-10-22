@@ -1,7 +1,7 @@
 import type { SlaSettings } from './defaultSla.js'
 import type { GateDef } from './gates.js'
 
-export const ROLES = ['admin', 'officer', 'supervisor', 'driver', 'security'] as const
+export const ROLES = ['admin', 'officer', 'supervisor', 'safety', 'driver', 'security'] as const
 export type Role = (typeof ROLES)[number]
 
 export type { GateDef }
