@@ -18,7 +18,8 @@ import {
 } from './core.js'
 import { planSubmit } from './passRules.js'
 import type { ReportEvent, ReportPass } from './reports/types.js'
-import type { ContractorData, DriverData, GateEventData, PassData, PenaltyData, PenaltyTypeData, TenantData, UserData, VehicleData } from './types.js'
+import { clearanceOf } from './inspectionLogic.js'
+import type { ContractorData, DriverData, GateEventData, InspectionData, PassData, PenaltyData, PenaltyTypeData, TenantData, UserData, VehicleClearance, VehicleData } from './types.js'
 
 const ts = (ms: number): Timestamp => Timestamp.fromMillis(ms)
 
@@ -63,6 +64,11 @@ export function penaltyPatchToStored(patch: PenaltyPlan['patch']): Record<string
     out.verification = { ...patch.verification, verifiedAt: patch.verification.verifiedAt === null ? null : ts(patch.verification.verifiedAt) }
   }
   return out
+}
+
+/** Stored inspection -> InspectionData with every timestamp as milliseconds. */
+export function toInspection(raw: Record<string, unknown>): InspectionData {
+  return { ...raw, inspectedAt: millis(raw.inspectedAt) ?? 0, invalidatedAt: millis(raw.invalidatedAt) } as unknown as InspectionData
 }
 
 /** Reads what a pass decision depends on, inside the transaction. `null` when the pass does not exist. */
@@ -525,6 +531,62 @@ export const dataPort = (): DataPort => {
       }
       return [...found.values()]
     },
+    getInspection: async (inspectionId) => {
+      const snap = await db.doc(`inspections/${inspectionId}`).get()
+      return snap.exists ? toInspection(snap.data() as Record<string, unknown>) : null
+    },
+    inspectionTx: ({ vehicleId, plan }) => {
+      const vehicleRef = db.doc(`vehicles/${vehicleId}`)
+      return db.runTransaction(async (tx) => {
+        const vSnap = await tx.get(vehicleRef)
+        const vehicle = vSnap.exists ? (vSnap.data() as VehicleData) : null
+        const pointer = vehicle?.clearance?.inspectionId
+        const currentRef = pointer ? db.doc(`inspections/${pointer}`) : null
+        const cSnap = currentRef ? await tx.get(currentRef) : null
+        const current = cSnap?.exists ? { ...toInspection(cSnap.data() as Record<string, unknown>), id: cSnap.id } : null
+        const planned = plan({ vehicle, current })
+        if (!planned) return { written: false, current }
+
+        const clearance = (status: VehicleClearance['status'], inspectionId: string, reason: VehicleClearance['reason'], at: number): VehicleClearance => ({
+          status,
+          inspectionId,
+          reason,
+          at,
+        })
+        if (planned.kind === 'record') {
+          const newRef = db.doc(`inspections/${planned.inspectionId}`)
+          const existing = await tx.get(newRef)
+          // A retry of a call that already succeeded: nothing is written, the caller sees the stored record.
+          if (existing.exists) return { written: false, current: { ...toInspection(existing.data() as Record<string, unknown>), id: existing.id } }
+          const i = planned.inspection
+          tx.create(newRef, { ...i, inspectedAt: ts(i.inspectedAt), invalidatedAt: null, createdAt: FieldValue.serverTimestamp() })
+          if (currentRef && current && current.status !== 'superseded') {
+            tx.update(currentRef, { status: 'superseded', supersededBy: planned.inspectionId, updatedAt: FieldValue.serverTimestamp() })
+          }
+          const { status } = clearanceOf(i)
+          tx.update(vehicleRef, { clearance: clearance(status as VehicleClearance['status'], planned.inspectionId, null, i.inspectedAt) })
+          tx.create(db.collection('auditLog').doc(), { ...planned.audit, createdAt: FieldValue.serverTimestamp() })
+          return { written: true, current: { ...i, id: planned.inspectionId } }
+        }
+        if (!currentRef || !current) return { written: false, current }
+        tx.update(currentRef, {
+          status: 'invalidated',
+          invalidatedReason: planned.reason,
+          invalidatedAt: ts(planned.at),
+          invalidationSource: planned.source,
+          invalidationNote: planned.note,
+          updatedAt: FieldValue.serverTimestamp(),
+        })
+        tx.update(vehicleRef, { clearance: clearance('needs_reinspection', current.id, planned.reason, planned.at) })
+        tx.create(db.collection('auditLog').doc(), { ...planned.audit, createdAt: FieldValue.serverTimestamp() })
+        return {
+          written: true,
+          current: { ...current, status: 'invalidated', invalidatedReason: planned.reason, invalidatedAt: planned.at, invalidationSource: planned.source, invalidationNote: planned.note },
+        }
+      })
+    },
+    listVehicleIdsOfDriver: async (driverId) =>
+      (await db.collection('vehicles').where('assignedDriverIds', 'array-contains', driverId).select().limit(500).get()).docs.map((d) => d.id),
     countPasses: async (q) => (await passQuery(db, q).count().get()).data().count,
     listPasses: async (q, limit) => {
       const snap = await passQuery(db, q)

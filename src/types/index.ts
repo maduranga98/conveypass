@@ -5,6 +5,7 @@ import type { RejectionReasonDef } from '@/lib/defaultRejectionReasons'
 import type { GateDef } from '@/lib/gates'
 import type { SlaSettings } from '@/lib/defaultSla'
 import type { EligibilityStatus } from '@/lib/expiry'
+import type { VehicleClearance } from './inspections'
 
 export type UserStatus = 'active' | 'disabled'
 export type ContractorStatus = 'active' | 'suspended'
@@ -85,6 +86,8 @@ export interface Vehicle {
   registrationExpiry?: string
   /** Denormalised by the callables and the daily job; absent on records that predate expiry tracking. */
   eligibilityStatus?: EligibilityStatus
+  /** Copy of the current inspection, written with it by the inspection functions. Absent = never inspected. */
+  clearance?: VehicleClearance
   createdAt: Timestamp
   createdBy: string
   updatedAt: Timestamp

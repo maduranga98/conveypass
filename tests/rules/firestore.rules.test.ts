@@ -144,6 +144,13 @@ beforeEach(async () => {
         verification: { verifiedBy: null, verifiedByName: null, verifiedAt: null, verificationNote: null },
       })
     }
+    // Inspections: one per contractor of tenant A, one in tenant B.
+    for (const [id, tenantId, contractorId] of [['insp_c1', A, 'c1'], ['insp_c2', A, 'c2'], ['insp_b1', B, 'cB']] as const) {
+      await setDoc(doc(db, 'inspections', id), {
+        tenantId, contractorId, vehicleId: 'veh_a1', plateNo: 'WP LJ-4821', inspectedBy: { uid: 'safA', name: 'S' }, inspectedAt: when, result: 'approved', notes: 'Fine',
+        status: 'active', invalidatedReason: null, invalidatedAt: null,
+      })
+    }
     await setDoc(doc(db, 'penaltyTypes', 'pty_a'), { tenantId: A, name: 'Damage', nameKey: 'damage', createdBy: 'adminA' })
     await setDoc(doc(db, 'penaltyTypes', 'pty_b'), { tenantId: B, name: 'Damage', nameKey: 'damage', createdBy: 'adminB' })
     await setDoc(doc(db, 'auditLog', 'a2'), { tenantId: A, action: 'pass.submit', actorUid: 'drvA1', targetType: 'pass', createdAt: when })
@@ -885,11 +892,11 @@ describe('setupInvites (Module 8)', () => {
 
 describe('platform operators (Module 9)', () => {
   const operator = () => as('op1', { role: 'platform', platformAdmin: true, email_verified: true })
-  const COLLECTIONS = ['tenants', 'users', 'contractors', 'vehicles', 'drivers', 'vehiclePlates', 'passes', 'gateEvents', 'auditLog', 'notifications', 'rateLimits', 'setupInvites', 'operators', 'platformAuditLog', 'penalties', 'penaltyTypes'] as const
+  const COLLECTIONS = ['tenants', 'users', 'contractors', 'vehicles', 'drivers', 'vehiclePlates', 'passes', 'gateEvents', 'auditLog', 'notifications', 'rateLimits', 'setupInvites', 'operators', 'platformAuditLog', 'penalties', 'penaltyTypes', 'inspections'] as const
   const KNOWN_DOCS: Record<string, string[]> = {
     tenants: [A, B], users: ['adminA', 'drvA1', 'op1'], contractors: ['c1'], vehicles: ['veh_a1'], drivers: ['drvA1'],
     vehiclePlates: [`${A}_WPLJ4821`], passes: ['veh_a1_20260310'], gateEvents: ['den_platform'], auditLog: ['a1'], notifications: ['n_drv'],
-    rateLimits: ['drvA1_createUser'], setupInvites: ['c'.repeat(64)], operators: ['op1'], platformAuditLog: ['p1'], penalties: ['pen_c1'], penaltyTypes: ['pty_a'],
+    rateLimits: ['drvA1_createUser'], setupInvites: ['c'.repeat(64)], operators: ['op1'], platformAuditLog: ['p1'], penalties: ['pen_c1'], penaltyTypes: ['pty_a'], inspections: ['insp_c1'],
   }
 
   it('is denied on every collection: single reads (even of its own uid), lists, tenant-filtered queries and writes', async () => {
@@ -988,5 +995,53 @@ describe('penalties and penalty types', () => {
       expect((await assertSucceeds(getDocs(query(collection(db, 'penaltyTypes'), where('tenantId', '==', A))))).size).toBe(1)
       await assertFails(getDoc(doc(db, 'penaltyTypes', 'pty_b')))
     }
+  })
+})
+
+describe('inspections', () => {
+  const tenantQuery = (db: ReturnType<typeof adminA>) => getDocs(query(collection(db, 'inspections'), where('tenantId', '==', A)))
+  const history = (db: ReturnType<typeof adminA>, vehicleId = 'veh_a1') =>
+    getDocs(query(collection(db, 'inspections'), where('tenantId', '==', A), where('vehicleId', '==', vehicleId), orderBy('inspectedAt', 'desc')))
+
+  it('admin (oversight) and Safety Officer read every inspection of their company, and nothing of another', async () => {
+    for (const db of [adminA(), safetyA()]) {
+      expect((await assertSucceeds(tenantQuery(db))).docs.map((d) => d.id).sort()).toEqual(['insp_c1', 'insp_c2'])
+      await assertSucceeds(getDoc(doc(db, 'inspections', 'insp_c2')))
+      await assertFails(getDoc(doc(db, 'inspections', 'insp_b1')))
+      await assertFails(getDocs(query(collection(db, 'inspections'), where('tenantId', '==', B))))
+    }
+  })
+
+  it('a supervisor reads only their own contractor’s inspections; the query must carry the contractor', async () => {
+    const db = supA1()
+    expect((await assertSucceeds(getDocs(query(collection(db, 'inspections'), where('tenantId', '==', A), where('contractorId', '==', 'c1'))))).docs.map((d) => d.id)).toEqual(['insp_c1'])
+    await assertSucceeds(getDoc(doc(db, 'inspections', 'insp_c1')))
+    await assertFails(getDoc(doc(db, 'inspections', 'insp_c2')))
+    await assertFails(tenantQuery(db))
+  })
+
+  it('officer, security, drivers and signed-out users have no access at all', async () => {
+    for (const db of [officerA(), securityA(), drvA1(), env.unauthenticatedContext().firestore()]) {
+      await assertFails(getDoc(doc(db, 'inspections', 'insp_c1')))
+      await assertFails(tenantQuery(db))
+    }
+  })
+
+  it('nobody writes an inspection from a client, Safety Officer and admin included (callables only)', async () => {
+    for (const db of [adminA(), safetyA(), supA1(), securityA(), officerA()]) {
+      await assertFails(addDoc(collection(db, 'inspections'), { tenantId: A, contractorId: 'c1', status: 'active', result: 'approved' }))
+      await assertFails(setDoc(doc(db, 'inspections', 'insp_new'), { tenantId: A, contractorId: 'c1', status: 'active', result: 'approved' }))
+      await assertFails(updateDoc(doc(db, 'inspections', 'insp_c1'), { status: 'invalidated' }))
+      await assertFails(updateDoc(doc(db, 'inspections', 'insp_c1'), { result: 'approved' }))
+      await assertFails(deleteDoc(doc(db, 'inspections', 'insp_c1')))
+    }
+  })
+
+  it('the per-vehicle history query (tenant + vehicle, newest first) is allowed for admin and Safety Officer', async () => {
+    for (const db of [adminA(), safetyA()]) await assertSucceeds(history(db))
+  })
+
+  it('the clearance copy on a vehicle is not writable by anyone', async () => {
+    for (const db of [adminA(), safetyA(), supA1()]) await assertFails(updateDoc(doc(db, 'vehicles', 'veh_a1'), { clearance: { status: 'cleared', inspectionId: 'insp_c1', reason: null, at: 1 } }))
   })
 })

@@ -85,6 +85,8 @@ export type Reason =
   | 'end-date-invalid'
   | 'evidence-path-invalid'
   | 'penalty-blocked'
+  | 'notes-required'
+  | 'not-cleared'
   | 'internal'
 
 /** Typed error: `code` is the gRPC-style code, `details.reason` is a stable key the client maps to a string. */

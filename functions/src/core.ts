@@ -3,6 +3,7 @@ import { isValidPassword, normalisePhone, PASSWORD_MIN_LENGTH } from './credenti
 import { canCreateRole } from './permissions.js'
 import { assertPepper, pinKey } from './pin.js'
 import { isPinRole, sessionExpired } from './session.js'
+import type { InvalidationReason } from './inspectionLogic.js'
 import type { SlaSettings } from './defaultSla.js'
 import type { ReportEvent, ReportPass } from './reports/types.js'
 import { sanitiseMeta } from './auditMeta.js'
@@ -42,6 +43,7 @@ import type {
   CheckInStamp,
   GateDef,
   GateEventData,
+  InspectionData,
   PenaltyData,
   PenaltyTypeData,
 } from './types.js'
@@ -258,6 +260,36 @@ export interface DataPort {
   updatePenaltyTx(p: { penaltyId: string; plan: (penalty: PenaltyData | null) => PenaltyPlan }): Promise<PenaltyData>
   /** Active penalties of the tenant that name the vehicle or the driver (ends not yet checked: callers apply `isBlocking`). */
   listActivePenalties(q: { tenantId: string; vehicleId?: string | undefined; driverId?: string | undefined }): Promise<(PenaltyData & { id: string })[]>
+
+  // ---- Inspections (every write is a callable or a trigger; clients only read) ----
+  getInspection(inspectionId: string): Promise<InspectionData | null>
+  /**
+   * ONE transaction for everything that changes a vehicle's clearance: reads the vehicle and its current inspection (the
+   * one `vehicle.clearance.inspectionId` points to), hands both to `plan` (pure; throws HttpsError to refuse; `null` = no
+   * change), then writes the plan. The new record, the superseded/invalidated old one, the denormalised
+   * `vehicles.clearance` and the audit entry commit together or not at all.
+   */
+  inspectionTx(p: { vehicleId: string; plan: (ctx: InspectionContext) => InspectionPlan | null }): Promise<InspectionOutcome>
+  /** Ids of the vehicles that list the driver in `assignedDriverIds` (any tenant: callers check the tenant of each in the transaction). */
+  listVehicleIdsOfDriver(driverId: string): Promise<string[]>
+}
+
+/** What `inspectionTx` reads: the vehicle (null = missing) and its current inspection (null = never inspected). */
+export interface InspectionContext {
+  vehicle: VehicleData | null
+  current: (InspectionData & { id: string }) | null
+}
+
+/** What `inspectionTx` writes. `record` supersedes the current record; `invalidate` cancels it and creates nothing. */
+export type InspectionPlan =
+  | { kind: 'record'; inspectionId: string; inspection: InspectionData; audit: AuditEntry }
+  | { kind: 'invalidate'; reason: InvalidationReason; source: string; note: string | null; at: number; audit: AuditEntry }
+
+export interface InspectionOutcome {
+  /** False when the plan was `null`, or a `record` whose id already existed (a retry): nothing was written. */
+  written: boolean
+  /** The record that is current after the call (null = none). */
+  current: (InspectionData & { id: string }) | null
 }
 
 /** What `updatePenaltyTx` writes: a patch of the fields a decision may change, and the audit entry. */

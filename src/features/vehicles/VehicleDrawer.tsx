@@ -11,6 +11,9 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { setVehicleDrivers, setVehicleStatus } from '@/lib/api'
 import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
+import { ClearanceBadge } from '@/features/inspections/ClearanceBadge'
+import { InspectionHistory } from '@/features/inspections/InspectionHistory'
+import { clearanceOfVehicle } from '@/features/inspections/model'
 import { useBlocked } from '@/features/penalties/feed'
 import { BlockedBadge } from '@/features/penalties/PenaltyBadges'
 import { PenaltyHistory } from '@/features/penalties/PenaltyHistory'
@@ -113,6 +116,16 @@ function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'veh
         </dl>
       </section>
 
+      <section className="space-y-3 border-t border-slate-100 pt-5" aria-label={strings.inspections.clearance.label}>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold">{strings.inspections.clearance.label}</h3>
+          <ClearanceBadge clearance={clearanceOfVehicle(vehicle)} />
+        </div>
+        {vehicle.clearance?.status === 'needs_reinspection' && vehicle.clearance.reason && (
+          <p className="text-sm text-slate-700">{strings.inspections.reasonDetail[vehicle.clearance.reason]}</p>
+        )}
+      </section>
+
       <VehicleQrPanel vehicle={vehicle} scope={scope} />
 
       <section className="space-y-3 border-t border-slate-100 pt-5" aria-label={t.drivers}>
@@ -153,6 +166,8 @@ function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'veh
       </section>
 
       <PenaltyHistory scope={scope} vehicleId={vehicle.id} />
+
+      <InspectionHistory scope={scope} vehicleId={vehicle.id} />
 
       <div className="flex flex-col gap-2 border-t border-slate-100 pt-5 sm:flex-row">
         <Button variant="secondary" className="sm:flex-1" icon={<Pencil aria-hidden className="size-4" />} onClick={() => onEdit(vehicle)}>

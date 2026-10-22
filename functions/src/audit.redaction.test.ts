@@ -9,11 +9,13 @@ import { changeOwnPassword, createUser, reissuePin, resetCredential, sanitiseMet
 import { dateKey } from './dates.js'
 import { DEFAULT_CHECKLIST } from './defaultChecklist.js'
 import { checkIn, denyEntry } from './gate.js'
+import { invalidateForPenalty } from './inspectionInvalidation.js'
+import { recordInspection, withdrawClearance } from './inspections.js'
 import { evidenceFolder } from './passRules.js'
 import { createPenaltyType, deletePenaltyType, issuePenalty, penaltyEvidencePath, revokePenalty, updatePenaltyType, verifyPenalty } from './penalties.js'
 import { submitPass, updateTenantSettings } from './passes.js'
 import { admin, caller, drv1, makeWorld, NOW, sup1, userDoc, type World } from './test-utils.js'
-import type { PassData, StoredFile } from './types.js'
+import type { PassData, PenaltyData, StoredFile } from './types.js'
 import { createVehicle, importVehicles, setContractorStatus, setVehicleDrivers, setVehicleStatus, updateVehicle } from './vehicles.js'
 
 const VID = 'veh_aaaaaaaaaa'
@@ -100,11 +102,19 @@ describe('audit redaction: every write path', () => {
     await verifyPenalty(w.deps, sup1(), { penaltyId: 'pen_aaaaaaaaaa', note: 'password reset https://x.test' })
     await revokePenalty(w.deps, admin(), { penaltyId: 'pen_aaaaaaaaaa', note: 'eyJhbGciOi token note' })
 
+    // inspections: notes and the withdrawal reason are free text and must stay out of the entries; the trigger path is covered too
+    const safety = caller('safe1', 'safety')
+    await recordInspection(w.deps, safety, { inspectionId: 'insp_aaaaaaaaaa', vehicleId: VID, result: 'approved', notes: 'See https://x.test/a.jpg and token abc' })
+    await invalidateForPenalty(w.deps.data, 'pen_aaaaaaaaaa', { ...(w.penalties.get('pen_aaaaaaaaaa') as PenaltyData), status: 'active', issuedAt: NOW * 1000 + 1 }, NOW * 1000 + 2)
+    await recordInspection(w.deps, safety, { inspectionId: 'insp_bbbbbbbbbb', vehicleId: VID, result: 'approved', notes: '' })
+    await withdrawClearance(w.deps, safety, { vehicleId: VID, note: 'eyJhbGciOi password note' })
+
     expect(w.audits.length).toBeGreaterThan(20)
     const actions = new Set(w.audits.map((a) => a.action))
     for (const a of ['user.create', 'user.resetCredential', 'user.changeOwnPassword', 'user.update', 'user.disable', 'vehicle.create',
       'vehicle.import', 'tenant.settings.update', 'pass.submit', 'pass.checkIn', 'gate.deny', 'pass.revoke',
-      'penaltyType.create', 'penaltyType.update', 'penaltyType.delete', 'penalty.issue', 'penalty.verify', 'penalty.revoke']) {
+      'penaltyType.create', 'penaltyType.update', 'penaltyType.delete', 'penalty.issue', 'penalty.verify', 'penalty.revoke',
+      'inspection.record', 'inspection.invalidate', 'inspection.withdraw']) {
       expect(actions, `missing path ${a}`).toContain(a)
     }
     for (const entry of w.audits) {

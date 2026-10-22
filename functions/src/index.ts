@@ -9,6 +9,7 @@ import { handleCspReport } from './cspReport.js'
 import * as devices from './devices.js'
 import * as gate from './gate.js'
 import * as passes from './passes.js'
+import * as inspections from './inspections.js'
 import * as penalties from './penalties.js'
 import * as eligibilityCheck from './checkEligibility.js'
 import * as reportsApi from './reportsApi.js'
@@ -103,6 +104,12 @@ export const issuePenalty = callable('issuePenalty', penalties.issuePenalty, { r
 export const revokePenalty = callable('revokePenalty', penalties.revokePenalty)
 export const verifyPenalty = callable('verifyPenalty', penalties.verifyPenalty)
 export const checkEligibility = callable('checkEligibility', eligibilityCheck.checkEligibility, { warm: true })
+
+// Inspections: the Safety Officer records an inspection (or withdraws a clearance); clearance is cancelled by the triggers
+// below when a penalty is issued or a document expires. Clients only read these collections.
+export const recordInspection = callable('recordInspection', inspections.recordInspection, { rateLimit: true })
+export const withdrawClearance = callable('withdrawClearance', inspections.withdrawClearance)
+export { invalidateInspectionOnPenalty, invalidateInspectionOnVehicleExpiry, invalidateInspectionOnDriverExpiry } from './inspectionTriggers.js'
 
 // Module 6: dashboard trend and reports (admin and officer, read only).
 export const getDashboardTrend = callable('getDashboardTrend', reportsApi.getDashboardTrend, { timeoutSeconds: 60 })
