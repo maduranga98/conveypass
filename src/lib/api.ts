@@ -3,7 +3,6 @@ import type { Role } from './roles'
 import { functions } from './firebase'
 import { isSessionExpired, reportSessionExpired } from './sessionEvents'
 import type { ChecklistItemDef, PassSettings } from './defaultChecklist'
-import type { VehicleType } from './vehicleTypes'
 import type { RejectionReasonDef } from './defaultRejectionReasons'
 import type { GateDef } from './gates'
 import type { ReportRequest, ReportResult, TrendResult } from '@/types/reports'
@@ -27,6 +26,8 @@ export interface CreateUserPayload {
   phone?: string
   contractorId?: string
   licenseNo?: string
+  /** Drivers only. `YYYY-MM-DD`. */
+  licenseExpiry?: string
   /** Office staff only. Drivers and security get a server-generated PIN (Module 12). */
   password?: string
 }
@@ -39,6 +40,8 @@ export interface UpdateUserPayload {
   status?: 'active' | 'disabled'
   /** Drivers only. `null` clears it. */
   licenseNo?: string | null
+  /** Drivers only. `YYYY-MM-DD`; `null` clears it. */
+  licenseExpiry?: string | null
   /** Drivers only: `tenants/{tenantId}/contractors/{contractorId}/drivers/{uid}.jpg`. */
   photoPath?: string
 }
@@ -67,8 +70,12 @@ export const changeOwnPassword = call<{ newPassword: string }, { ok: true }>('ch
 
 export interface VehicleInput {
   plateNo: string
-  type: VehicleType
+  /** A name from the tenant's vehicle types. */
+  type: string
   makeModel?: string
+  /** `YYYY-MM-DD`; on update `null` clears the date. */
+  insuranceExpiry?: string | null
+  registrationExpiry?: string | null
 }
 
 export type ImportRowError = 'invalid-plate' | 'invalid-type' | 'invalid-make-model' | 'plate-exists' | 'internal'
@@ -81,14 +88,19 @@ export interface ImportRowResult {
 }
 
 export const createVehicle = call<
-  VehicleInput & { contractorId?: string; driverIds?: string[] },
+  Omit<VehicleInput, 'insuranceExpiry' | 'registrationExpiry'> & {
+    contractorId?: string
+    driverIds?: string[]
+    insuranceExpiry?: string
+    registrationExpiry?: string
+  },
   { vehicleId: string; plateNo: string }
 >('createVehicle')
 export const updateVehicle = call<Partial<VehicleInput> & { vehicleId: string }, { ok: true }>('updateVehicle')
 export const setVehicleStatus = call<{ vehicleId: string; status: 'active' | 'suspended' }, { ok: true }>('setVehicleStatus')
 export const setVehicleDrivers = call<{ vehicleId: string; driverIds: string[] }, { ok: true }>('setVehicleDrivers')
 export const importVehicles = call<
-  { contractorId?: string; rows: VehicleInput[] },
+  { contractorId?: string; rows: Pick<VehicleInput, 'plateNo' | 'type' | 'makeModel'>[] },
   { results: ImportRowResult[]; created: number }
 >('importVehicles', 180_000)
 export const setContractorStatus = call<
@@ -102,7 +114,7 @@ export const submitPass = call<SubmitPassPayload, { passId: string; status: 'sub
   60_000,
 )
 export const updateTenantSettings = call<
-  { passSettings?: PassSettings; checklist?: ChecklistItemDef[]; rejectionReasons?: RejectionReasonDef[]; gates?: GateDef[]; sla?: SlaSettings; retentionDays?: number },
+  { passSettings?: PassSettings; checklist?: ChecklistItemDef[]; rejectionReasons?: RejectionReasonDef[]; gates?: GateDef[]; sla?: SlaSettings; retentionDays?: number; vehicleTypes?: string[]; expiryWarningDays?: number },
   { ok: true }
 >('updateTenantSettings')
 

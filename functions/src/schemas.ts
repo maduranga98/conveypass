@@ -1,11 +1,14 @@
 import { z } from 'zod'
 import { ROLES } from './types.js'
-import { VEHICLE_TYPES } from './vehicleTypes.js'
+import { MAX_VEHICLE_TYPES, VEHICLE_TYPE_NAME_MAX, VEHICLE_TYPE_NAME_MIN } from './vehicleTypes.js'
+import { isExpiryDate, MAX_EXPIRY_WARNING_DAYS, MIN_EXPIRY_WARNING_DAYS } from './expiry.js'
 import { GATE_ID_PATTERN, GATE_NAME_MAX, GATE_NAME_MIN, MAX_GATES, MIN_GATES } from './gates.js'
 import { MAX_DENY_NOTE } from './denyReasons.js'
 import { SLA_MAX, SLA_MIN } from './defaultSla.js'
 
 const name = z.string().trim().min(1).max(100)
+/** A calendar date, `YYYY-MM-DD`. */
+const expiryDate = z.string().refine(isExpiryDate, 'invalid date')
 
 export const createUserSchema = z.object({
   role: z.enum(ROLES),
@@ -14,6 +17,7 @@ export const createUserSchema = z.object({
   phone: z.string().trim().max(30).optional(),
   contractorId: z.string().trim().min(1).max(128).optional(),
   licenseNo: z.string().trim().max(30).optional(),
+  licenseExpiry: expiryDate.optional(),
   /** Staff only. Drivers and security get a server-generated PIN (Module 12) and must not send one. */
   password: z.string().min(1).max(128).optional(),
 })
@@ -28,6 +32,8 @@ export const updateUserSchema = z
     status: z.enum(['active', 'disabled']).optional(),
     /** Drivers only. `null` clears it. */
     licenseNo: z.string().trim().max(30).nullable().optional(),
+    /** Drivers only. `YYYY-MM-DD`; `null` clears it. */
+    licenseExpiry: expiryDate.nullable().optional(),
     /** Drivers only. Must equal the canonical Storage path; checked against the target in core. */
     photoPath: z.string().max(300).optional(),
   })
@@ -37,6 +43,7 @@ export const updateUserSchema = z
       v.phone !== undefined ||
       v.status !== undefined ||
       v.licenseNo !== undefined ||
+      v.licenseExpiry !== undefined ||
       v.photoPath !== undefined,
     { message: 'Nothing to update' },
   )
@@ -71,25 +78,38 @@ const vehicleId = z.string().regex(VEHICLE_ID_PATTERN)
 const plateNo = z.string().max(40)
 const makeModel = z.string().trim().max(60)
 const driverIds = z.array(id).max(50)
+/** Checked against the tenant's own list in the callable. */
+const vehicleType = z.string().trim().min(1).max(VEHICLE_TYPE_NAME_MAX)
 
 export const createVehicleSchema = z.object({
   contractorId: id.optional(),
   plateNo,
-  type: z.enum(VEHICLE_TYPES),
+  type: vehicleType,
   makeModel: makeModel.optional(),
   driverIds: driverIds.optional(),
+  insuranceExpiry: expiryDate.optional(),
+  registrationExpiry: expiryDate.optional(),
 })
 
 export const updateVehicleSchema = z
   .object({
     vehicleId,
     plateNo: plateNo.optional(),
-    type: z.enum(VEHICLE_TYPES).optional(),
+    type: vehicleType.optional(),
     makeModel: makeModel.optional(),
+    /** `null` clears the date (it is then not tracked). */
+    insuranceExpiry: expiryDate.nullable().optional(),
+    registrationExpiry: expiryDate.nullable().optional(),
   })
-  .refine((v) => v.plateNo !== undefined || v.type !== undefined || v.makeModel !== undefined, {
-    message: 'Nothing to update',
-  })
+  .refine(
+    (v) =>
+      v.plateNo !== undefined ||
+      v.type !== undefined ||
+      v.makeModel !== undefined ||
+      v.insuranceExpiry !== undefined ||
+      v.registrationExpiry !== undefined,
+    { message: 'Nothing to update' },
+  )
 
 export const setVehicleStatusSchema = z.object({ vehicleId, status: z.enum(['active', 'suspended']) })
 export const setVehicleDriversSchema = z.object({ vehicleId, driverIds })
@@ -209,10 +229,18 @@ export const updateTenantSettingsSchema = z
       .optional(),
     /** 0 = keep evidence forever (default); otherwise 30-3650 days. Deletion is permanent. */
     retentionDays: z.union([z.literal(0), z.number().int().min(30).max(3650)]).optional(),
+    /** Allowed vehicle types. A type that a vehicle uses cannot be removed (checked in the callable). */
+    vehicleTypes: z
+      .array(z.string().trim().min(VEHICLE_TYPE_NAME_MIN).max(VEHICLE_TYPE_NAME_MAX))
+      .min(1)
+      .max(MAX_VEHICLE_TYPES)
+      .optional(),
+    /** Days before an expiry date when a record turns "expiring soon". */
+    expiryWarningDays: z.number().int().min(MIN_EXPIRY_WARNING_DAYS).max(MAX_EXPIRY_WARNING_DAYS).optional(),
   })
   .refine(
     (v) =>
-      v.passSettings !== undefined || v.checklist !== undefined || v.rejectionReasons !== undefined || v.gates !== undefined || v.sla !== undefined || v.retentionDays !== undefined,
+      v.passSettings !== undefined || v.checklist !== undefined || v.rejectionReasons !== undefined || v.gates !== undefined || v.sla !== undefined || v.retentionDays !== undefined || v.vehicleTypes !== undefined || v.expiryWarningDays !== undefined,
     { message: 'Nothing to update' },
   )
 

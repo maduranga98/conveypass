@@ -11,20 +11,27 @@ import { createVehicle, setVehicleDrivers, updateVehicle } from '@/lib/api'
 import { apiErrorMessage, apiErrorReason } from '@/lib/errors'
 import { formatPlateInput, normalisePlate } from '@/lib/plate'
 import { strings } from '@/lib/strings'
-import { VEHICLE_TYPES } from '@/lib/vehicleTypes'
+import { isExpiryDate } from '@/lib/expiry'
+import { useTenantDocuments } from '@/features/shared/documents'
 import { useContractorList, useDrivers } from '@/features/shared/queries'
 import { useScope, type Scope } from '@/features/shared/scope'
 import type { Vehicle, WithId } from '@/types'
 import { assignableDrivers } from './assignable'
 import { DriverPicker } from './DriverPicker'
-import { vehicleFieldsSchema } from './schemas'
+import { vehicleFieldsSchemaFor } from './schemas'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.vehicles.form
 
-const schema = vehicleFieldsSchema
-  .extend({ contractorId: z.string(), driverIds: z.array(z.string()) })
-type Values = z.infer<typeof schema>
+const expiry = z.string().refine((v) => v === '' || isExpiryDate(v), strings.eligibility.invalid)
+const schemaFor = (types: readonly string[]) =>
+  vehicleFieldsSchemaFor(types).extend({
+    contractorId: z.string(),
+    driverIds: z.array(z.string()),
+    insuranceExpiry: expiry,
+    registrationExpiry: expiry,
+  })
+type Values = z.infer<ReturnType<typeof schemaFor>>
 
 interface Props {
   scope: Scope
@@ -49,10 +56,13 @@ function VehicleForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'
   const { isAdmin, contractorId: ownContractorId } = useScope(scope)
   const contractors = useContractorList(scope)
   const drivers = useDrivers(scope)
+  const { vehicleTypes } = useTenantDocuments()
   const existing = target === 'new' ? null : target
   const [formError, setFormError] = useState<string | null>(null)
 
   const activeContractors = (contractors.data ?? []).filter((c) => c.status === 'active')
+  // A vehicle keeps its type even if the list changed since; it stays selectable while editing it.
+  const typeOptions = existing && !vehicleTypes.includes(existing.type) ? [...vehicleTypes, existing.type] : vehicleTypes
   const allDrivers = useMemo(() => drivers.data?.items ?? [], [drivers.data])
 
   const initialDrivers = useMemo(() => {
@@ -70,14 +80,19 @@ function VehicleForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'
     formState: { errors, isSubmitting },
   } = useForm<Values>({
     resolver: zodResolver(
-      schema.superRefine((v, ctx) => {
+      schemaFor(typeOptions).superRefine((v, ctx) => {
         if (isAdmin && !existing && !v.contractorId) ctx.addIssue({ code: 'custom', path: ['contractorId'], message: strings.vehicles.errors.contractor })
+        for (const path of ['insuranceExpiry', 'registrationExpiry'] as const) {
+          if (v[path] === '') ctx.addIssue({ code: 'custom', path: [path], message: strings.eligibility.required })
+        }
       }),
     ),
     defaultValues: {
       plateNo: existing?.plateNo ?? '',
       type: (existing?.type ?? '') as Values['type'],
       makeModel: existing?.makeModel ?? '',
+      insuranceExpiry: existing?.insuranceExpiry ?? '',
+      registrationExpiry: existing?.registrationExpiry ?? '',
       contractorId: existing?.contractorId ?? '',
       driverIds: initialDrivers,
     },
@@ -97,6 +112,8 @@ function VehicleForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'
           ...(v.plateNo !== existing.plateNo ? { plateNo: v.plateNo } : {}),
           ...(v.type !== existing.type ? { type: v.type } : {}),
           ...(makeModel !== (existing.makeModel ?? '') ? { makeModel } : {}),
+          ...(v.insuranceExpiry !== (existing.insuranceExpiry ?? '') ? { insuranceExpiry: v.insuranceExpiry } : {}),
+          ...(v.registrationExpiry !== (existing.registrationExpiry ?? '') ? { registrationExpiry: v.registrationExpiry } : {}),
         }
         if (Object.keys(changes).length > 0) await updateVehicle({ vehicleId: existing.id, ...changes })
         if (!sameSet(v.driverIds, initialDrivers)) await setVehicleDrivers({ vehicleId: existing.id, driverIds: v.driverIds })
@@ -107,6 +124,8 @@ function VehicleForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'
           plateNo: v.plateNo,
           type: v.type,
           ...(makeModel ? { makeModel } : {}),
+          insuranceExpiry: v.insuranceExpiry,
+          registrationExpiry: v.registrationExpiry,
           ...(v.driverIds.length > 0 ? { driverIds: v.driverIds } : {}),
         })
         toast.success(t.created)
@@ -149,7 +168,7 @@ function VehicleForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'
 
       <Select label={t.type} error={errors.type?.message} {...register('type')}>
         <option value="">{t.typePlaceholder}</option>
-        {VEHICLE_TYPES.map((type) => (
+        {typeOptions.map((type) => (
           <option key={type} value={type}>
             {type}
           </option>
@@ -157,6 +176,11 @@ function VehicleForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'
       </Select>
 
       <Input label={t.makeModel} optional autoComplete="off" error={errors.makeModel?.message} {...register('makeModel')} />
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Input label={t.insuranceExpiry} type="date" error={errors.insuranceExpiry?.message} {...register('insuranceExpiry')} />
+        <Input label={t.registrationExpiry} type="date" error={errors.registrationExpiry?.message} {...register('registrationExpiry')} />
+      </div>
 
       {isAdmin &&
         (existing ? (

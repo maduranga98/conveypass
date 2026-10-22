@@ -41,6 +41,7 @@ describe('createVehicle', () => {
       makeModel: 'Tata',
       assignedDriverIds: [],
       status: 'active',
+      eligibilityStatus: 'valid',
     })
     expect(w.plates.get('T1_WPLJ4821')).toBe(vehicleId)
     expect(w.audits.at(-1)).toMatchObject({ action: 'vehicle.create', targetType: 'vehicle', targetId: vehicleId, actorUid: 'admin' })

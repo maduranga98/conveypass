@@ -1,6 +1,8 @@
 import { onDocumentCreated, onDocumentWritten } from 'firebase-functions/v2/firestore'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 import { APP_BASE_URL, REGION } from './config.js'
+import { recomputeEligibility } from './eligibility.js'
+import { eligibilityPort } from './eligibilityPort.js'
 import { logInfo } from './logger.js'
 import { actorOf, deliver, isStaleEvent, planDenial, planPassChange, type NotifyDeps } from './notifications.js'
 import { messagingPort, notifyPort, slaPort } from './notifyPorts.js'
@@ -55,4 +57,9 @@ export const slaReminders = onSchedule({ schedule: 'every 10 minutes', timeZone:
 /** Daily, off-peak (02:30 Colombo). Does nothing unless a tenant set `retentionDays` (default: keep forever). */
 export const purgeOldEvidenceDaily = onSchedule({ schedule: '30 2 * * *', timeZone: 'Asia/Colombo', memory: '512MiB', timeoutSeconds: 540 }, async () => {
   await purgeOldEvidence(retentionPort(), Date.now())
+})
+
+/** Daily, just after midnight Colombo: refreshes the denormalised `eligibilityStatus` of every vehicle and driver. */
+export const recomputeEligibilityDaily = onSchedule({ schedule: '10 0 * * *', timeZone: 'Asia/Colombo', memory: '512MiB', timeoutSeconds: 540 }, async () => {
+  await recomputeEligibility(eligibilityPort(), Date.now())
 })

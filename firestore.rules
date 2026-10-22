@@ -45,7 +45,7 @@ service cloud.firestore {
 
     match /contractors/{id} {
       allow read: if signedIn() && sameTenant(resource.data) && (
-        role() in ['admin', 'officer', 'security']
+        role() in ['admin', 'officer', 'security', 'safety']
         || (role() in ['supervisor', 'driver'] && contractorId() != null && id == contractorId())
       );
 
@@ -81,11 +81,12 @@ service cloud.firestore {
         && (!('notes' in d) || d.notes == null || (d.notes is string && d.notes.size() <= 1000));
     }
 
-    // Vehicles and drivers are written only by Cloud Functions (Admin SDK).
+    // Vehicles and drivers are written only by Cloud Functions (Admin SDK). The Safety Officer reads them tenant-wide
+    // (expiry status, read only); inspections and penalties come with a later module.
     // Drivers read only the vehicles they are assigned to (query with array-contains on their uid).
     match /vehicles/{id} {
       allow read: if signedIn() && sameTenant(resource.data) && (
-        role() in ['admin', 'officer', 'security']
+        role() in ['admin', 'officer', 'security', 'safety']
         || (role() == 'supervisor' && contractorId() != null && resource.data.contractorId == contractorId())
         || (role() == 'driver' && request.auth.uid in resource.data.assignedDriverIds)
       );
@@ -94,7 +95,7 @@ service cloud.firestore {
 
     match /drivers/{uid} {
       allow read: if signedIn() && sameTenant(resource.data) && (
-        role() in ['admin', 'officer', 'security']
+        role() in ['admin', 'officer', 'security', 'safety']
         || (role() == 'supervisor' && contractorId() != null && resource.data.contractorId == contractorId())
         || (role() == 'driver' && request.auth.uid == uid)
       );

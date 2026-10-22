@@ -5,11 +5,13 @@ import { toast } from 'sonner'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { EligibilityBadge } from '@/components/ui/EligibilityBadge'
 import { Modal } from '@/components/ui/Modal'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { setVehicleDrivers, setVehicleStatus } from '@/lib/api'
 import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
+import { ExpiryRow } from '@/features/shared/ExpiryRow'
 import { VehicleQrPanel } from '@/features/qr/VehicleQrPanel'
 import { useDrivers } from '@/features/shared/queries'
 import type { Scope } from '@/features/shared/scope'
@@ -93,6 +95,17 @@ function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'veh
         {vehicle.makeModel && <span className="text-sm text-slate-600">{vehicle.makeModel}</span>}
         {contractorName && scope === 'admin' && <span className="text-sm text-slate-500">· {contractorName}</span>}
       </div>
+
+      <section className="space-y-3 border-t border-slate-100 pt-5" aria-label={t.documents}>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold">{t.documents}</h3>
+          <EligibilityBadge status={vehicle.eligibilityStatus} />
+        </div>
+        <dl className="space-y-1.5 text-sm">
+          <ExpiryRow label={strings.eligibility.insurance} date={vehicle.insuranceExpiry} />
+          <ExpiryRow label={strings.eligibility.registration} date={vehicle.registrationExpiry} />
+        </dl>
+      </section>
 
       <VehicleQrPanel vehicle={vehicle} scope={scope} />
 

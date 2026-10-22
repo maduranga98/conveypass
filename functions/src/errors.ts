@@ -13,6 +13,8 @@ export type Reason =
   | 'self-reset'
   | 'recent-login-required'
   | 'plate-exists'
+  | 'invalid-type'
+  | 'type-in-use'
   | 'vehicle-not-found'
   | 'driver-invalid'
   | 'contractor-not-found'

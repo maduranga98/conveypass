@@ -23,6 +23,12 @@ export const PERMISSIONS = {
   'user.create.driver': ['admin', 'supervisor'],
   'user.manage': ['admin', 'supervisor'],
   'user.pin.reissue': ['admin', 'supervisor'],
+  // Vehicle and driver records (Module 2). Supervisors manage their own contractor's only; the Safety Officer reads.
+  'vehicle.view': ['admin', 'officer', 'supervisor', 'safety', 'security'],
+  'vehicle.manage': ['admin', 'supervisor'],
+  'driver.view': ['admin', 'officer', 'supervisor', 'safety', 'security'],
+  'vehicleType.manage': ['admin'],
+  'expiry.settings': ['admin'],
   // Own account.
   'account.view': ['admin', 'officer', 'supervisor', 'safety', 'security', 'driver'],
   'account.password.change': [...ALL_STAFF],

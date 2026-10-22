@@ -6,6 +6,8 @@ import { isPinRole, sessionExpired } from './session.js'
 import type { SlaSettings } from './defaultSla.js'
 import type { ReportEvent, ReportPass } from './reports/types.js'
 import { sanitiseMeta } from './auditMeta.js'
+import { dateKey, DEFAULT_TIMEZONE } from './dates.js'
+import { computeEligibility, isoFromDateKey, warningDaysOf } from './expiry.js'
 import { fail } from './errors.js'
 import {
   changeOwnPasswordSchema,
@@ -177,6 +179,8 @@ export interface DataPort {
   setContractorStatusWithAudit(contractorId: string, status: ContractorStatus, audit: AuditEntry): Promise<void>
   writeAudit(audit: AuditEntry): Promise<void>
   getTenant(tenantId: string): Promise<TenantData | null>
+  /** How many vehicles of the tenant use this type name (guards removing a type from the list). */
+  countVehiclesOfType(tenantId: string, type: string): Promise<number>
   getPass(passId: string): Promise<PassData | null>
   /**
    * One transaction on `passes/{passId}`: creates it (`status: submitted`) when it does not exist, or moves a
@@ -212,6 +216,8 @@ export interface DataPort {
       gates?: GateDef[]
       sla?: SlaSettings
       retentionDays?: number
+      vehicleTypes?: string[]
+      expiryWarningDays?: number
     },
     audit: AuditEntry,
   ): Promise<void>
@@ -247,6 +253,22 @@ export interface Deps {
 }
 
 // ---- Helpers -------------------------------------------------------------------------------
+
+/** Today (tenant timezone) and the warning window: what the `eligibilityStatus` of a record depends on besides its dates. */
+export interface EligibilityContext {
+  today: string
+  warningDays: number
+  tenant: TenantData | null
+}
+
+export async function eligibilityContext(deps: Deps, tenantId: string): Promise<EligibilityContext> {
+  const tenant = await deps.data.getTenant(tenantId)
+  return {
+    today: isoFromDateKey(dateKey(tenant?.timezone ?? DEFAULT_TIMEZONE, new Date(deps.now() * 1000))),
+    warningDays: warningDaysOf(tenant?.expiryWarningDays),
+    tenant,
+  }
+}
 
 export function parse<T extends z.ZodType>(schema: T, raw: unknown): z.infer<T> {
   const result = schema.safeParse(raw)
@@ -435,7 +457,7 @@ export async function createUser(deps: Deps, caller: Caller, raw: unknown): Prom
     throw fail('invalid-argument', 'invalid-input', 'contractorId is not allowed for this role')
   }
 
-  if (input.licenseNo !== undefined && input.role !== 'driver') {
+  if ((input.licenseNo !== undefined || input.licenseExpiry !== undefined) && input.role !== 'driver') {
     throw fail('invalid-argument', 'invalid-input', 'Only drivers have a licence number')
   }
 
@@ -486,7 +508,7 @@ export async function createUser(deps: Deps, caller: Caller, raw: unknown): Prom
 async function createPinUser(
   deps: Deps,
   caller: Caller,
-  input: { role: Role; name: string; email?: string | undefined; phone?: string | undefined; password?: string | undefined; licenseNo?: string | undefined },
+  input: { role: Role; name: string; email?: string | undefined; phone?: string | undefined; password?: string | undefined; licenseNo?: string | undefined; licenseExpiry?: string | undefined },
   contractorId: string | null,
 ): Promise<{ uid: string; pin: string }> {
   if (input.email !== undefined || input.password !== undefined) {
@@ -495,6 +517,7 @@ async function createPinUser(
   const role = input.role as PinIndexEntry['role']
   const phone = contactPhone(input.phone)
   const pepper = pepperOf(deps)
+  const eligibility = input.licenseExpiry ? await eligibilityContext(deps, caller.tenantId) : null
 
   let uid: string
   try {
@@ -516,6 +539,12 @@ async function createPinUser(
             phone,
             status: 'active',
             ...(input.licenseNo ? { licenseNo: input.licenseNo } : {}),
+            ...(input.licenseExpiry && eligibility
+              ? {
+                  licenseExpiry: input.licenseExpiry,
+                  eligibilityStatus: computeEligibility([input.licenseExpiry], eligibility.today, eligibility.warningDays),
+                }
+              : {}),
           }
         : undefined
     const data: UserData = {
@@ -566,8 +595,11 @@ export async function updateUser(deps: Deps, caller: Caller, raw: unknown): Prom
   const meta: AuditEntry['meta'] = {}
 
   const driverPatch: Partial<DriverData> = {}
-  if ((input.licenseNo !== undefined || input.photoPath !== undefined) && target.role !== 'driver') {
-    throw fail('invalid-argument', 'invalid-input', 'Only drivers have a licence number or photo')
+  if (
+    (input.licenseNo !== undefined || input.licenseExpiry !== undefined || input.photoPath !== undefined) &&
+    target.role !== 'driver'
+  ) {
+    throw fail('invalid-argument', 'invalid-input', 'Only drivers have a licence number, licence expiry or photo')
   }
 
   if (input.name !== undefined && input.name !== target.name) {
@@ -603,6 +635,12 @@ export async function updateUser(deps: Deps, caller: Caller, raw: unknown): Prom
   if (input.licenseNo !== undefined && (input.licenseNo ?? null) !== (driverDoc?.licenseNo ?? null)) {
     driverPatch.licenseNo = input.licenseNo
     meta.licenseNo = true
+  }
+  if (input.licenseExpiry !== undefined && (input.licenseExpiry ?? null) !== (driverDoc?.licenseExpiry ?? null)) {
+    const ctx = await eligibilityContext(deps, target.tenantId)
+    driverPatch.licenseExpiry = input.licenseExpiry
+    driverPatch.eligibilityStatus = computeEligibility([input.licenseExpiry], ctx.today, ctx.warningDays)
+    meta.licenseExpiry = true
   }
   if (input.photoPath !== undefined) {
     // Only the canonical path of this driver's own photo is accepted.

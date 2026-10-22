@@ -4,11 +4,15 @@ import { useSearchParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { DataTable, type Column } from '@/components/ui/DataTable'
+import { EligibilityBadge } from '@/components/ui/EligibilityBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
+import { FilterSelect } from '@/components/ui/FilterSelect'
 import { ListSkeleton } from '@/components/ui/Skeleton'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { ELIGIBILITY_STATUSES } from '@/lib/expiry'
 import { strings } from '@/lib/strings'
+import { eligibilityOf, useTenantDocuments } from '@/features/shared/documents'
 import { matchesSearch, usePaged } from '@/features/shared/list'
 import { ListToolbar } from '@/features/shared/ListToolbar'
 import { CapNotice, ClearFilters, ShowMore } from '@/features/shared/ListStates'
@@ -26,10 +30,13 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
   const vehicles = useVehicles(scope)
   const drivers = useDrivers(scope)
   const contractors = useContractorList(scope)
+  const { vehicleTypes } = useTenantDocuments()
 
   const [params, setParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
+  const [eligibility, setEligibility] = useState('')
+  const [type, setType] = useState('')
   const [contractorId, setContractorId] = useState(isAdmin ? (params.get('contractor') ?? '') : '')
   const [formFor, setFormFor] = useState<WithId<Vehicle> | 'new' | null>(params.get('new') ? 'new' : null)
   const [openId, setOpenId] = useState<string | null>(null)
@@ -44,13 +51,15 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
       items.filter(
         (v) =>
           (!status || v.status === status) &&
+          (!eligibility || eligibilityOf(v) === eligibility) &&
+          (!type || v.type === type) &&
           (!contractorId || v.contractorId === contractorId) &&
           matchesSearch(
             [v.plateNo, v.plateKey, v.type, v.makeModel ?? '', ...v.assignedDriverIds.map((id) => driverNames.get(id) ?? '')].join(' '),
             search,
           ),
       ),
-    [items, status, contractorId, search, driverNames],
+    [items, status, eligibility, type, contractorId, search, driverNames],
   )
   const { visible, hasMore, remaining, showMore } = usePaged(filtered)
   const opened = items.find((v) => v.id === openId) ?? null
@@ -61,6 +70,8 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
   const clear = () => {
     setSearch('')
     setStatus('')
+    setEligibility('')
+    setType('')
     setContractorId('')
   }
 
@@ -93,6 +104,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
           <span className="line-clamp-2">{v.assignedDriverIds.map((id) => driverNames.get(id) ?? strings.common.none).join(', ')}</span>
         ),
     },
+    { key: 'documents', header: t.columns.documents, cell: (v) => <EligibilityBadge status={v.eligibilityStatus} /> },
     { key: 'status', header: t.columns.status, cell: (v) => <StatusBadge status={v.status} /> },
   ]
 
@@ -152,6 +164,26 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
             {...(isAdmin
               ? { contractors: (contractors.data ?? []).map((c) => ({ id: c.id, name: c.name })), contractorId, onContractor: setContractorId }
               : {})}
+            filters={
+              <>
+                <FilterSelect label={strings.eligibility.label} value={eligibility} onChange={(e) => setEligibility(e.target.value)}>
+                  <option value="">{strings.eligibility.all}</option>
+                  {ELIGIBILITY_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {strings.eligibility[s]}
+                    </option>
+                  ))}
+                </FilterSelect>
+                <FilterSelect label={t.columns.type} value={type} onChange={(e) => setType(e.target.value)} className="max-w-48">
+                  <option value="">{strings.list.allTypes}</option>
+                  {[...new Set([...vehicleTypes, ...items.map((v) => v.type)])].map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </FilterSelect>
+              </>
+            }
             end={strings.list.count(filtered.length, items.length)}
           />
           {filtered.length === 0 ? (

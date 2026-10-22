@@ -12,6 +12,7 @@ import {
   MIN_EVIDENCE_BYTES,
   validateChecklist,
 } from './passRules.js'
+import { effectiveVehicleTypes } from './vehicleTypes.js'
 import {
   MAX_ATTEMPTS,
   resolveVehicleSchema,
@@ -332,7 +333,18 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
       throw fail('invalid-argument', 'invalid-input', 'Gate ids must be unique')
     }
   }
-  if (!(await deps.data.getTenant(caller.tenantId))) throw fail('failed-precondition', 'internal', 'Tenant not found')
+  const tenant = await deps.data.getTenant(caller.tenantId)
+  if (!tenant) throw fail('failed-precondition', 'internal', 'Tenant not found')
+  if (input.vehicleTypes) {
+    const next = new Set(input.vehicleTypes.map((t) => t.toLowerCase()))
+    if (next.size !== input.vehicleTypes.length) throw fail('invalid-argument', 'invalid-input', 'Vehicle types must be unique')
+    // Vehicles keep the type name, so a name that any vehicle still uses can be neither removed nor renamed.
+    for (const type of effectiveVehicleTypes(tenant.vehicleTypes)) {
+      if (!input.vehicleTypes.includes(type) && (await deps.data.countVehiclesOfType(caller.tenantId, type)) > 0) {
+        throw fail('failed-precondition', 'type-in-use', 'A vehicle type that vehicles use cannot be removed')
+      }
+    }
+  }
 
   await deps.data.updateTenantSettingsWithAudit(
     caller.tenantId,
@@ -343,6 +355,8 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
       ...(input.gates ? { gates: input.gates } : {}),
       ...(input.sla ? { sla: input.sla } : {}),
       ...(input.retentionDays !== undefined ? { retentionDays: input.retentionDays } : {}),
+      ...(input.vehicleTypes ? { vehicleTypes: input.vehicleTypes } : {}),
+      ...(input.expiryWarningDays !== undefined ? { expiryWarningDays: input.expiryWarningDays } : {}),
     },
     audit(
       caller,
@@ -355,6 +369,8 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
         gates: input.gates?.length ?? null,
         sla: input.sla !== undefined,
         retentionDays: input.retentionDays ?? null,
+        vehicleTypes: input.vehicleTypes?.length ?? null,
+        expiryWarningDays: input.expiryWarningDays ?? null,
         requireLocation: input.passSettings?.requireLocation ?? null,
         maxExtraPhotos: input.passSettings?.maxExtraPhotos ?? null,
       },

@@ -15,6 +15,8 @@ interface Props {
   contractors?: { id: string; name: string }[]
   contractorId?: string
   onContractor?: (v: string) => void
+  /** More filters, shown after the status filter. */
+  filters?: ReactNode
   /** Shown at the end of the row, e.g. a result count. */
   end?: ReactNode
 }
@@ -30,6 +32,7 @@ export function ListToolbar({
   contractors,
   contractorId = '',
   onContractor,
+  filters,
   end,
 }: Props) {
   return (
@@ -53,6 +56,7 @@ export function ListToolbar({
           </option>
         ))}
       </FilterSelect>
+      {filters}
       {end && <div className="ml-auto text-sm text-slate-500">{end}</div>}
     </div>
   )

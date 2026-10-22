@@ -22,6 +22,8 @@
     "../functions/src/defaultRejectionReasons.ts",
     "../functions/src/defaultSla.ts",
     "../functions/src/gates.ts",
+    "../functions/src/expiry.ts",
+    "../functions/src/vehicleTypes.ts",
     "../functions/src/pin.ts"
   ]
 }

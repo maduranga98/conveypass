@@ -296,10 +296,13 @@ export const dataPort = (): DataPort => {
           if (guard.exists && (guard.data() as { vehicleId?: string }).vehicleId !== vehicleId) throw new PlateTakenError()
         }
 
-        const { makeModel, ...rest } = patch
+        const { makeModel, insuranceExpiry, registrationExpiry, ...rest } = patch
+        const clearable = (v: string | null | undefined) => (v === null ? FieldValue.delete() : v)
         tx.update(vehicleRef, {
           ...rest,
-          ...(makeModel !== undefined ? { makeModel: makeModel === null ? FieldValue.delete() : makeModel } : {}),
+          ...(makeModel !== undefined ? { makeModel: clearable(makeModel) } : {}),
+          ...(insuranceExpiry !== undefined ? { insuranceExpiry: clearable(insuranceExpiry) } : {}),
+          ...(registrationExpiry !== undefined ? { registrationExpiry: clearable(registrationExpiry) } : {}),
           ...(moving && plate ? { plateKey: plate.plateKey } : {}),
           updatedAt: FieldValue.serverTimestamp(),
         })
@@ -320,6 +323,8 @@ export const dataPort = (): DataPort => {
       const snap = await db.doc(`tenants/${tenantId}`).get()
       return snap.exists ? (snap.data() as TenantData) : null
     },
+    countVehiclesOfType: async (tenantId, type) =>
+      (await db.collection('vehicles').where('tenantId', '==', tenantId).where('type', '==', type).count().get()).data().count,
     getPass: async (passId) => {
       const snap = await db.doc(`passes/${passId}`).get()
       return snap.exists ? toPass(snap.data() as Record<string, unknown>) : null
