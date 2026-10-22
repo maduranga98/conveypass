@@ -5,6 +5,8 @@ import { isExpiryDate, MAX_EXPIRY_WARNING_DAYS, MIN_EXPIRY_WARNING_DAYS } from '
 import { GATE_ID_PATTERN, GATE_NAME_MAX, GATE_NAME_MIN, MAX_GATES, MIN_GATES } from './gates.js'
 import { MAX_DENY_NOTE } from './denyReasons.js'
 import { SLA_MAX, SLA_MIN } from './defaultSla.js'
+import { PENALTY_ID_PATTERN } from './ids.js'
+import { PENALTY_NOTE_MAX, PENALTY_REASON_MAX, PENALTY_REASON_MIN, PENALTY_TYPE_NAME_MAX, PENALTY_TYPE_NAME_MIN } from './penaltyLogic.js'
 
 const name = z.string().trim().min(1).max(100)
 /** A calendar date, `YYYY-MM-DD`. */
@@ -326,3 +328,43 @@ export const tenantAdminTargetSchema = z.object({ tenantId: ws_id, uid: ws_id })
 export const setTenantAdminStatusSchema = tenantAdminTargetSchema.extend({ status: z.enum(['active', 'disabled']) })
 export const updateTenantAdminSchema = tenantAdminTargetSchema.extend({ name: person })
 export const getWorkspaceSchema = z.object({ tenantId: ws_id })
+
+// ---- Penalties -----------------------------------------------------------------------------
+
+const recordId = z.string().trim().min(1).max(128)
+const penaltyTypeName = z.string().trim().min(PENALTY_TYPE_NAME_MIN).max(PENALTY_TYPE_NAME_MAX)
+
+export const createPenaltyTypeSchema = z.object({ name: penaltyTypeName })
+export const updatePenaltyTypeSchema = z.object({ typeId: recordId, name: penaltyTypeName })
+export const deletePenaltyTypeSchema = z.object({ typeId: recordId })
+
+export const issuePenaltySchema = z
+  .object({
+    /** `pen_` + 10 chars, chosen by the browser so the evidence photo can be uploaded first. */
+    penaltyId: z.string().regex(PENALTY_ID_PATTERN),
+    driverId: recordId.optional(),
+    vehicleId: recordId.optional(),
+    typeId: recordId,
+    duration: z.discriminatedUnion('kind', [
+      z.object({ kind: z.literal('permanent') }),
+      /** A calendar date in the company's timezone: the penalty blocks through the end of that day. */
+      z.object({ kind: z.literal('fixed'), endDate: expiryDate }),
+    ]),
+    reason: z.string().trim().min(PENALTY_REASON_MIN).max(PENALTY_REASON_MAX),
+    hasEvidence: z.boolean().optional(),
+  })
+  .refine((v) => v.driverId !== undefined || v.vehicleId !== undefined, { message: 'target required' })
+
+export const revokePenaltySchema = z.object({
+  penaltyId: z.string().regex(PENALTY_ID_PATTERN),
+  note: z.string().trim().min(PENALTY_REASON_MIN).max(PENALTY_NOTE_MAX),
+})
+
+export const verifyPenaltySchema = z.object({
+  penaltyId: z.string().regex(PENALTY_ID_PATTERN),
+  note: z.string().trim().max(PENALTY_NOTE_MAX).optional(),
+})
+
+export const checkEligibilitySchema = z
+  .object({ vehicleId: recordId.optional(), driverId: recordId.optional() })
+  .refine((v) => v.vehicleId !== undefined || v.driverId !== undefined, { message: 'vehicleId or driverId required' })

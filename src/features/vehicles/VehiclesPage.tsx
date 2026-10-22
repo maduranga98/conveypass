@@ -12,6 +12,8 @@ import { ListSkeleton } from '@/components/ui/Skeleton'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { ELIGIBILITY_STATUSES } from '@/lib/expiry'
 import { strings } from '@/lib/strings'
+import { useBlocked } from '@/features/penalties/feed'
+import { BlockedBadge } from '@/features/penalties/PenaltyBadges'
 import { eligibilityOf, useTenantDocuments } from '@/features/shared/documents'
 import { matchesSearch, usePaged } from '@/features/shared/list'
 import { ListToolbar } from '@/features/shared/ListToolbar'
@@ -29,6 +31,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
   const { isAdmin } = useScope(scope)
   const vehicles = useVehicles(scope)
   const drivers = useDrivers(scope)
+  const blocked = useBlocked(scope)
   const contractors = useContractorList(scope)
   const { vehicleTypes } = useTenantDocuments()
 
@@ -104,7 +107,17 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
           <span className="line-clamp-2">{v.assignedDriverIds.map((id) => driverNames.get(id) ?? strings.common.none).join(', ')}</span>
         ),
     },
-    { key: 'documents', header: t.columns.documents, cell: (v) => <EligibilityBadge status={v.eligibilityStatus} /> },
+    {
+      key: 'documents',
+      header: t.columns.documents,
+      cell: (v) => (
+        <span className="flex flex-col items-end gap-1 md:items-start">
+          {/* A penalty overrides the document status: blocked is shown first, the document status stays visible beside it. */}
+          {blocked.vehicles.has(v.id) && <BlockedBadge />}
+          <EligibilityBadge status={v.eligibilityStatus} />
+        </span>
+      ),
+    },
     { key: 'status', header: t.columns.status, cell: (v) => <StatusBadge status={v.status} /> },
   ]
 

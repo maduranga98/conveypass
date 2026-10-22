@@ -136,6 +136,16 @@ beforeEach(async () => {
     await setDoc(doc(db, 'platformAuditLog', 'p1'), { actorUid: 'op1', action: 'invite.created', targetRef: 'abcdef12', meta: {}, createdAt: when })
     await setDoc(doc(db, 'setupInvites', 'c'.repeat(64)), { createdAt: when, expiresAt: when, claimedAt: null, claimId: null, usedAt: null, tenantId: null })
     await setDoc(doc(db, 'gateEvents', 'den_platform'), { tenantId: 'tenantC', vehicleId: 'veh_c1', at: when })
+    // Penalties: one per contractor of tenant A, one in tenant B; types of both tenants.
+    for (const [id, tenantId, contractorId] of [['pen_c1', A, 'c1'], ['pen_c2', A, 'c2'], ['pen_b1', B, 'cB']] as const) {
+      await setDoc(doc(db, 'penalties', id), {
+        tenantId, contractorId, target: { driverId: null, vehicleId: 'veh_a1' }, typeId: 'pty_1', typeName: 'Damage', duration: { kind: 'permanent' },
+        issuedBy: { uid: 'safA', name: 'S', role: 'safety' }, issuedAt: when, reason: 'Reason', evidencePhotoPath: null, status: 'active',
+        verification: { verifiedBy: null, verifiedByName: null, verifiedAt: null, verificationNote: null },
+      })
+    }
+    await setDoc(doc(db, 'penaltyTypes', 'pty_a'), { tenantId: A, name: 'Damage', nameKey: 'damage', createdBy: 'adminA' })
+    await setDoc(doc(db, 'penaltyTypes', 'pty_b'), { tenantId: B, name: 'Damage', nameKey: 'damage', createdBy: 'adminB' })
     await setDoc(doc(db, 'auditLog', 'a2'), { tenantId: A, action: 'pass.submit', actorUid: 'drvA1', targetType: 'pass', createdAt: when })
   })
 })
@@ -875,11 +885,11 @@ describe('setupInvites (Module 8)', () => {
 
 describe('platform operators (Module 9)', () => {
   const operator = () => as('op1', { role: 'platform', platformAdmin: true, email_verified: true })
-  const COLLECTIONS = ['tenants', 'users', 'contractors', 'vehicles', 'drivers', 'vehiclePlates', 'passes', 'gateEvents', 'auditLog', 'notifications', 'rateLimits', 'setupInvites', 'operators', 'platformAuditLog'] as const
+  const COLLECTIONS = ['tenants', 'users', 'contractors', 'vehicles', 'drivers', 'vehiclePlates', 'passes', 'gateEvents', 'auditLog', 'notifications', 'rateLimits', 'setupInvites', 'operators', 'platformAuditLog', 'penalties', 'penaltyTypes'] as const
   const KNOWN_DOCS: Record<string, string[]> = {
     tenants: [A, B], users: ['adminA', 'drvA1', 'op1'], contractors: ['c1'], vehicles: ['veh_a1'], drivers: ['drvA1'],
     vehiclePlates: [`${A}_WPLJ4821`], passes: ['veh_a1_20260310'], gateEvents: ['den_platform'], auditLog: ['a1'], notifications: ['n_drv'],
-    rateLimits: ['drvA1_createUser'], setupInvites: ['c'.repeat(64)], operators: ['op1'], platformAuditLog: ['p1'],
+    rateLimits: ['drvA1_createUser'], setupInvites: ['c'.repeat(64)], operators: ['op1'], platformAuditLog: ['p1'], penalties: ['pen_c1'], penaltyTypes: ['pty_a'],
   }
 
   it('is denied on every collection: single reads (even of its own uid), lists, tenant-filtered queries and writes', async () => {
@@ -927,5 +937,56 @@ describe('platform operators (Module 9)', () => {
   it('tenant users still read their own profile (the self-read rule needs a tenantId, which they all have)', async () => {
     await assertSucceeds(getDoc(doc(drvA1(), 'users', 'drvA1')))
     await assertSucceeds(getDoc(doc(adminA(), 'users', 'adminA')))
+  })
+})
+
+describe('penalties and penalty types', () => {
+  const sameTenantQuery = (db: ReturnType<typeof adminA>) => getDocs(query(collection(db, 'penalties'), where('tenantId', '==', A)))
+  const own = (db: ReturnType<typeof adminA>) => getDocs(query(collection(db, 'penalties'), where('tenantId', '==', A), where('contractorId', '==', 'c1')))
+
+  it('admin and Safety Officer read every penalty of their company, and nothing of another', async () => {
+    for (const db of [adminA(), safetyA()]) {
+      expect((await assertSucceeds(sameTenantQuery(db))).docs.map((d) => d.id).sort()).toEqual(['pen_c1', 'pen_c2'])
+      await assertSucceeds(getDoc(doc(db, 'penalties', 'pen_c2')))
+      await assertFails(getDoc(doc(db, 'penalties', 'pen_b1')))
+      await assertFails(getDocs(query(collection(db, 'penalties'), where('tenantId', '==', B))))
+    }
+  })
+
+  it('a supervisor reads only their own contractor’s penalties; the query must carry the contractor', async () => {
+    const db = supA1()
+    expect((await assertSucceeds(own(db))).docs.map((d) => d.id)).toEqual(['pen_c1'])
+    await assertSucceeds(getDoc(doc(db, 'penalties', 'pen_c1')))
+    await assertFails(getDoc(doc(db, 'penalties', 'pen_c2')))
+    await assertFails(sameTenantQuery(db))
+    await assertSucceeds(getDocs(query(collection(db, 'penalties'), where('tenantId', '==', A), where('contractorId', '==', 'c1'), where('verification.verifiedBy', '==', null))))
+  })
+
+  it('officer, security, drivers and signed-out users have no access at all', async () => {
+    for (const db of [officerA(), securityA(), drvA1(), env.unauthenticatedContext().firestore()]) {
+      await assertFails(getDoc(doc(db, 'penalties', 'pen_c1')))
+      await assertFails(sameTenantQuery(db))
+      await assertFails(getDoc(doc(db, 'penaltyTypes', 'pty_a')))
+    }
+  })
+
+  it('nobody writes a penalty or a type from a client, admins included (callables only)', async () => {
+    for (const db of [adminA(), safetyA(), supA1(), securityA()]) {
+      await assertFails(addDoc(collection(db, 'penalties'), { tenantId: A, contractorId: 'c1', status: 'active' }))
+      await assertFails(setDoc(doc(db, 'penalties', 'pen_new'), { tenantId: A, contractorId: 'c1', status: 'active' }))
+      await assertFails(updateDoc(doc(db, 'penalties', 'pen_c1'), { status: 'revoked' }))
+      await assertFails(updateDoc(doc(db, 'penalties', 'pen_c1'), { 'verification.verifiedBy': 'supA1' }))
+      await assertFails(deleteDoc(doc(db, 'penalties', 'pen_c1')))
+      await assertFails(addDoc(collection(db, 'penaltyTypes'), { tenantId: A, name: 'x' }))
+      await assertFails(updateDoc(doc(db, 'penaltyTypes', 'pty_a'), { name: 'x' }))
+      await assertFails(deleteDoc(doc(db, 'penaltyTypes', 'pty_a')))
+    }
+  })
+
+  it('admin, Safety Officer and supervisor read their company’s penalty types, and no other company’s', async () => {
+    for (const db of [adminA(), safetyA(), supA1()]) {
+      expect((await assertSucceeds(getDocs(query(collection(db, 'penaltyTypes'), where('tenantId', '==', A))))).size).toBe(1)
+      await assertFails(getDoc(doc(db, 'penaltyTypes', 'pty_b')))
+    }
   })
 })

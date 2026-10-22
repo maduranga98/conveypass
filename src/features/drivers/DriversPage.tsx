@@ -1,4 +1,4 @@
-import { KeyRound, Pause, Pencil, Play, Plus, Users } from 'lucide-react'
+import { Eye, KeyRound, Pause, Pencil, Play, Plus, Users } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -21,6 +21,8 @@ import { strings } from '@/lib/strings'
 import { eligibilityOf } from '@/features/shared/documents'
 import { ReissuePinDialog, type ReissueTarget } from '@/features/admin/ReissuePinDialog'
 import { LastSignIn } from '@/features/admin/LastSignIn'
+import { useBlocked } from '@/features/penalties/feed'
+import { BlockedBadge } from '@/features/penalties/PenaltyBadges'
 import { useSession } from '@/features/auth/useAuth'
 import { matchesSearch, usePaged } from '@/features/shared/list'
 import { ListToolbar } from '@/features/shared/ListToolbar'
@@ -29,6 +31,7 @@ import { useContractorList, useDriverAccounts, useDrivers, useVehicles } from '@
 import { useScope, type Scope } from '@/features/shared/scope'
 import type { Driver, Vehicle, WithId } from '@/types'
 import { DriverAvatar } from './DriverAvatar'
+import { DriverDrawer } from './DriverDrawer'
 import { DriverFormModal } from './DriverForm'
 
 const t = strings.drivers
@@ -41,6 +44,7 @@ export default function DriversPage({ scope }: { scope: Scope }) {
   const vehicles = useVehicles(scope)
   const contractors = useContractorList(scope)
   const accounts = useDriverAccounts(scope)
+  const blocked = useBlocked(scope)
 
   const [params, setParams] = useSearchParams()
   const [search, setSearch] = useState('')
@@ -50,6 +54,7 @@ export default function DriversPage({ scope }: { scope: Scope }) {
   const [formFor, setFormFor] = useState<WithId<Driver> | 'new' | null>(params.get('new') ? 'new' : null)
   const [reissuing, setReissuing] = useState<ReissueTarget | null>(null)
   const [toggling, setToggling] = useState<WithId<Driver> | null>(null)
+  const [detailId, setDetailId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   const items = useMemo(() => drivers.data?.items ?? [], [drivers.data])
@@ -145,6 +150,8 @@ export default function DriversPage({ scope }: { scope: Scope }) {
       header: t.columns.documents,
       cell: (d) => (
         <span className="flex flex-col items-end gap-0.5 md:items-start">
+          {/* A penalty overrides the document status: blocked is shown first, the licence status stays visible. */}
+          {blocked.drivers.has(d.id) && <BlockedBadge />}
           <EligibilityBadge status={d.eligibilityStatus} />
           {d.licenseExpiry && <span className="font-mono text-xs text-slate-500">{d.licenseExpiry}</span>}
         </span>
@@ -166,6 +173,9 @@ export default function DriversPage({ scope }: { scope: Scope }) {
     const label = disabling ? t.disable : t.enable
     return (
       <div className="inline-flex gap-1">
+        <Button variant="ghost" size="icon" title={t.details} aria-label={`${t.details}: ${d.name}`} onClick={() => setDetailId(d.id)}>
+          <Eye aria-hidden className="size-4" />
+        </Button>
         <Button variant="ghost" size="icon" title={strings.common.edit} aria-label={`${strings.common.edit}: ${d.name}`} onClick={() => setFormFor(d)}>
           <Pencil aria-hidden className="size-4" />
         </Button>
@@ -245,6 +255,7 @@ export default function DriversPage({ scope }: { scope: Scope }) {
         </>
       )}
 
+      <DriverDrawer scope={scope} driver={items.find((d) => d.id === detailId) ?? null} contractorName={contractorNames.get(items.find((d) => d.id === detailId)?.contractorId ?? '')} onClose={() => setDetailId(null)} />
       <DriverFormModal scope={scope} target={formFor} onClose={closeForm} />
       <ReissuePinDialog target={reissuing} onClose={() => setReissuing(null)} />
       <ConfirmDialog

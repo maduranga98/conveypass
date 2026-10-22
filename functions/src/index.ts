@@ -9,6 +9,8 @@ import { handleCspReport } from './cspReport.js'
 import * as devices from './devices.js'
 import * as gate from './gate.js'
 import * as passes from './passes.js'
+import * as penalties from './penalties.js'
+import * as eligibilityCheck from './checkEligibility.js'
 import * as reportsApi from './reportsApi.js'
 import { devicePort } from './notifyPorts.js'
 import { clientIpOf, operatorCallable, callable, publicCallable, runOperatorCall } from './runtime.js'
@@ -92,12 +94,22 @@ export const revokePass = callable('revokePass', approvals.revokePass)
 export const checkIn = callable('checkIn', gate.checkIn, { warm: true })
 export const denyEntry = callable('denyEntry', gate.denyEntry)
 
+// Penalties and suspensions: issue (admin, Safety Officer), revoke (admin), verify (supervisor), types (admin). Clients
+// only read these collections; `checkEligibility` is the live check the gate and trip assignment share.
+export const createPenaltyType = callable('createPenaltyType', penalties.createPenaltyType)
+export const updatePenaltyType = callable('updatePenaltyType', penalties.updatePenaltyType)
+export const deletePenaltyType = callable('deletePenaltyType', penalties.deletePenaltyType)
+export const issuePenalty = callable('issuePenalty', penalties.issuePenalty, { rateLimit: true })
+export const revokePenalty = callable('revokePenalty', penalties.revokePenalty)
+export const verifyPenalty = callable('verifyPenalty', penalties.verifyPenalty)
+export const checkEligibility = callable('checkEligibility', eligibilityCheck.checkEligibility, { warm: true })
+
 // Module 6: dashboard trend and reports (admin and officer, read only).
 export const getDashboardTrend = callable('getDashboardTrend', reportsApi.getDashboardTrend, { timeoutSeconds: 60 })
 export const runReport = callable('runReport', (d, c, data) => reportsApi.runReport(d, c, data), { timeoutSeconds: 300, memory: '1GiB' })
 
 // Module 7: notifications. Triggers (passes, gateEvents) and the SLA schedule live in notificationTriggers.ts.
-export { onGateEventCreated, onPassWritten, purgeOldEvidenceDaily as purgeOldEvidence, recomputeEligibilityDaily as recomputeEligibility, slaReminders } from './notificationTriggers.js'
+export { onGateEventCreated, onPassWritten, purgeOldEvidenceDaily as purgeOldEvidence, expirePenaltiesHourly as expirePenalties, recomputeEligibilityDaily as recomputeEligibility, slaReminders } from './notificationTriggers.js'
 export const registerDevice = callable(
   'registerDevice',
   (d, caller, data, meta) => devices.registerDevice(d, devicePort(), caller, data, meta),

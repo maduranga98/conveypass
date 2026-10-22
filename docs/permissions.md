@@ -46,6 +46,24 @@ Matrix keys: `vehicle.view`, `vehicle.manage`, `driver.view`, `vehicleType.manag
 
 Document status (`eligibilityStatus`: `valid`, `expiringSoon`, `expired`) is derived from the expiry dates, today in the company's timezone and the warning window (default 14 days, set in Settings). It is written by the callables when a date changes and refreshed every night at 00:10 (Colombo) by `recomputeEligibility`. A record with no dates counts as valid. Other modules combine it with their own checks; this module does not block passes on it.
 
+## Penalties and suspensions
+
+| Action | Super admin | Admin | Officer | Supervisor | Safety | Security | Driver |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Issue a penalty (driver, vehicle or both; takes effect at once) | | yes | | | yes | | |
+| Revoke a penalty | | yes | | | | | |
+| Confirm a penalty was reviewed (add a note) | | | | own contractor | | | |
+| View penalties, penalty history, photo evidence | | yes | | own contractor | yes | | |
+| Manage the penalty types list | | yes | | | | | |
+| View the penalty types list | | yes | | yes | yes | | |
+| Run the live eligibility check (`checkEligibility`) | | yes | yes | own contractor | yes | yes | |
+
+Matrix keys: `penalty.view`, `penalty.issue`, `penalty.revoke`, `penalty.verify`, `penaltyType.view`, `penaltyType.manage`, `eligibility.check`. Enforcement: clients only read `penalties` and `penaltyTypes` (Firestore rules: admin and Safety Officer the whole company, a supervisor only their contractor's penalties; officer, security and drivers have no direct access); every change is a callable (`issuePenalty`, `revokePenalty`, `verifyPenalty`, `createPenaltyType`, `updatePenaltyType`, `deletePenaltyType`) that re-checks role, tenant and, for supervisors, contractor. Penalty photos live at `tenants/{tenantId}/penalties/{penaltyId}/evidence.jpg`: written by admin or Safety Officer before the penalty exists (never replaced afterwards), read by admin, Safety Officer and the supervisor of that contractor only.
+
+**A penalty applies immediately.** Supervisor review is a confirmation after the fact (“I have seen this”), never an approval: it does not change whether the penalty blocks. Only an admin revokes. A fixed penalty blocks through the end of its last day (company timezone) and an hourly job then flips it to `expired`; the live check ignores a penalty whose last day has passed even before the job runs.
+
+**Eligibility.** `checkEligibility({ vehicleId?, driverId? })` returns `status` = `blocked` when any active penalty names the vehicle or the driver (a penalty on both applies to each side), otherwise the worst live document status (`expired` > `expiringSoon` > `valid`), plus per-record details. It never returns a penalty's reason, issuer or photo. The gate (`checkIn`) and the vehicle-driver assignment (`setVehicleDrivers`) call the same service, `evaluateEligibility`; the future trip-assignment and gate-scan modules should too.
+
 ## Areas (route guards)
 
 | Area | Who may open it |
@@ -62,4 +80,4 @@ Anyone else gets the 403 page; a signed-out visitor goes to the matching sign-in
 
 ## Later modules
 
-The Safety Officer shell is an empty dashboard. Inspections, violations, penalties and suspensions (and the Supervisor's after-the-fact verification), penalty types, compliance document rules and the Supervisor's trip assignment are not built. When they are, add their actions to `PERMISSIONS` (both copies) and this document, instead of adding role checks elsewhere.
+Inspections, violations, compliance document rules and the Supervisor's trip assignment are not built. When they are, add their actions to `PERMISSIONS` (both copies) and this document, instead of adding role checks elsewhere.

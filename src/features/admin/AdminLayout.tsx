@@ -1,4 +1,4 @@
-import { Building2, ClipboardList, FileBarChart, History, LayoutDashboard, LogOut, Menu, QrCode, Settings, Truck, UserRound, Users, X } from 'lucide-react'
+import { Building2, ClipboardList, FileBarChart, History, LayoutDashboard, LogOut, Menu, QrCode, Settings, ShieldAlert, Tags, Truck, UserRound, Users, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { BrandMark } from '@/components/BrandMark'
@@ -16,6 +16,8 @@ const nav = [
   { to: '/admin/vehicles', label: strings.admin.nav.vehicles, icon: Truck },
   { to: '/admin/drivers', label: strings.admin.nav.drivers, icon: UserRound },
   { to: '/admin/passes', label: strings.admin.nav.passes, icon: ClipboardList },
+  { to: '/admin/penalties', label: strings.admin.nav.penalties, icon: ShieldAlert },
+  { to: '/admin/penalty-types', label: strings.admin.nav.penaltyTypes, icon: Tags },
   { to: '/admin/reports', label: strings.admin.nav.reports, icon: FileBarChart },
   { to: '/admin/audit', label: strings.audit.nav, icon: History },
   { to: '/admin/qr', label: strings.admin.nav.qr, icon: QrCode },

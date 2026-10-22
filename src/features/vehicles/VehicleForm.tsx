@@ -17,6 +17,7 @@ import { useContractorList, useDrivers } from '@/features/shared/queries'
 import { useScope, type Scope } from '@/features/shared/scope'
 import type { Vehicle, WithId } from '@/types'
 import { assignableDrivers } from './assignable'
+import { useBlocked } from '@/features/penalties/feed'
 import { DriverPicker } from './DriverPicker'
 import { vehicleFieldsSchemaFor } from './schemas'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
@@ -56,6 +57,8 @@ function VehicleForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'
   const { isAdmin, contractorId: ownContractorId } = useScope(scope)
   const contractors = useContractorList(scope)
   const drivers = useDrivers(scope)
+  const blocked = useBlocked(scope)
+  const blockedDrivers = useMemo(() => new Set(blocked.drivers.keys()), [blocked.drivers])
   const { vehicleTypes } = useTenantDocuments()
   const existing = target === 'new' ? null : target
   const [formError, setFormError] = useState<string | null>(null)
@@ -208,7 +211,7 @@ function VehicleForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'
         control={control}
         name="driverIds"
         render={({ field }) => (
-          <DriverPicker drivers={allDrivers} contractorId={effectiveContractor} value={field.value} onChange={field.onChange} disabled={drivers.isPending} />
+          <DriverPicker drivers={allDrivers} contractorId={effectiveContractor} value={field.value} onChange={field.onChange} disabled={drivers.isPending} blockedIds={blockedDrivers} />
         )}
       />
 
