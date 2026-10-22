@@ -5,6 +5,7 @@ import { isSessionExpired, reportSessionExpired } from './sessionEvents'
 import type { ChecklistItemDef, PassSettings } from './defaultChecklist'
 import type { RejectionReasonDef } from './defaultRejectionReasons'
 import type { GateDef } from './gates'
+import type { EligibilityResult, IssuePenaltyPayload } from '@/types/penalties'
 import type { ReportRequest, ReportResult, TrendResult } from '@/types/reports'
 import type { SlaSettings } from './defaultSla'
 import type { CreatedInvite, InviteRow, InviteStatus, OperatorOverview, TenantRow, WorkspaceCredentials, WorkspaceDetail } from '@/types/platform'
@@ -180,3 +181,17 @@ export const resetTenantAdminCredential = call<{ tenantId: string; uid: string }
 export const setTenantAdminStatus = call<{ tenantId: string; uid: string; status: 'active' | 'disabled' }, { ok: true }>('setTenantAdminStatus', 30_000)
 export const updateTenantAdmin = call<{ tenantId: string; uid: string; name: string }, { ok: true }>('updateTenantAdmin', 30_000)
 export const getWorkspace = call<{ tenantId: string }, WorkspaceDetail>('getWorkspace', 30_000)
+
+// ---- Penalties and suspensions ------------------------------------------------------------------
+
+export const createPenaltyType = call<{ name: string }, { typeId: string }>('createPenaltyType')
+export const updatePenaltyType = call<{ typeId: string; name: string }, { ok: true }>('updatePenaltyType')
+export const deletePenaltyType = call<{ typeId: string }, { ok: true }>('deletePenaltyType')
+/** Admin or Safety Officer. The penalty is in force the moment this returns. A retry with the same `penaltyId` is safe. */
+export const issuePenalty = call<IssuePenaltyPayload, { penaltyId: string; created: boolean }>('issuePenalty', 60_000)
+/** Admin only. */
+export const revokePenalty = call<{ penaltyId: string; note: string }, { ok: true }>('revokePenalty')
+/** Supervisor, own contractor: confirms the penalty was reviewed. It does not change whether the penalty applies. */
+export const verifyPenalty = call<{ penaltyId: string; note?: string }, { ok: true }>('verifyPenalty')
+/** The live check shared by the gate and trip assignment: documents + active penalties. */
+export const checkEligibility = call<{ vehicleId?: string; driverId?: string }, EligibilityResult>('checkEligibility')

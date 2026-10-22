@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Deny by default. Roles/tenant come ONLY from custom claims (set by Cloud Functions).
-// `operators`, `platformAuditLog`, `setupInvites` (no client access at all), `users`, `tenants`, `auditLog`, `vehicles`, `drivers`, `vehiclePlates`, `passes` and `gateEvents` are never client-writable
+// `operators`, `platformAuditLog`, `setupInvites` (no client access at all), `users`, `tenants`, `auditLog`, `vehicles`, `drivers`, `vehiclePlates`, `passes`, `gateEvents`, `penalties` and `penaltyTypes` are never client-writable
 // (`notifications` accept one client write: `readAt` on your own); `users/*/devices` and `rateLimits` are closed;
 // Cloud Functions use the Admin SDK. `contractors` accept admin writes to descriptive fields only.
 service cloud.firestore {
@@ -122,6 +122,24 @@ service cloud.firestore {
     // log; security writes through the callable and, like supervisors and drivers, has no direct access.
     match /gateEvents/{id} {
       allow read: if signedIn() && role() in ['admin', 'officer'] && sameTenant(resource.data);
+      allow write: if false;
+    }
+
+    // Penalties and suspensions: written only by the callables (issuePenalty, revokePenalty, verifyPenalty, the scheduled
+    // expiry). Admin and Safety Officer read the whole company; a supervisor only their own contractor's (queries carry
+    // the same tenantId + contractorId clauses). Officer, security and drivers have no direct access: the gate and the
+    // assignment screens go through the `checkEligibility` callable.
+    match /penalties/{id} {
+      allow read: if signedIn() && sameTenant(resource.data) && (
+        role() in ['admin', 'safety']
+        || (role() == 'supervisor' && contractorId() != null && resource.data.contractorId == contractorId())
+      );
+      allow write: if false;
+    }
+
+    // The company's own penalty type list (no seeded list). Callables write; the roles that work with penalties read.
+    match /penaltyTypes/{id} {
+      allow read: if signedIn() && sameTenant(resource.data) && role() in ['admin', 'safety', 'supervisor'];
       allow write: if false;
     }
 

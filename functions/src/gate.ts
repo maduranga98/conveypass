@@ -1,5 +1,6 @@
 // Module 5: the gate. Security reads passes, vehicles, drivers and contractors directly from Firestore; the only
 // writes are these two callables. The server decides what "today" is and re-checks everything that blocks entry.
+import { evaluateEligibility } from './checkEligibility.js'
 import { audit as makeAudit, parse, requireActiveCaller, type CheckInPlan, type DecisionContext, type Deps } from './core.js'
 import { dateKey as computeDateKey, DEFAULT_TIMEZONE, isValidTimezone } from './dates.js'
 import { DENY_OTHER_ID, DENY_REASONS, MIN_DENY_NOTE } from './denyReasons.js'
@@ -69,6 +70,8 @@ interface CheckInInput {
   day: string
   offline: boolean
   nowMs: number
+  /** An active penalty blocks the vehicle or the driver (the shared eligibility check, evaluated just before the transaction). */
+  penaltyBlocked?: boolean
 }
 
 /** Pure: decides a check-in from what the transaction read. Throws HttpsError to refuse. */
@@ -106,6 +109,8 @@ export function planCheckIn(i: CheckInInput, ctx: DecisionContext | null): Check
   if (!ctx.contractor || ctx.contractor.tenantId !== tenantId || ctx.contractor.status !== 'active') {
     throw fail('failed-precondition', 'contractor-suspended', 'This contractor is suspended')
   }
+  // Penalties (suspensions) override a valid, approved pass.
+  if (i.penaltyBlocked) throw fail('failed-precondition', 'penalty-blocked', 'This vehicle or driver is suspended by a penalty')
 
   const checkIn: CheckInStamp = {
     uid: i.caller.uid,
@@ -144,13 +149,21 @@ export async function checkIn(deps: Deps, caller: Caller, raw: unknown): Promise
   const nowMs = deps.now() * 1000
   const { day, offline } = checkInDay(timezoneOf(tenant), nowMs, input.offlineCapturedAt)
 
+  // The live penalty check (shared `evaluateEligibility`): only for a pass that could be let in, so a replayed or
+  // already checked-in request is answered exactly as before.
+  const pass = await deps.data.getPass(input.passId)
+  const penaltyBlocked =
+    pass !== null && pass.tenantId === caller.tenantId && pass.status === 'officer_approved'
+      ? (await evaluateEligibility(deps, caller.tenantId, { vehicleId: pass.vehicleId, driverId: pass.driverId })).blocked
+      : false
+
   const done = await deps.data.checkInTx({
     passId: input.passId,
     plan: (ctx) =>
       planCheckIn(
         {
           caller, actorName: actor.name, passId: input.passId, expectedAttempt: input.expectedAttempt, gate,
-          requestId: input.requestId, offlineCapturedAt: input.offlineCapturedAt, day, offline, nowMs,
+          requestId: input.requestId, offlineCapturedAt: input.offlineCapturedAt, day, offline, nowMs, penaltyBlocked,
         },
         ctx,
       ),

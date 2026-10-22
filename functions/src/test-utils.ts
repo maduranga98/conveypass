@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 // In-memory fakes for the ports, shared by the function tests. Not part of the build (see tsconfig.json).
-import { PinTakenError, PlateTakenError, VehicleIdTakenError, type Deps } from './core.js'
+import { PenaltyTypeExistsError, PenaltyTypeInUseError, PenaltyTypeLimitError, PinTakenError, PlateTakenError, VehicleIdTakenError, type Deps } from './core.js'
 import { generatePin } from './pin.js'
 import { planSubmit } from './passRules.js'
 import type {
@@ -11,6 +11,8 @@ import type {
   DriverData,
   GateEventData,
   PassData,
+  PenaltyData,
+  PenaltyTypeData,
   PinIndexEntry,
   StoredFile,
   TenantData,
@@ -62,6 +64,8 @@ export interface World {
   tenants: Map<string, TenantData>
   passes: Map<string, PassData>
   gateEvents: Map<string, GateEventData>
+  penalties: Map<string, PenaltyData>
+  penaltyTypes: Map<string, PenaltyTypeData>
   /** Storage objects by full path. */
   files: Map<string, StoredFile>
   audits: AuditEntry[]
@@ -88,6 +92,8 @@ export function makeWorld(): World {
     tenants: new Map(),
     passes: new Map(),
     gateEvents: new Map(),
+    penalties: new Map(),
+    penaltyTypes: new Map(),
     files: new Map(),
     audits: [],
     revoked: [],
@@ -205,6 +211,52 @@ export function makeWorld(): World {
         w.audits.push(audit)
       },
       getTenant: async (id) => w.tenants.get(id) ?? null,
+      getPenaltyType: async (id) => structuredClone(w.penaltyTypes.get(id) ?? null),
+      createPenaltyTypeTx: async ({ typeId, data, max, audit }) => {
+        const mine = [...w.penaltyTypes.values()].filter((t) => t.tenantId === data.tenantId)
+        if (mine.some((t) => t.nameKey === data.nameKey)) throw new PenaltyTypeExistsError()
+        if (mine.length >= max) throw new PenaltyTypeLimitError()
+        w.penaltyTypes.set(typeId, structuredClone(data))
+        w.audits.push(audit)
+      },
+      renamePenaltyTypeTx: async ({ typeId, tenantId, name, nameKey, audit }) => {
+        const clash = [...w.penaltyTypes.entries()].some(([id, t]) => id !== typeId && t.tenantId === tenantId && t.nameKey === nameKey)
+        if (clash) throw new PenaltyTypeExistsError()
+        w.penaltyTypes.set(typeId, { ...(w.penaltyTypes.get(typeId) as PenaltyTypeData), name, nameKey })
+        w.audits.push(audit)
+      },
+      deletePenaltyTypeTx: async ({ typeId, tenantId, audit }) => {
+        if ([...w.penalties.values()].some((p) => p.tenantId === tenantId && p.typeId === typeId)) throw new PenaltyTypeInUseError()
+        w.penaltyTypes.delete(typeId)
+        w.audits.push(audit)
+      },
+      getPenalty: async (id) => structuredClone(w.penalties.get(id) ?? null),
+      createPenaltyTx: async ({ penaltyId, penalty, audit }) => {
+        const existing = w.penalties.get(penaltyId)
+        if (existing) return { created: false, penalty: structuredClone(existing) }
+        w.penalties.set(penaltyId, structuredClone(penalty))
+        w.audits.push(audit)
+        return { created: true, penalty }
+      },
+      updatePenaltyTx: async ({ penaltyId, plan }) => {
+        const current = structuredClone(w.penalties.get(penaltyId) ?? null)
+        const planned = plan(current)
+        const next = { ...(current as PenaltyData), ...planned.patch }
+        w.penalties.set(penaltyId, next)
+        w.audits.push(planned.audit)
+        return next
+      },
+      listActivePenalties: async ({ tenantId, vehicleId, driverId }) =>
+        [...w.penalties.entries()]
+          .filter(
+            ([, p]) =>
+              p.tenantId === tenantId &&
+              p.status === 'active' &&
+              (vehicleId === undefined && driverId === undefined
+                ? true
+                : (vehicleId !== undefined && p.target.vehicleId === vehicleId) || (driverId !== undefined && p.target.driverId === driverId)),
+          )
+          .map(([id, p]) => ({ ...structuredClone(p), id })),
       countVehiclesOfType: async (tenantId, type) =>
         [...w.vehicles.values()].filter((v) => v.tenantId === tenantId && v.type === type).length,
       getPass: async (id) => structuredClone(w.passes.get(id) ?? null),

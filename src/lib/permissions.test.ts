@@ -34,6 +34,24 @@ describe('permissions matrix', () => {
     expect(web.canCreateRole('admin', 'admin')).toBe(false)
   })
 
+  it('gives penalties to the right roles: admin and Safety Officer issue, only admin revokes, only supervisors verify', () => {
+    expect(web.rolesFor('penalty.issue').sort()).toEqual(['admin', 'safety'])
+    expect(web.rolesFor('penalty.revoke')).toEqual(['admin'])
+    expect(web.rolesFor('penalty.verify')).toEqual(['supervisor'])
+    expect(web.rolesFor('penaltyType.manage')).toEqual(['admin'])
+    expect(web.rolesFor('penalty.view').sort()).toEqual(['admin', 'safety', 'supervisor'])
+    expect(web.rolesFor('penaltyType.view').sort()).toEqual(['admin', 'safety', 'supervisor'])
+    // Security and drivers never open the penalty screens; security only consumes the eligibility check.
+    for (const role of ['security', 'driver', 'officer'] as const) {
+      for (const action of ['penalty.view', 'penalty.issue', 'penalty.revoke', 'penalty.verify', 'penaltyType.manage'] as const) {
+        expect(web.can(role, action)).toBe(false)
+      }
+    }
+    expect(web.can('security', 'eligibility.check')).toBe(true)
+    expect(web.can('driver', 'eligibility.check')).toBe(false)
+    expect(web.can('superadmin', 'penalty.issue')).toBe(false)
+  })
+
   it('denies unknown principals', () => {
     expect(web.can(null, 'account.view')).toBe(false)
     expect(web.can(undefined, 'account.view')).toBe(false)

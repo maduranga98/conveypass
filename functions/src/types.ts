@@ -1,6 +1,7 @@
 import type { SlaSettings } from './defaultSla.js'
 import type { EligibilityStatus } from './expiry.js'
 import type { GateDef } from './gates.js'
+import type { PenaltyDurationMs, PenaltyStatus, PenaltyTarget } from './penaltyLogic.js'
 
 export const ROLES = ['admin', 'officer', 'supervisor', 'safety', 'driver', 'security'] as const
 export type Role = (typeof ROLES)[number]
@@ -101,7 +102,7 @@ export interface AuditEntry {
   actorRole: Role | 'system' | 'superadmin'
   /** Display name of a non-tenant actor (`ConvoyPass Super Admin`): the tenant's admins cannot read `operators`. */
   actorName?: string
-  targetType: 'user' | 'vehicle' | 'contractor' | 'tenant' | 'pass' | 'gateEvent' | 'notification'
+  targetType: 'user' | 'vehicle' | 'contractor' | 'tenant' | 'pass' | 'gateEvent' | 'notification' | 'penalty' | 'penaltyType'
   targetId: string
   meta: Record<string, string | number | boolean | null>
 }
@@ -304,4 +305,49 @@ export interface StoredFile {
   timeCreated: number
   /** First bytes of the object. */
   head: Uint8Array
+}
+
+// ---- Penalties and suspensions ---------------------------------------------------------------
+
+export type { PenaltyStatus, PenaltyTarget }
+
+/** `penaltyTypes/{id}`: a per-company, admin-managed list. There is no seeded list. */
+export interface PenaltyTypeData {
+  tenantId: string
+  name: string
+  /** Lower-cased, single-spaced name: uniqueness is checked on this. */
+  nameKey: string
+  createdBy: string
+}
+
+export interface PenaltyVerification {
+  verifiedBy: string | null
+  verifiedByName: string | null
+  /** Milliseconds since epoch (the data port converts). */
+  verifiedAt: number | null
+  verificationNote: string | null
+}
+
+/** `penalties/{id}`. Timestamps are milliseconds here; the data port converts. */
+export interface PenaltyData {
+  tenantId: string
+  /** The contractor both targets belong to (a penalty on a driver and a vehicle needs them to match). */
+  contractorId: string
+  target: PenaltyTarget
+  /** Names at issue time, so history reads without joins and survives later renames. */
+  targetLabels: { driverName: string | null; plateNo: string | null }
+  typeId: string
+  typeName: string
+  duration: PenaltyDurationMs
+  issuedBy: { uid: string; name: string; role: 'admin' | 'safety' }
+  issuedAt: number
+  reason: string
+  /** Storage path (never a URL): `tenants/{tenantId}/penalties/{penaltyId}/evidence.jpg`. */
+  evidencePhotoPath: string | null
+  status: PenaltyStatus
+  /** Set when an admin revokes. */
+  revocation?: { byUid: string; byName: string; at: number; note: string }
+  /** Set by the scheduled job when a fixed penalty ends. */
+  expiredAt?: number
+  verification: PenaltyVerification
 }

@@ -21,6 +21,7 @@ import {
 import type { AuditEntry, Caller, VehicleData, VehiclePatch } from './types.js'
 import { computeEligibility } from './expiry.js'
 import { effectiveVehicleTypes } from './vehicleTypes.js'
+import { blockingPenalties } from './penaltyLogic.js'
 
 const MAX_ID_ATTEMPTS = 3
 
@@ -242,6 +243,16 @@ export async function setVehicleDrivers(deps: Deps, caller: Caller, raw: unknown
   await requireVehicleManager(deps, caller)
   const vehicle = await loadManagedVehicle(deps, caller, input.vehicleId)
   const assignedDriverIds = await assertDriversAssignable(deps, vehicle.tenantId, vehicle.contractorId, input.driverIds)
+
+  // A driver under an active penalty cannot be newly assigned (the screen disables them too). Keeping or removing one is fine.
+  const added = assignedDriverIds.filter((id) => !vehicle.assignedDriverIds.includes(id))
+  if (added.length > 0) {
+    const nowMs = deps.now() * 1000
+    const perDriver = await Promise.all(added.map((driverId) => deps.data.listActivePenalties({ tenantId: vehicle.tenantId, driverId })))
+    if (perDriver.some((active, i) => blockingPenalties(active, { driverId: added[i] as string }, nowMs).length > 0)) {
+      throw fail('failed-precondition', 'penalty-blocked', 'A driver under an active penalty cannot be assigned')
+    }
+  }
 
   await deps.data.updateVehicleTx({
     vehicleId: input.vehicleId,

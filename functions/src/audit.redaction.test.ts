@@ -10,6 +10,7 @@ import { dateKey } from './dates.js'
 import { DEFAULT_CHECKLIST } from './defaultChecklist.js'
 import { checkIn, denyEntry } from './gate.js'
 import { evidenceFolder } from './passRules.js'
+import { createPenaltyType, deletePenaltyType, issuePenalty, penaltyEvidencePath, revokePenalty, updatePenaltyType, verifyPenalty } from './penalties.js'
 import { submitPass, updateTenantSettings } from './passes.js'
 import { admin, caller, drv1, makeWorld, NOW, sup1, userDoc, type World } from './test-utils.js'
 import type { PassData, StoredFile } from './types.js'
@@ -86,10 +87,24 @@ describe('audit redaction: every write path', () => {
     w.passes.set(pid, { ...p, status: 'officer_approved' })
     await revokePass(w.deps, officer, { passId: pid, reasonCode: 'other', note: 'Changed mind', expectedAttempt: 1 })
 
+    // penalties: a photo path, a reason that mentions a URL and a note that looks like a token must stay out of the entries
+    const { typeId } = await createPenaltyType(w.deps, admin(), { name: 'Damage' })
+    await updatePenaltyType(w.deps, admin(), { typeId, name: 'Damage to gate' })
+    const spare = await createPenaltyType(w.deps, admin(), { name: 'Spare' })
+    await deletePenaltyType(w.deps, admin(), { typeId: spare.typeId })
+    w.files.set(penaltyEvidencePath('T1', 'pen_aaaaaaaaaa'), jpeg())
+    await issuePenalty(w.deps, caller('safe1', 'safety'), {
+      penaltyId: 'pen_aaaaaaaaaa', vehicleId: VID, driverId: 'drv1', typeId, duration: { kind: 'fixed', endDate: '2023-12-01' },
+      reason: 'See https://x.test/a.jpg and token abc', hasEvidence: true,
+    })
+    await verifyPenalty(w.deps, sup1(), { penaltyId: 'pen_aaaaaaaaaa', note: 'password reset https://x.test' })
+    await revokePenalty(w.deps, admin(), { penaltyId: 'pen_aaaaaaaaaa', note: 'eyJhbGciOi token note' })
+
     expect(w.audits.length).toBeGreaterThan(20)
     const actions = new Set(w.audits.map((a) => a.action))
     for (const a of ['user.create', 'user.resetCredential', 'user.changeOwnPassword', 'user.update', 'user.disable', 'vehicle.create',
-      'vehicle.import', 'tenant.settings.update', 'pass.submit', 'pass.checkIn', 'gate.deny', 'pass.revoke']) {
+      'vehicle.import', 'tenant.settings.update', 'pass.submit', 'pass.checkIn', 'gate.deny', 'pass.revoke',
+      'penaltyType.create', 'penaltyType.update', 'penaltyType.delete', 'penalty.issue', 'penalty.verify', 'penalty.revoke']) {
       expect(actions, `missing path ${a}`).toContain(a)
     }
     for (const entry of w.audits) {

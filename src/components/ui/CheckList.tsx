@@ -5,6 +5,8 @@ export interface CheckOption {
   id: string
   label: string
   hint?: string
+  /** This one cannot be ticked (an already ticked option stays enabled so it can be cleared). */
+  disabled?: boolean
 }
 
 interface CheckListProps {
@@ -37,6 +39,7 @@ export function CheckList({ legend, options, value, onChange, emptyText, disable
                   name={name}
                   checked={value.includes(o.id)}
                   onChange={() => toggle(o.id)}
+                  disabled={o.disabled === true}
                   className="size-4 rounded border-slate-300 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                 />
                 <span className="min-w-0 flex-1 truncate text-brand">{o.label}</span>

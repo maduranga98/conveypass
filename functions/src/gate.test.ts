@@ -147,6 +147,38 @@ describe('checkIn: refusals', () => {
   })
 })
 
+describe('checkIn: penalties override an approved pass', () => {
+  const penalise = (target: { driverId: string | null; vehicleId: string | null }, over: Record<string, unknown> = {}) =>
+    w.penalties.set('pen_aaaaaaaaaa', {
+      tenantId: 'T1', contractorId: 'C1', target, targetLabels: { driverName: null, plateNo: null }, typeId: 't', typeName: 'T',
+      duration: { kind: 'permanent' }, issuedBy: { uid: 'a', name: 'A', role: 'admin' }, issuedAt: NOW_MS, reason: 'Reason', evidencePhotoPath: null,
+      status: 'active', verification: { verifiedBy: null, verifiedByName: null, verifiedAt: null, verificationNote: null }, ...over,
+    })
+
+  it('refuses entry for a suspended vehicle or driver, and the pass stays officer_approved', async () => {
+    for (const target of [{ driverId: null, vehicleId: VID }, { driverId: 'drv1', vehicleId: null }]) {
+      seed('officer_approved')
+      penalise(target)
+      await rejects(doCheckIn(), 'failed-precondition', 'penalty-blocked')
+      expect(stored().status).toBe('officer_approved')
+    }
+  })
+
+  it('lets the vehicle in once the penalty is revoked or has ended', async () => {
+    seed('officer_approved')
+    penalise({ driverId: null, vehicleId: VID }, { status: 'revoked' })
+    await doCheckIn()
+    expect(stored().status).toBe('checked_in')
+  })
+
+  it('does not break an already checked-in replay when a penalty is issued afterwards', async () => {
+    seed('officer_approved')
+    await doCheckIn()
+    penalise({ driverId: null, vehicleId: VID })
+    expect(await doCheckIn()).toMatchObject({ status: 'checked_in' })
+  })
+})
+
 describe('checkIn: idempotency and races', () => {
   it('the same requestId twice succeeds twice with the stored values and writes once', async () => {
     seed('officer_approved')

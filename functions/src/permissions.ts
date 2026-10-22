@@ -30,6 +30,16 @@ export const PERMISSIONS = {
   'driver.view': ['admin', 'officer', 'supervisor', 'safety', 'security'],
   'vehicleType.manage': ['admin'],
   'expiry.settings': ['admin'],
+  // Penalties and suspensions. Admin and Safety Officer issue (a penalty takes effect at once); only an admin revokes;
+  // a supervisor confirms, after the fact, penalties against their own contractor and reads those only.
+  'penalty.view': ['admin', 'safety', 'supervisor'],
+  'penalty.issue': ['admin', 'safety'],
+  'penalty.revoke': ['admin'],
+  'penalty.verify': ['supervisor'],
+  'penaltyType.view': ['admin', 'safety', 'supervisor'],
+  'penaltyType.manage': ['admin'],
+  // The live eligibility check (documents + penalties). Security calls it at the gate; supervisors only for their own contractor.
+  'eligibility.check': ['admin', 'officer', 'supervisor', 'safety', 'security'],
   // Own account.
   'account.view': ['admin', 'officer', 'supervisor', 'safety', 'security', 'driver'],
   'account.password.change': [...ALL_STAFF],

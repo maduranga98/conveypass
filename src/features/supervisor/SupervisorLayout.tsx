@@ -1,4 +1,4 @@
-import { ClipboardCheck, Home, LogOut, QrCode, Truck, UserRound, Users } from 'lucide-react'
+import { ClipboardCheck, Home, LogOut, QrCode, ShieldAlert, Truck, UserRound, Users } from 'lucide-react'
 import { Link, NavLink, Outlet, useMatch } from 'react-router-dom'
 import { BrandMark } from '@/components/BrandMark'
 import { cn } from '@/lib/cn'
@@ -7,6 +7,7 @@ import { useAuth, useSession } from '@/features/auth/useAuth'
 import { usePendingCount } from '@/features/passes/usePendingCount'
 import { Bell } from '@/features/notifications/Bell'
 import { PushOptInCard } from '@/features/notifications/PushOptInCard'
+import { useAwaitingReview } from '@/features/penalties/feed'
 import { useContractorList } from '@/features/shared/queries'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
 import { useMediaQuery } from '@/lib/useMediaQuery'
@@ -16,6 +17,7 @@ const t = strings.supervisor
 const nav = [
   { to: '/supervisor', label: t.nav.home, short: t.nav.home, icon: Home, end: true },
   { to: '/supervisor/approvals', label: t.nav.approvals, short: t.nav.approvals, icon: ClipboardCheck, end: false },
+  { to: '/supervisor/penalties', label: t.nav.penalties, short: t.nav.penalties, icon: ShieldAlert, end: false },
   { to: '/supervisor/vehicles', label: t.nav.vehicles, short: t.nav.vehicles, icon: Truck, end: false },
   { to: '/supervisor/drivers', label: t.nav.drivers, short: t.nav.drivers, icon: Users, end: false },
   { to: '/supervisor/qr', label: t.nav.qr, short: t.nav.qrShort, icon: QrCode, end: false },
@@ -24,10 +26,10 @@ const nav = [
 const darkFocus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-solid'
 
 /** Count bubble for the Approvals item: amber with navy text, the app's "waiting" colour. */
-function PendingBadge({ count, className }: { count: number | null; className?: string }) {
+function PendingBadge({ count, className, label }: { count: number | null; className?: string; label?: string }) {
   if (count === null || count === 0) return null
   return (
-    <span aria-label={t.homePending(count)} className={cn('grid min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-bold leading-5 text-brand', className)}>
+    <span aria-label={label ?? t.homePending(count)} className={cn('grid min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-bold leading-5 text-brand', className)}>
       {count >= 100 ? '99+' : count}
     </span>
   )
@@ -42,6 +44,7 @@ export default function SupervisorLayout() {
   const { signOut } = useAuth()
   const contractors = useContractorList('supervisor')
   const { count } = usePendingCount('supervisor')
+  const reviews = useAwaitingReview(claims.contractorId !== null)
   const contractorName = contractors.data?.[0]?.name ?? strings.app.name
   const reviewing = useMatch('/supervisor/approvals/:passId') !== null
   // One bell on the page (its panel and listeners are not meant to exist twice): sidebar on desktop, top bar below.
@@ -76,6 +79,7 @@ export default function SupervisorLayout() {
               <Icon aria-hidden className="size-5 shrink-0" />
               <span className="flex-1">{label}</span>
               {to === '/supervisor/approvals' && <PendingBadge count={count} className="bg-surface" />}
+              {to === '/supervisor/penalties' && <PendingBadge count={reviews.waiting.length} label={strings.penalties.verify.badge(reviews.waiting.length)} className="bg-surface" />}
             </NavLink>
           ))}
         </nav>
@@ -138,7 +142,7 @@ export default function SupervisorLayout() {
       {/* Phone and tablet bottom tabs */}
       {!reviewing && (
         <nav aria-label={t.mainNav} className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden print:hidden">
-          <ul className="mx-auto grid max-w-3xl grid-cols-5">
+          <ul className="mx-auto grid max-w-3xl grid-cols-6">
             {nav.map(({ to, short, icon: Icon, end }) => (
               <li key={to}>
                 <NavLink
@@ -154,6 +158,7 @@ export default function SupervisorLayout() {
                   <span className="relative">
                     <Icon aria-hidden className="size-5" />
                     {to === '/supervisor/approvals' && <PendingBadge count={count} className="absolute -right-3.5 -top-2" />}
+                    {to === '/supervisor/penalties' && <PendingBadge count={reviews.waiting.length} label={strings.penalties.verify.badge(reviews.waiting.length)} className="absolute -right-3.5 -top-2" />}
                   </span>
                   {short}
                 </NavLink>

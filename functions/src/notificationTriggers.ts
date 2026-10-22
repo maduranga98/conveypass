@@ -4,6 +4,8 @@ import { APP_BASE_URL, REGION } from './config.js'
 import { recomputeEligibility } from './eligibility.js'
 import { eligibilityPort } from './eligibilityPort.js'
 import { logInfo } from './logger.js'
+import { expirePenalties } from './penaltyExpiry.js'
+import { penaltyExpiryPort } from './penaltyExpiryPort.js'
 import { actorOf, deliver, isStaleEvent, planDenial, planPassChange, type NotifyDeps } from './notifications.js'
 import { messagingPort, notifyPort, slaPort } from './notifyPorts.js'
 import { purgeOldEvidence } from './retention.js'
@@ -62,4 +64,12 @@ export const purgeOldEvidenceDaily = onSchedule({ schedule: '30 2 * * *', timeZo
 /** Daily, just after midnight Colombo: refreshes the denormalised `eligibilityStatus` of every vehicle and driver. */
 export const recomputeEligibilityDaily = onSchedule({ schedule: '10 0 * * *', timeZone: 'Asia/Colombo', memory: '512MiB', timeoutSeconds: 540 }, async () => {
   await recomputeEligibility(eligibilityPort(), Date.now())
+})
+
+/**
+ * Hourly: flips fixed penalties whose last day has passed from `active` to `expired`. Hourly rather than inside the daily
+ * eligibility job because companies sit in different timezones; the live check never depends on it (`isBlocking`).
+ */
+export const expirePenaltiesHourly = onSchedule({ schedule: '5 * * * *', timeZone: 'UTC', timeoutSeconds: 300 }, async () => {
+  await expirePenalties(penaltyExpiryPort(), Date.now())
 })

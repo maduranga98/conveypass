@@ -11,6 +11,9 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { setVehicleDrivers, setVehicleStatus } from '@/lib/api'
 import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
+import { useBlocked } from '@/features/penalties/feed'
+import { BlockedBadge } from '@/features/penalties/PenaltyBadges'
+import { PenaltyHistory } from '@/features/penalties/PenaltyHistory'
 import { ExpiryRow } from '@/features/shared/ExpiryRow'
 import { VehicleQrPanel } from '@/features/qr/VehicleQrPanel'
 import { useDrivers } from '@/features/shared/queries'
@@ -41,6 +44,8 @@ export function VehicleDrawer({ scope, vehicle, contractorName, onClose, onEdit 
 function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'vehicle' | 'onClose'> & { vehicle: WithId<Vehicle> }) {
   const queryClient = useQueryClient()
   const drivers = useDrivers(scope)
+  const blocked = useBlocked(scope)
+  const blockedDrivers = useMemo(() => new Set(blocked.drivers.keys()), [blocked.drivers])
   const all = useMemo(() => drivers.data?.items ?? [], [drivers.data])
   const names = useMemo(() => new Map(all.map((d) => [d.id, d])), [all])
   const [editing, setEditing] = useState(false)
@@ -91,6 +96,7 @@ function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'veh
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge status={vehicle.status} />
+        {blocked.vehicles.has(vehicle.id) && <BlockedBadge />}
         <Badge tone="accent">{vehicle.type}</Badge>
         {vehicle.makeModel && <span className="text-sm text-slate-600">{vehicle.makeModel}</span>}
         {contractorName && scope === 'admin' && <span className="text-sm text-slate-500">· {contractorName}</span>}
@@ -120,7 +126,7 @@ function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'veh
         </div>
         {editing ? (
           <div className="space-y-3">
-            <DriverPicker drivers={all} contractorId={vehicle.contractorId} value={picked} onChange={setPicked} disabled={saving} />
+            <DriverPicker drivers={all} contractorId={vehicle.contractorId} value={picked} onChange={setPicked} disabled={saving} blockedIds={blockedDrivers} />
             <div className="flex justify-end gap-2">
               <Button variant="secondary" size="sm" onClick={() => setEditing(false)} disabled={saving}>
                 {strings.common.cancel}
@@ -145,6 +151,8 @@ function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'veh
           </ul>
         )}
       </section>
+
+      <PenaltyHistory scope={scope} vehicleId={vehicle.id} />
 
       <div className="flex flex-col gap-2 border-t border-slate-100 pt-5 sm:flex-row">
         <Button variant="secondary" className="sm:flex-1" icon={<Pencil aria-hidden className="size-4" />} onClick={() => onEdit(vehicle)}>

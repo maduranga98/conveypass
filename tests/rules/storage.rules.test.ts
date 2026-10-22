@@ -20,6 +20,8 @@ const DAY = '20260310'
 const evidence = (tenant: string, vehicleId: string, attempt: number | string, file: string, day = DAY) =>
   `tenants/${tenant}/passes/${vehicleId}/${day}/${attempt}/${file}`
 
+const penaltyPhoto = (tenant: string, pid: string, file = 'evidence.jpg') => `tenants/${tenant}/penalties/${pid}/${file}`
+
 const jpeg = (bytes = 1000) => new Uint8Array(bytes).fill(7)
 const JPEG = { contentType: 'image/jpeg' }
 
@@ -41,10 +43,16 @@ beforeAll(async () => {
     await setDoc(doc(db, 'vehicles', 'veh_sub'), vehicle(A, 'c1', ['drvA1']))
     await setDoc(doc(db, 'vehicles', 'veh_rej'), vehicle(A, 'c1', ['drvA1', 'drvA1b']))
     await setDoc(doc(db, 'vehicles', 'veh_b'), vehicle(B, 'cB', ['drvB1']))
+    await setDoc(doc(db, 'penalties', 'pen_issued0001'), { tenantId: A, contractorId: 'c1', status: 'active' })
+    await setDoc(doc(db, 'penalties', 'pen_issued0002'), { tenantId: A, contractorId: 'c2', status: 'active' })
+    await setDoc(doc(db, 'penalties', 'pen_issuedbbbb'), { tenantId: B, contractorId: 'cB', status: 'active' })
     await setDoc(doc(db, 'passes', `veh_sub_${DAY}`), { tenantId: A, contractorId: 'c1', driverId: 'drvA1', status: 'submitted', attempt: 1 })
     await setDoc(doc(db, 'passes', `veh_rej_${DAY}`), { tenantId: A, contractorId: 'c1', driverId: 'drvA1', status: 'rejected', attempt: 1 })
     const storage = ctx.storage()
     for (const p of [evidence(A, 'veh_open', 1, 'gps.jpg'), evidence(A, 'veh_other', 1, 'gps.jpg'), evidence(A, 'veh_sub', 1, 'gps.jpg'), evidence(B, 'veh_b', 1, 'gps.jpg')]) {
+      await uploadBytes(ref(storage, p), jpeg(), JPEG)
+    }
+    for (const p of [penaltyPhoto(A, 'pen_issued0001'), penaltyPhoto(A, 'pen_issued0002'), penaltyPhoto(B, 'pen_issuedbbbb')]) {
       await uploadBytes(ref(storage, p), jpeg(), JPEG)
     }
     for (const p of [path(A, 'c1', 'drvA1'), path(A, 'c1', 'drvA1b'), path(A, 'c2', 'drvA2'), path(B, 'cB', 'drvB1')]) {
@@ -63,6 +71,7 @@ const supA2 = () => as('supA2', { role: 'supervisor', tenantId: A, contractorId:
 const drvA1 = () => as('drvA1', { role: 'driver', tenantId: A, contractorId: 'c1' })
 const drvA1b = () => as('drvA1b', { role: 'driver', tenantId: A, contractorId: 'c1' })
 const drvA2 = () => as('drvA2', { role: 'driver', tenantId: A, contractorId: 'c2' })
+const safetyA = () => as('safA', { role: 'safety', tenantId: A })
 const officerA = () => as('offA', { role: 'officer', tenantId: A })
 const securityA = () => as('secA', { role: 'security', tenantId: A })
 
@@ -264,5 +273,40 @@ describe('platform operators (Module 9)', () => {
     await assertFails(uploadBytes(ref(s, evidence(A, 'veh_open', 1, 'extra2.jpg')), jpeg(), JPEG))
     await assertFails(uploadBytes(ref(s, 'tenants/tenantNew/anything.jpg'), jpeg(), JPEG))
     await assertFails(uploadBytes(ref(s, 'operators/op1.jpg'), jpeg(), JPEG))
+  })
+})
+
+describe('penalty evidence', () => {
+  it('admin and Safety Officer upload a photo for a penalty that does not exist yet, once', async () => {
+    for (const [s, pid] of [[adminA(), 'pen_newadmin01'], [safetyA(), 'pen_newsafety1']] as const) {
+      await assertSucceeds(uploadBytes(ref(s, penaltyPhoto(A, pid)), jpeg(), JPEG))
+      await assertFails(uploadBytes(ref(s, penaltyPhoto(A, pid)), jpeg(), JPEG)) // create only: no replacing
+    }
+  })
+
+  it('refuses everything else: other roles, other tenants, issued penalties, wrong file, type, size, id shape, delete', async () => {
+    for (const s of [supA1(), officerA(), securityA(), drvA1()]) await assertFails(uploadBytes(ref(s, penaltyPhoto(A, 'pen_nobody0001')), jpeg(), JPEG))
+    await assertFails(uploadBytes(ref(adminA(), penaltyPhoto(B, 'pen_crosstenan')), jpeg(), JPEG))
+    await assertFails(uploadBytes(ref(safetyA(), penaltyPhoto(A, 'pen_issued0001')), jpeg(), JPEG)) // already issued
+    await assertFails(uploadBytes(ref(safetyA(), penaltyPhoto(A, 'pen_wrongfile1', 'other.jpg')), jpeg(), JPEG))
+    await assertFails(uploadBytes(ref(safetyA(), penaltyPhoto(A, 'pen_wrongtype1')), jpeg(), { contentType: 'image/png' }))
+    await assertFails(uploadBytes(ref(safetyA(), penaltyPhoto(A, 'pen_toolarge01')), jpeg(800 * 1024), JPEG))
+    await assertFails(uploadBytes(ref(safetyA(), penaltyPhoto(A, 'bad-id')), jpeg(), JPEG))
+    await assertFails(deleteObject(ref(adminA(), penaltyPhoto(A, 'pen_issued0001'))))
+    await assertFails(deleteObject(ref(safetyA(), penaltyPhoto(A, 'pen_issued0001'))))
+  })
+
+  it('is read by the company’s admin and Safety Officers, and by the supervisor of that contractor only', async () => {
+    await assertSucceeds(getBytes(ref(adminA(), penaltyPhoto(A, 'pen_issued0002'))))
+    await assertSucceeds(getBytes(ref(safetyA(), penaltyPhoto(A, 'pen_issued0001'))))
+    await assertSucceeds(getBytes(ref(supA1(), penaltyPhoto(A, 'pen_issued0001'))))
+    await assertFails(getBytes(ref(supA1(), penaltyPhoto(A, 'pen_issued0002')))) // another contractor
+    await assertFails(getBytes(ref(supA2(), penaltyPhoto(A, 'pen_issued0001'))))
+  })
+
+  it('is never read by security, officers, drivers, other companies or signed-out users', async () => {
+    for (const s of [securityA(), officerA(), drvA1(), env.unauthenticatedContext().storage()]) await assertFails(getBytes(ref(s, penaltyPhoto(A, 'pen_issued0001'))))
+    for (const s of [adminA(), safetyA(), supA1()]) await assertFails(getBytes(ref(s, penaltyPhoto(B, 'pen_issuedbbbb'))))
+    await assertFails(getBytes(ref(as('safB', { role: 'safety', tenantId: B }), penaltyPhoto(A, 'pen_issued0001'))))
   })
 })

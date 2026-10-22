@@ -365,3 +365,29 @@ describe('setContractorStatus', () => {
     await rejects(setVehicleStatus(w.deps, sup1(), { vehicleId, status: 'suspended' }), 'permission-denied', 'caller-not-active')
   })
 })
+
+describe('setVehicleDrivers: penalties', () => {
+  const penalise = (driverId: string, status: 'active' | 'revoked' = 'active') =>
+    w.penalties.set(`pen_${driverId}`, {
+      tenantId: 'T1', contractorId: 'C1', target: { driverId, vehicleId: null }, targetLabels: { driverName: null, plateNo: null }, typeId: 't', typeName: 'T',
+      duration: { kind: 'permanent' }, issuedBy: { uid: 'a', name: 'A', role: 'admin' }, issuedAt: 0, reason: 'Reason', evidencePhotoPath: null,
+      status, verification: { verifiedBy: null, verifiedByName: null, verifiedAt: null, verificationNote: null },
+    })
+
+  it('refuses to newly assign a driver under an active penalty, but allows keeping or removing one', async () => {
+    const { vehicleId } = await create(admin(), { driverIds: ['drv1'] })
+    penalise('drv1')
+    penalise('drv1b')
+    await rejects(setVehicleDrivers(w.deps, sup1(), { vehicleId, driverIds: ['drv1', 'drv1b'] }), 'failed-precondition', 'penalty-blocked')
+    await setVehicleDrivers(w.deps, sup1(), { vehicleId, driverIds: ['drv1'] }) // unchanged: fine
+    await setVehicleDrivers(w.deps, sup1(), { vehicleId, driverIds: [] }) // removing: fine
+    expect(w.vehicles.get(vehicleId)?.assignedDriverIds).toEqual([])
+  })
+
+  it('allows assigning once the penalty is revoked', async () => {
+    const { vehicleId } = await create()
+    penalise('drv1b', 'revoked')
+    await setVehicleDrivers(w.deps, sup1(), { vehicleId, driverIds: ['drv1b'] })
+    expect(w.vehicles.get(vehicleId)?.assignedDriverIds).toEqual(['drv1b'])
+  })
+})

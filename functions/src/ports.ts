@@ -2,6 +2,9 @@ import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
 import {
+  PenaltyTypeExistsError,
+  PenaltyTypeInUseError,
+  PenaltyTypeLimitError,
   PinTakenError,
   PlateTakenError,
   VehicleIdTakenError,
@@ -10,11 +13,12 @@ import {
   type DecisionContext,
   type GateEventQuery,
   type PassQuery,
+  type PenaltyPlan,
   type StoragePort,
 } from './core.js'
 import { planSubmit } from './passRules.js'
 import type { ReportEvent, ReportPass } from './reports/types.js'
-import type { ContractorData, DriverData, GateEventData, PassData, TenantData, UserData, VehicleData } from './types.js'
+import type { ContractorData, DriverData, GateEventData, PassData, PenaltyData, PenaltyTypeData, TenantData, UserData, VehicleData } from './types.js'
 
 const ts = (ms: number): Timestamp => Timestamp.fromMillis(ms)
 
@@ -27,6 +31,39 @@ const millis = (v: unknown): number | null =>
 /** Stored gate event -> GateEventData with `at` in milliseconds. */
 const toGateEvent = (raw: Record<string, unknown>): GateEventData =>
   ({ ...raw, at: millis(raw.at) ?? 0 }) as unknown as GateEventData
+
+/** A new document in the audit log: the one place (with `writeAudit`) that names the collection, so every entry is built the same way. */
+export const newAuditDoc = (db: FirebaseFirestore.Firestore): FirebaseFirestore.DocumentReference => db.collection('auditLog').doc()
+
+/** Stored penalty -> PenaltyData with every timestamp as milliseconds. */
+export function toPenalty(raw: Record<string, unknown>): PenaltyData {
+  const data = raw as unknown as Omit<PenaltyData, 'issuedAt' | 'duration' | 'revocation' | 'expiredAt' | 'verification'> & {
+    duration: { kind: 'fixed'; endDate: unknown } | { kind: 'permanent' }
+    revocation?: { at: unknown }
+    verification: { verifiedAt: unknown }
+  }
+  const { duration, revocation, verification, ...rest } = data
+  return {
+    ...rest,
+    issuedAt: millis(raw.issuedAt) ?? 0,
+    duration: duration.kind === 'fixed' ? { kind: 'fixed', endDate: millis(duration.endDate) ?? 0 } : { kind: 'permanent' },
+    ...(revocation ? { revocation: { ...revocation, at: millis(revocation.at) ?? 0 } } : {}),
+    ...(millis(raw.expiredAt) !== null ? { expiredAt: millis(raw.expiredAt) as number } : {}),
+    verification: { ...verification, verifiedAt: millis(verification.verifiedAt) },
+  } as PenaltyData
+}
+
+/** The stored form of a patch: milliseconds become Timestamps. */
+export function penaltyPatchToStored(patch: PenaltyPlan['patch']): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  if (patch.status !== undefined) out.status = patch.status
+  if (patch.expiredAt !== undefined) out.expiredAt = ts(patch.expiredAt)
+  if (patch.revocation) out.revocation = { ...patch.revocation, at: ts(patch.revocation.at) }
+  if (patch.verification) {
+    out.verification = { ...patch.verification, verifiedAt: patch.verification.verifiedAt === null ? null : ts(patch.verification.verifiedAt) }
+  }
+  return out
+}
 
 /** Reads what a pass decision depends on, inside the transaction. `null` when the pass does not exist. */
 async function readDecisionContext(
@@ -412,6 +449,81 @@ export const dataPort = (): DataPort => {
     },
     writeAudit: async (audit) => {
       await db.collection('auditLog').doc().create({ ...audit, createdAt: FieldValue.serverTimestamp() })
+    },
+    getPenaltyType: async (typeId) => {
+      const snap = await db.doc(`penaltyTypes/${typeId}`).get()
+      return snap.exists ? (snap.data() as PenaltyTypeData) : null
+    },
+    createPenaltyTypeTx: async ({ typeId, data, max, audit }) => {
+      await db.runTransaction(async (tx) => {
+        const mine = db.collection('penaltyTypes').where('tenantId', '==', data.tenantId)
+        const [dup, count] = await Promise.all([tx.get(mine.where('nameKey', '==', data.nameKey).limit(1)), tx.get(mine.count())])
+        if (!dup.empty) throw new PenaltyTypeExistsError()
+        if (count.data().count >= max) throw new PenaltyTypeLimitError()
+        tx.create(db.doc(`penaltyTypes/${typeId}`), { ...data, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+        tx.create(db.collection('auditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
+      })
+    },
+    renamePenaltyTypeTx: async ({ typeId, tenantId, name, nameKey, audit }) => {
+      await db.runTransaction(async (tx) => {
+        const dup = await tx.get(db.collection('penaltyTypes').where('tenantId', '==', tenantId).where('nameKey', '==', nameKey).limit(2))
+        if (dup.docs.some((d) => d.id !== typeId)) throw new PenaltyTypeExistsError()
+        tx.update(db.doc(`penaltyTypes/${typeId}`), { name, nameKey, updatedAt: FieldValue.serverTimestamp() })
+        tx.create(db.collection('auditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
+      })
+    },
+    deletePenaltyTypeTx: async ({ typeId, tenantId, audit }) => {
+      await db.runTransaction(async (tx) => {
+        const used = await tx.get(db.collection('penalties').where('tenantId', '==', tenantId).where('typeId', '==', typeId).limit(1))
+        if (!used.empty) throw new PenaltyTypeInUseError()
+        tx.delete(db.doc(`penaltyTypes/${typeId}`))
+        tx.create(db.collection('auditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
+      })
+    },
+    getPenalty: async (penaltyId) => {
+      const snap = await db.doc(`penalties/${penaltyId}`).get()
+      return snap.exists ? toPenalty(snap.data() as Record<string, unknown>) : null
+    },
+    createPenaltyTx: async ({ penaltyId, penalty, audit }) => {
+      const ref = db.doc(`penalties/${penaltyId}`)
+      return db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref)
+        if (snap.exists) return { created: false, penalty: toPenalty(snap.data() as Record<string, unknown>) }
+        const { duration, issuedAt, ...rest } = penalty
+        tx.create(ref, {
+          ...rest,
+          issuedAt: ts(issuedAt),
+          duration: duration.kind === 'fixed' ? { kind: 'fixed', endDate: ts(duration.endDate) } : { kind: 'permanent' },
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        })
+        tx.create(db.collection('auditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
+        return { created: true, penalty }
+      })
+    },
+    updatePenaltyTx: async ({ penaltyId, plan }) => {
+      const ref = db.doc(`penalties/${penaltyId}`)
+      return db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref)
+        const current = snap.exists ? toPenalty(snap.data() as Record<string, unknown>) : null
+        const planned = plan(current)
+        tx.update(ref, { ...penaltyPatchToStored(planned.patch), updatedAt: FieldValue.serverTimestamp() })
+        tx.create(db.collection('auditLog').doc(), { ...planned.audit, createdAt: FieldValue.serverTimestamp() })
+        return { ...(current as PenaltyData), ...planned.patch }
+      })
+    },
+    listActivePenalties: async ({ tenantId, vehicleId, driverId }) => {
+      const base = db.collection('penalties').where('tenantId', '==', tenantId).where('status', '==', 'active')
+      const queries = [
+        ...(vehicleId ? [base.where('target.vehicleId', '==', vehicleId)] : []),
+        ...(driverId ? [base.where('target.driverId', '==', driverId)] : []),
+        ...(!vehicleId && !driverId ? [base.limit(2000)] : []),
+      ]
+      const found = new Map<string, PenaltyData & { id: string }>()
+      for (const snap of await Promise.all(queries.map((q) => q.get()))) {
+        for (const d of snap.docs) found.set(d.id, { ...toPenalty(d.data() as Record<string, unknown>), id: d.id })
+      }
+      return [...found.values()]
     },
     countPasses: async (q) => (await passQuery(db, q).count().get()).data().count,
     listPasses: async (q, limit) => {

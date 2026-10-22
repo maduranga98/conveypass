@@ -42,12 +42,20 @@ import type {
   CheckInStamp,
   GateDef,
   GateEventData,
+  PenaltyData,
+  PenaltyTypeData,
 } from './types.js'
 
 /** Thrown by the data port when `pinIndex/{key}` already exists (another user holds that PIN): retry with a new PIN. */
 export class PinTakenError extends Error {}
 /** Thrown by the data port when the plate guard document already exists. */
 export class PlateTakenError extends Error {}
+/** Penalty types: another type of the tenant already has this name (ignoring case). */
+export class PenaltyTypeExistsError extends Error {}
+/** Penalty types: the tenant already has the maximum number. */
+export class PenaltyTypeLimitError extends Error {}
+/** Penalty types: a penalty still references the type, so it cannot be removed. */
+export class PenaltyTypeInUseError extends Error {}
 /** Thrown by the data port when a generated vehicle id is already in use (retry with a new id). */
 export class VehicleIdTakenError extends Error {}
 /** Thrown by the data port when the stored pass no longer allows the submission (lost a race, or state changed). */
@@ -231,6 +239,31 @@ export interface DataPort {
   listContractorNames(tenantId: string): Promise<Map<string, string>>
   /** Auth uids of every `users` doc of this contractor. */
   listUserIdsByContractor(tenantId: string, contractorId: string): Promise<string[]>
+
+  // ---- Penalties (every write is a callable; clients only read) ----
+  getPenaltyType(typeId: string): Promise<(PenaltyTypeData & { name: string }) | null>
+  /** One transaction: refuses a duplicate `nameKey` (PenaltyTypeExistsError) or more than `max` types (PenaltyTypeLimitError), creates the type and the audit entry. */
+  createPenaltyTypeTx(p: { typeId: string; data: PenaltyTypeData; max: number; audit: AuditEntry }): Promise<void>
+  /** One transaction: renames (PenaltyTypeExistsError on a duplicate `nameKey`) and writes the audit entry. */
+  renamePenaltyTypeTx(p: { typeId: string; tenantId: string; name: string; nameKey: string; audit: AuditEntry }): Promise<void>
+  /** One transaction: deletes the type unless a penalty references it (PenaltyTypeInUseError) and writes the audit entry. */
+  deletePenaltyTypeTx(p: { typeId: string; tenantId: string; audit: AuditEntry }): Promise<void>
+  getPenalty(penaltyId: string): Promise<PenaltyData | null>
+  /** Creates `penalties/{penaltyId}` with its audit entry in one batch, or writes nothing and returns the stored one (`created: false`) when the id exists. */
+  createPenaltyTx(p: { penaltyId: string; penalty: PenaltyData; audit: AuditEntry }): Promise<{ created: boolean; penalty: PenaltyData }>
+  /**
+   * One transaction: re-reads the penalty, hands it to `plan` (pure; throws HttpsError to refuse; `null` = it does not
+   * exist), applies the planned patch and writes the audit entry. Two concurrent decisions cannot both win.
+   */
+  updatePenaltyTx(p: { penaltyId: string; plan: (penalty: PenaltyData | null) => PenaltyPlan }): Promise<PenaltyData>
+  /** Active penalties of the tenant that name the vehicle or the driver (ends not yet checked: callers apply `isBlocking`). */
+  listActivePenalties(q: { tenantId: string; vehicleId?: string | undefined; driverId?: string | undefined }): Promise<(PenaltyData & { id: string })[]>
+}
+
+/** What `updatePenaltyTx` writes: a patch of the fields a decision may change, and the audit entry. */
+export interface PenaltyPlan {
+  patch: Partial<Pick<PenaltyData, 'status' | 'revocation' | 'expiredAt' | 'verification'>>
+  audit: AuditEntry
 }
 
 export interface StoragePort {
