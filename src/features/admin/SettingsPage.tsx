@@ -17,18 +17,23 @@ import {
 } from '@/lib/defaultChecklist'
 import { DEFAULT_REJECTION_REASONS, type RejectionReasonDef } from '@/lib/defaultRejectionReasons'
 import { slaOf, type SlaSettings } from '@/lib/defaultSla'
+import { DEFAULT_EXPIRY_WARNING_DAYS } from '@/lib/expiry'
+import { effectiveVehicleTypes } from '@/lib/vehicleTypes'
 import { DEFAULT_GATES, MIN_GATES, type GateDef } from '@/lib/gates'
 import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
 import { useSession } from '@/features/auth/useAuth'
 import { markSettingsVisited } from '@/features/onboarding/storage'
 import { useTenant } from '@/features/passes/queries'
+import { useVehicles } from '@/features/shared/queries'
 import type { Tenant } from '@/types'
-import { gateNameOk, MAX_REASONS, MIN_REASONS, reasonLabelOk, retentionOk, slaOk } from './reasons'
+import { expiryDaysOk, gateNameOk, MAX_REASONS, MIN_REASONS, reasonLabelOk, retentionOk, slaOk, vehicleTypesOk } from './reasons'
 import { RejectionReasonsEditor } from './RejectionReasonsEditor'
 import { GatesEditor } from './GatesEditor'
 import { RetentionEditor } from './RetentionEditor'
 import { SlaEditor } from './SlaEditor'
+import { ExpiryEditor } from './ExpiryEditor'
+import { VehicleTypesEditor } from './VehicleTypesEditor'
 import { AdminsCard } from './AdminsCard'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
@@ -46,6 +51,8 @@ interface Baseline {
   gates: GateDef[]
   sla: SlaSettings
   retentionDays: number
+  vehicleTypes: string[]
+  expiryWarningDays: number
 }
 
 const baselineOf = (tenant: Tenant | null): Baseline => ({
@@ -55,6 +62,8 @@ const baselineOf = (tenant: Tenant | null): Baseline => ({
   gates: tenant?.gates && tenant.gates.length > 0 ? tenant.gates : [...DEFAULT_GATES],
   sla: slaOf(tenant),
   retentionDays: tenant?.retentionDays ?? 0,
+  vehicleTypes: effectiveVehicleTypes(tenant?.vehicleTypes),
+  expiryWarningDays: tenant?.expiryWarningDays ?? DEFAULT_EXPIRY_WARNING_DAYS,
 })
 
 function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: string }) {
@@ -70,18 +79,26 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
   const [sla, setSla] = useState<SlaSettings>(baseline.sla)
   const usingDefaultSla = !tenant?.sla
   const [retention, setRetention] = useState<number>(baseline.retentionDays)
+  const [types, setTypes] = useState<string[]>(baseline.vehicleTypes)
+  const usingDefaultTypes = !tenant?.vehicleTypes || tenant.vehicleTypes.length === 0
+  const [warnDays, setWarnDays] = useState<number>(baseline.expiryWarningDays)
+  const vehicles = useVehicles('admin')
+  const typesInUse = new Set((vehicles.data?.items ?? []).map((v) => v.type))
   const [confirmRetention, setConfirmRetention] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [touched, setTouched] = useState(false)
 
   const dirty =
-    JSON.stringify({ items, settings, reasons, gates, sla, retention }) !==
-    JSON.stringify({ items: baseline.checklist, settings: baseline.settings, reasons: baseline.reasons, gates: baseline.gates, sla: baseline.sla, retention: baseline.retentionDays })
+    JSON.stringify({ items, settings, reasons, gates, sla, retention, types, warnDays }) !==
+    JSON.stringify({ items: baseline.checklist, settings: baseline.settings, reasons: baseline.reasons, gates: baseline.gates, sla: baseline.sla, retention: baseline.retentionDays, types: baseline.vehicleTypes, warnDays: baseline.expiryWarningDays })
   const retentionChanged = !Object.is(retention, baseline.retentionDays)
   const slaChanged = JSON.stringify(sla) !== JSON.stringify(baseline.sla)
   const reasonsChanged = JSON.stringify(reasons) !== JSON.stringify(baseline.reasons)
   const gatesChanged = JSON.stringify(gates) !== JSON.stringify(baseline.gates)
+  const typesChanged = JSON.stringify(types) !== JSON.stringify(baseline.vehicleTypes)
+  const warnChanged = warnDays !== baseline.expiryWarningDays
+  const documentsBad = !vehicleTypesOk(types) || !expiryDaysOk(warnDays)
   const invalidLabels =
     items.some((i) => !labelOk(i.label)) || reasons.some((r) => !reasonLabelOk(r.label)) || gates.some((g) => !gateNameOk(g.name))
   const reasonCountBad = reasons.length < MIN_REASONS || reasons.length > MAX_REASONS || gates.length < MIN_GATES
@@ -102,7 +119,7 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
   // Turning deletion on, or shortening the limit, asks first: it removes photos for good.
   const askOrSave = () => {
     setTouched(true)
-    if (invalidLabels || problem || reasonCountBad || !slaOk(sla) || !retentionOk(retention)) return
+    if (invalidLabels || problem || reasonCountBad || documentsBad || !slaOk(sla) || !retentionOk(retention)) return
     if (retentionChanged && retention !== 0 && (baseline.retentionDays === 0 || retention < baseline.retentionDays)) setConfirmRetention(true)
     else void save()
   }
@@ -110,12 +127,13 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
   const save = async () => {
     setConfirmRetention(false)
     setTouched(true)
-    if (invalidLabels || problem || reasonCountBad || !slaOk(sla) || !retentionOk(retention)) return
+    if (invalidLabels || problem || reasonCountBad || documentsBad || !slaOk(sla) || !retentionOk(retention)) return
     setSaving(true)
     setError(null)
     const checklist = items.map((i) => ({ ...i, label: i.label.trim() }))
     const cleanReasons = reasons.map((r) => ({ ...r, label: r.label.trim() }))
     const cleanGates = gates.map((g) => ({ ...g, name: g.name.trim() }))
+    const cleanTypes = types.map((n) => n.trim())
     try {
       // The default reasons are only written once the admin actually changes them (or already has their own).
       const saveReasons = reasonsChanged || !usingDefaultReasons
@@ -127,11 +145,14 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
         ...(saveGates ? { gates: cleanGates } : {}),
         ...(slaChanged || !usingDefaultSla ? { sla } : {}),
         ...(retentionChanged ? { retentionDays: retention } : {}),
+        ...(typesChanged ? { vehicleTypes: cleanTypes } : {}),
+        ...(warnChanged ? { expiryWarningDays: warnDays } : {}),
       })
       setItems(checklist)
       setReasons(cleanReasons)
       setGates(cleanGates)
-      setBaseline({ checklist, settings, reasons: cleanReasons, gates: cleanGates, sla, retentionDays: retention })
+      setTypes(cleanTypes)
+      setBaseline({ checklist, settings, reasons: cleanReasons, gates: cleanGates, sla, retentionDays: retention, vehicleTypes: cleanTypes, expiryWarningDays: warnDays })
       await queryClient.invalidateQueries({ queryKey: ['tenant', tenantId] })
       toast.success(t.saved)
     } catch (e) {
@@ -201,6 +222,17 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
       <RejectionReasonsEditor items={reasons} onChange={setReasons} showErrors={touched} usingDefaults={usingDefaultReasons} />
 
       <GatesEditor items={gates} onChange={setGates} showErrors={touched} usingDefaults={usingDefaultGates} />
+
+      <VehicleTypesEditor
+        items={types}
+        saved={baseline.vehicleTypes}
+        inUse={typesInUse}
+        onChange={setTypes}
+        showErrors={touched}
+        usingDefaults={usingDefaultTypes && !typesChanged}
+      />
+
+      <ExpiryEditor value={warnDays} onChange={setWarnDays} showErrors={touched} />
 
       <SlaEditor value={sla} onChange={setSla} showErrors={touched} usingDefaults={usingDefaultSla} />
 

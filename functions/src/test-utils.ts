@@ -181,10 +181,14 @@ export function makeWorld(): World {
       updateVehicleTx: async ({ vehicleId, patch, plate, audit }) => {
         const current = w.vehicles.get(vehicleId) as VehicleData
         const next: VehicleData = { ...current }
-        const { makeModel, ...rest } = patch
+        const { makeModel, insuranceExpiry, registrationExpiry, ...rest } = patch
         Object.assign(next, rest)
         if (makeModel === null) delete next.makeModel
         else if (makeModel !== undefined) next.makeModel = makeModel
+        if (insuranceExpiry === null) delete next.insuranceExpiry
+        else if (insuranceExpiry !== undefined) next.insuranceExpiry = insuranceExpiry
+        if (registrationExpiry === null) delete next.registrationExpiry
+        else if (registrationExpiry !== undefined) next.registrationExpiry = registrationExpiry
         if (plate && plate.plateKey !== current.plateKey) {
           const guard = `${current.tenantId}_${plate.plateKey}`
           const owner = w.plates.get(guard)
@@ -201,6 +205,8 @@ export function makeWorld(): World {
         w.audits.push(audit)
       },
       getTenant: async (id) => w.tenants.get(id) ?? null,
+      countVehiclesOfType: async (tenantId, type) =>
+        [...w.vehicles.values()].filter((v) => v.tenantId === tenantId && v.type === type).length,
       getPass: async (id) => structuredClone(w.passes.get(id) ?? null),
       submitPassTx: async ({ passId, pass, audit }) => {
         const existing = w.passes.get(passId) ?? null

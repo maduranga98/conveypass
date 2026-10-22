@@ -7,14 +7,18 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DataTable, type Column } from '@/components/ui/DataTable'
+import { EligibilityBadge } from '@/components/ui/EligibilityBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
+import { FilterSelect } from '@/components/ui/FilterSelect'
 import { ListSkeleton } from '@/components/ui/Skeleton'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { updateUser } from '@/lib/api'
 import { formatPhone } from '@/lib/credentials'
 import { apiErrorMessage } from '@/lib/errors'
+import { ELIGIBILITY_STATUSES } from '@/lib/expiry'
 import { strings } from '@/lib/strings'
+import { eligibilityOf } from '@/features/shared/documents'
 import { ReissuePinDialog, type ReissueTarget } from '@/features/admin/ReissuePinDialog'
 import { LastSignIn } from '@/features/admin/LastSignIn'
 import { useSession } from '@/features/auth/useAuth'
@@ -41,6 +45,7 @@ export default function DriversPage({ scope }: { scope: Scope }) {
   const [params, setParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
+  const [eligibility, setEligibility] = useState('')
   const [contractorId, setContractorId] = useState(isAdmin ? (params.get('contractor') ?? '') : '')
   const [formFor, setFormFor] = useState<WithId<Driver> | 'new' | null>(params.get('new') ? 'new' : null)
   const [reissuing, setReissuing] = useState<ReissueTarget | null>(null)
@@ -64,13 +69,14 @@ export default function DriversPage({ scope }: { scope: Scope }) {
       items.filter(
         (d) =>
           (!status || d.status === status) &&
+          (!eligibility || eligibilityOf(d) === eligibility) &&
           (!contractorId || d.contractorId === contractorId) &&
           matchesSearch(
             [d.name, d.phone, formatPhone(d.phone), d.licenseNo ?? '', ...(vehiclesByDriver.get(d.id) ?? []).map((v) => `${v.plateNo} ${v.plateKey}`)].join(' '),
             search,
           ),
       ),
-    [items, status, contractorId, search, vehiclesByDriver],
+    [items, status, eligibility, contractorId, search, vehiclesByDriver],
   )
   const { visible, hasMore, remaining, showMore } = usePaged(filtered)
   const closeForm = () => {
@@ -80,6 +86,7 @@ export default function DriversPage({ scope }: { scope: Scope }) {
   const clear = () => {
     setSearch('')
     setStatus('')
+    setEligibility('')
     setContractorId('')
   }
 
@@ -132,6 +139,16 @@ export default function DriversPage({ scope }: { scope: Scope }) {
           </ul>
         )
       },
+    },
+    {
+      key: 'documents',
+      header: t.columns.documents,
+      cell: (d) => (
+        <span className="flex flex-col items-end gap-0.5 md:items-start">
+          <EligibilityBadge status={d.eligibilityStatus} />
+          {d.licenseExpiry && <span className="font-mono text-xs text-slate-500">{d.licenseExpiry}</span>}
+        </span>
+      ),
     },
     {
       key: 'lastSignIn',
@@ -205,6 +222,16 @@ export default function DriversPage({ scope }: { scope: Scope }) {
             {...(isAdmin
               ? { contractors: (contractors.data ?? []).map((c) => ({ id: c.id, name: c.name })), contractorId, onContractor: setContractorId }
               : {})}
+            filters={
+              <FilterSelect label={strings.eligibility.label} value={eligibility} onChange={(e) => setEligibility(e.target.value)}>
+                <option value="">{strings.eligibility.all}</option>
+                {ELIGIBILITY_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {strings.eligibility[s]}
+                  </option>
+                ))}
+              </FilterSelect>
+            }
             end={strings.list.count(filtered.length, items.length)}
           />
           {filtered.length === 0 ? (

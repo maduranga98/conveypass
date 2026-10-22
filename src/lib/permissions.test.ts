@@ -38,4 +38,14 @@ describe('permissions matrix', () => {
     expect(web.can(null, 'account.view')).toBe(false)
     expect(web.can(undefined, 'account.view')).toBe(false)
   })
+
+  it('lets admins and supervisors manage vehicles, the Safety Officer only read them', () => {
+    expect(web.rolesFor('vehicle.manage')).toEqual(['admin', 'supervisor'])
+    expect(web.rolesFor('vehicle.view')).toContain('safety')
+    expect(web.can('safety', 'vehicle.manage')).toBe(false)
+    for (const role of ['security', 'driver'] as const) expect(web.can(role, 'vehicle.manage')).toBe(false)
+    expect(web.rolesFor('driver.view')).not.toContain('driver')
+    expect(web.rolesFor('vehicleType.manage')).toEqual(['admin'])
+    expect(web.rolesFor('expiry.settings')).toEqual(['admin'])
+  })
 })

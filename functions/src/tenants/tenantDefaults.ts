@@ -5,7 +5,9 @@ import { randomInt } from 'node:crypto'
 import { DEFAULT_CHECKLIST, DEFAULT_PASS_SETTINGS, type ChecklistItemDef, type PassSettings } from '../defaultChecklist.js'
 import { DEFAULT_REJECTION_REASONS, type RejectionReasonDef } from '../defaultRejectionReasons.js'
 import { DEFAULT_SLA, type SlaSettings } from '../defaultSla.js'
+import { DEFAULT_EXPIRY_WARNING_DAYS } from '../expiry.js'
 import { DEFAULT_GATES, type GateDef } from '../gates.js'
+import { VEHICLE_TYPES } from '../vehicleTypes.js'
 
 export const DEFAULT_TIMEZONE = 'Asia/Colombo'
 
@@ -22,6 +24,8 @@ export interface TenantDefaults {
   sla: SlaSettings
   passSettings: PassSettings
   retentionDays: number
+  vehicleTypes: string[]
+  expiryWarningDays: number
 }
 
 /** A fresh copy every time, so no caller can mutate the shared constants. */
@@ -34,6 +38,8 @@ export function tenantDefaults(timezone: string = DEFAULT_TIMEZONE): TenantDefau
     sla: { ...DEFAULT_SLA },
     passSettings: { ...DEFAULT_PASS_SETTINGS },
     retentionDays: 0,
+    vehicleTypes: [...VEHICLE_TYPES],
+    expiryWarningDays: DEFAULT_EXPIRY_WARNING_DAYS,
   }
 }
 

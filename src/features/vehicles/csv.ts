@@ -1,14 +1,14 @@
 import Papa from 'papaparse'
 import { normalisePlate } from '@/lib/plate'
 import { strings } from '@/lib/strings'
-import { VEHICLE_TYPES, type VehicleType } from '@/lib/vehicleTypes'
-import { vehicleFieldsSchema } from './schemas'
+import { VEHICLE_TYPES } from '@/lib/vehicleTypes'
+import { vehicleFieldsSchemaFor } from './schemas'
 
 export const MAX_CSV_ROWS = 2000
 
 export interface CsvVehicle {
   plateNo: string
-  type: VehicleType
+  type: string
   makeModel?: string
 }
 
@@ -25,15 +25,16 @@ export type CsvParseResult =
   | { ok: true; rows: CsvRow[]; truncated: boolean }
   | { ok: false; reason: 'header' | 'empty' }
 
-const canonicalType = (raw: string): string => {
+const canonicalType = (raw: string, allowed: readonly string[]): string => {
   const t = raw.trim().toLowerCase()
-  return VEHICLE_TYPES.find((v) => v.toLowerCase() === t) ?? raw.trim()
+  return allowed.find((v) => v.toLowerCase() === t) ?? raw.trim()
 }
 
 const stripBom = (t: string): string => (t.charCodeAt(0) === 0xfeff ? t.slice(1) : t)
 
-/** Parses and validates a vehicle CSV (`plateNo,type,makeModel`) with the same schema the form uses. */
-export function parseVehicleCsv(text: string): CsvParseResult {
+/** Parses and validates a vehicle CSV (`plateNo,type,makeModel`) with the same schema the form uses, against the tenant's types. */
+export function parseVehicleCsv(text: string, allowedTypes: readonly string[] = VEHICLE_TYPES): CsvParseResult {
+  const schema = vehicleFieldsSchemaFor(allowedTypes)
   const parsed = Papa.parse<Record<string, string | undefined>>(stripBom(text), {
     header: true,
     skipEmptyLines: 'greedy',
@@ -47,7 +48,7 @@ export function parseVehicleCsv(text: string): CsvParseResult {
   const seen = new Set<string>()
   const rows = parsed.data.slice(0, MAX_CSV_ROWS).map((r, i): CsvRow => {
     const raw = { plateNo: r.plateno ?? '', type: r.type ?? '', makeModel: r.makemodel ?? '' }
-    const result = vehicleFieldsSchema.safeParse({ ...raw, type: canonicalType(raw.type) })
+    const result = schema.safeParse({ ...raw, type: canonicalType(raw.type, allowedTypes) })
     if (!result.success) {
       return { line: i + 2, raw, value: null, error: result.error.issues[0]?.message ?? strings.vehicles.errors.plate }
     }

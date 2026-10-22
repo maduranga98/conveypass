@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal'
 import { createUser, updateUser } from '@/lib/api'
 import { formatPhone, normalisePhone } from '@/lib/credentials'
 import { apiErrorMessage } from '@/lib/errors'
+import { isExpiryDate } from '@/lib/expiry'
 import { driverPhotoPath } from '@/lib/photoPath'
 import { strings } from '@/lib/strings'
 import { useSession } from '@/features/auth/useAuth'
@@ -62,6 +63,7 @@ const schema = z
     phone: z.string().trim(),
     contractorId: z.string(),
     licenseNo: z.string().trim().max(30),
+    licenseExpiry: z.string(),
   })
 type Values = z.infer<typeof schema>
 
@@ -83,6 +85,8 @@ function DriverForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'>
           const issue = (path: keyof Values, message: string) => ctx.addIssue({ code: 'custom', path: [path], message })
           // Contact number only: optional, not unique, never a login.
           if (v.phone !== '' && !normalisePhone(v.phone)) issue('phone', strings.auth.invalidPhone)
+          if (v.licenseExpiry === '') issue('licenseExpiry', strings.eligibility.required)
+          else if (!isExpiryDate(v.licenseExpiry)) issue('licenseExpiry', strings.eligibility.invalid)
           if (existing) return
           if (isAdmin && !v.contractorId) issue('contractorId', t.contractorRequired)
         }),
@@ -104,6 +108,7 @@ function DriverForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'>
       phone: existing ? formatPhone(existing.phone) : '',
       contractorId: '',
       licenseNo: existing?.licenseNo ?? '',
+      licenseExpiry: existing?.licenseExpiry ?? '',
     },
   })
 
@@ -131,11 +136,13 @@ function DriverForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'>
         const name = v.name.trim()
         const phone = v.phone.trim() === '' ? null : normalisePhone(v.phone)
         const phoneChanged = phone !== (existing.phone ?? null)
-        if (name !== existing.name || licenseNo !== (existing.licenseNo ?? '') || phoneChanged) {
+        const expiryChanged = v.licenseExpiry !== (existing.licenseExpiry ?? '')
+        if (name !== existing.name || licenseNo !== (existing.licenseNo ?? '') || phoneChanged || expiryChanged) {
           await updateUser({
             uid: existing.id,
             ...(name !== existing.name ? { name } : {}),
             ...(licenseNo !== (existing.licenseNo ?? '') ? { licenseNo: licenseNo || null } : {}),
+            ...(expiryChanged ? { licenseExpiry: v.licenseExpiry } : {}),
             ...(phoneChanged ? { phone: phone === null ? null : v.phone } : {}), // as typed: the server normalises it
           })
         }
@@ -153,6 +160,7 @@ function DriverForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'>
         ...(v.phone.trim() ? { phone: v.phone } : {}),
         contractorId,
         ...(licenseNo ? { licenseNo } : {}),
+        licenseExpiry: v.licenseExpiry,
       })
       await uploadAndAttach(uid, contractorId)
       await queryClient.invalidateQueries({ queryKey: ['drivers'] })
@@ -202,7 +210,10 @@ function DriverForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'>
         </Select>
       )}
 
-      <Input label={t.licenseNo} optional autoComplete="off" error={errors.licenseNo?.message} {...register('licenseNo')} />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Input label={t.licenseNo} optional autoComplete="off" error={errors.licenseNo?.message} {...register('licenseNo')} />
+        <Input label={t.licenseExpiry} type="date" error={errors.licenseExpiry?.message} {...register('licenseExpiry')} />
+      </div>
 
       <PhotoField name={watchedName} currentUrl={currentUrl ?? null} value={photo} onChange={setPhoto} disabled={isSubmitting} />
 

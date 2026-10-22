@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_CHECKLIST, DEFAULT_PASS_SETTINGS } from '../defaultChecklist.js'
 import { DEFAULT_REJECTION_REASONS } from '../defaultRejectionReasons.js'
 import { DEFAULT_SLA } from '../defaultSla.js'
+import { DEFAULT_EXPIRY_WARNING_DAYS } from '../expiry.js'
 import { DEFAULT_GATES } from '../gates.js'
+import { VEHICLE_TYPES } from '../vehicleTypes.js'
 import { buildTenantDocs, DEFAULT_TIMEZONE, newTenantId, provisionTenant, tenantDefaults, TENANT_ID_PATTERN } from './tenantDefaults.js'
 
 const STAMP = { serverTimestamp: true }
@@ -25,6 +27,8 @@ describe('tenant defaults', () => {
       sla: DEFAULT_SLA,
       passSettings: DEFAULT_PASS_SETTINGS,
       retentionDays: 0,
+      vehicleTypes: [...VEHICLE_TYPES],
+      expiryWarningDays: DEFAULT_EXPIRY_WARNING_DAYS,
     })
     expect(DEFAULT_TIMEZONE).toBe('Asia/Colombo')
   })

@@ -147,6 +147,7 @@ const adminA = () => as('adminA', { role: 'admin', tenantId: A })
 const supA1 = () => as('supA1', { role: 'supervisor', tenantId: A, contractorId: 'c1' })
 const drvA1 = () => as('drvA1', { role: 'driver', tenantId: A, contractorId: 'c1' })
 const officerA = () => as('offA', { role: 'officer', tenantId: A })
+const safetyA = () => as('safA', { role: 'safety', tenantId: A })
 const securityA = () => as('secA', { role: 'security', tenantId: A })
 
 describe('unauthenticated', () => {
@@ -377,8 +378,8 @@ describe('vehicles', () => {
   const ids = async (db: ReturnType<typeof adminA>, ...constraints: ReturnType<typeof where>[]) =>
     (await assertSucceeds(getDocs(query(collection(db, 'vehicles'), ...constraints)))).docs.map((d) => d.id).sort()
 
-  it('admin, officer and security read every vehicle of their tenant', async () => {
-    for (const db of [adminA(), officerA(), securityA()]) {
+  it('admin, officer, security and safety read every vehicle of their tenant', async () => {
+    for (const db of [adminA(), officerA(), securityA(), safetyA()]) {
       expect(await ids(db, where('tenantId', '==', A))).toEqual(['veh_a1', 'veh_a2', 'veh_a3', 'veh_a4'])
       await assertSucceeds(getDoc(doc(db, 'vehicles', 'veh_a4')))
     }
@@ -405,7 +406,7 @@ describe('vehicles', () => {
   })
 
   it('denies cross-tenant reads and queries', async () => {
-    for (const db of [adminA(), officerA(), securityA(), supA1(), drvA1()]) {
+    for (const db of [adminA(), officerA(), securityA(), safetyA(), supA1(), drvA1()]) {
       await assertFails(getDoc(doc(db, 'vehicles', 'veh_b1')))
     }
     await assertFails(getDocs(query(collection(adminA(), 'vehicles'), where('tenantId', '==', B))))
@@ -418,7 +419,7 @@ describe('vehicles', () => {
   })
 
   it('denies every client write to vehicles, by every role', async () => {
-    for (const db of [adminA(), officerA(), securityA(), supA1(), drvA1()]) {
+    for (const db of [adminA(), officerA(), securityA(), safetyA(), supA1(), drvA1()]) {
       await assertFails(setDoc(doc(db, 'vehicles', 'veh_new'), vehicleDoc(A, 'c1', [])))
       await assertFails(addDoc(collection(db, 'vehicles'), vehicleDoc(A, 'c1', [])))
       await assertFails(updateDoc(doc(db, 'vehicles', 'veh_a1'), { status: 'suspended' }))
@@ -429,8 +430,8 @@ describe('vehicles', () => {
 })
 
 describe('drivers', () => {
-  it('admin, officer and security read every driver profile of their tenant', async () => {
-    for (const db of [adminA(), officerA(), securityA()]) {
+  it('admin, officer, security and safety read every driver profile of their tenant', async () => {
+    for (const db of [adminA(), officerA(), securityA(), safetyA()]) {
       const snap = await assertSucceeds(getDocs(query(collection(db, 'drivers'), where('tenantId', '==', A))))
       expect(snap.docs.map((d) => d.id).sort()).toEqual(['drvA1', 'drvA1b', 'drvA2'])
     }

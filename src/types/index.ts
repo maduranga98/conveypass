@@ -4,7 +4,7 @@ import type { ChecklistItemDef, PassSettings } from '@/lib/defaultChecklist'
 import type { RejectionReasonDef } from '@/lib/defaultRejectionReasons'
 import type { GateDef } from '@/lib/gates'
 import type { SlaSettings } from '@/lib/defaultSla'
-import type { VehicleType } from '@/lib/vehicleTypes'
+import type { EligibilityStatus } from '@/lib/expiry'
 
 export type UserStatus = 'active' | 'disabled'
 export type ContractorStatus = 'active' | 'suspended'
@@ -26,6 +26,10 @@ export interface Tenant {
   sla?: Partial<SlaSettings>
   /** 0 or absent = keep evidence forever; otherwise 30-3650 days. */
   retentionDays?: number
+  /** Allowed vehicle types (names). Falls back to the defaults when absent or empty. */
+  vehicleTypes?: string[]
+  /** Days before an expiry date when a record turns "expiring soon". Falls back to 14. */
+  expiryWarningDays?: number
 }
 
 export interface UserDoc {
@@ -72,10 +76,15 @@ export interface Vehicle {
   contractorId: string
   plateNo: string
   plateKey: string
-  type: VehicleType
+  type: string
   makeModel?: string
   assignedDriverIds: string[]
   status: VehicleStatus
+  /** `YYYY-MM-DD`. Absent = not tracked. */
+  insuranceExpiry?: string
+  registrationExpiry?: string
+  /** Denormalised by the callables and the daily job; absent on records that predate expiry tracking. */
+  eligibilityStatus?: EligibilityStatus
   createdAt: Timestamp
   createdBy: string
   updatedAt: Timestamp
@@ -89,6 +98,9 @@ export interface Driver {
   /** Contact number only (Module 12): optional, never a login. */
   phone: string | null
   licenseNo?: string | null
+  /** `YYYY-MM-DD`. Absent or null = not tracked. */
+  licenseExpiry?: string | null
+  eligibilityStatus?: EligibilityStatus
   photoPath?: string | null
   status: UserStatus
   createdAt: Timestamp

@@ -211,6 +211,22 @@ export const strings = {
 
   status: { active: 'Active', disabled: 'Disabled', suspended: 'Suspended' },
 
+  /** Derived from insurance, registration and licence expiry dates (Module 2). The word always accompanies the colour. */
+  eligibility: {
+    valid: 'Valid',
+    expiringSoon: 'Expiring soon',
+    expired: 'Expired',
+    label: 'Documents',
+    all: 'All documents',
+    insurance: 'Insurance expiry',
+    registration: 'Registration expiry',
+    license: 'Licence expiry',
+    notTracked: 'Not recorded',
+    required: 'Enter an expiry date',
+    invalid: 'Enter a valid date',
+    daysLeft: (n: number) => (n < 0 ? `${-n} ${-n === 1 ? 'day' : 'days'} ago` : n === 0 ? 'today' : `in ${n} ${n === 1 ? 'day' : 'days'}`),
+  },
+
   auth: {
     signInTitle: 'Sign in',
     email: 'Email',
@@ -449,6 +465,8 @@ export const strings = {
     'password-is-email': 'Your password cannot be your email address.',
     'timezone-invalid': 'Choose a timezone from the list.',
     'plate-exists': 'A vehicle with this plate number already exists.',
+    'invalid-type': 'Choose a vehicle type from the list.',
+    'type-in-use': 'Vehicles still use that type, so it cannot be removed or renamed.',
     'vehicle-not-found': 'Vehicle not found.',
     'driver-invalid': 'Choose active drivers that belong to this contractor.',
     'contractor-not-found': 'Contractor not found.',
@@ -916,6 +934,7 @@ export const strings = {
     capNotice: (n: number) => `Showing the first ${n} records. Narrow the list with search or filters.`,
     allStatuses: 'All statuses',
     allContractors: 'All contractors',
+    allTypes: 'All types',
     noMatchTitle: 'Nothing matches',
     noMatchBody: 'Try a different search or clear the filters.',
     clearFilters: 'Clear filters',
@@ -930,7 +949,7 @@ export const strings = {
     searchLabel: 'Search vehicles',
     emptyTitle: 'No vehicles yet',
     emptyBody: 'Add a vehicle to generate its permanent QR code.',
-    columns: { plate: 'Plate', type: 'Type', contractor: 'Contractor', drivers: 'Drivers', status: 'Status' },
+    columns: { plate: 'Plate', type: 'Type', contractor: 'Contractor', drivers: 'Drivers', documents: 'Documents', status: 'Status' },
     noDrivers: 'No drivers assigned',
     form: {
       plate: 'Plate number',
@@ -939,6 +958,8 @@ export const strings = {
       type: 'Vehicle type',
       typePlaceholder: 'Select a type',
       makeModel: 'Make and model',
+      insuranceExpiry: 'Insurance expiry',
+      registrationExpiry: 'Registration expiry',
       contractor: 'Contractor',
       contractorPlaceholder: 'Select a contractor',
       drivers: 'Assigned drivers',
@@ -975,6 +996,7 @@ export const strings = {
       suspended: 'Vehicle suspended',
       activated: 'Vehicle activated',
       permanentId: 'QR ID',
+      documents: 'Documents',
     },
     import: {
       button: 'Import CSV',
@@ -1019,7 +1041,7 @@ export const strings = {
     searchLabel: 'Search drivers',
     emptyTitle: 'No drivers yet',
     emptyBody: 'Add a driver so they can be assigned to vehicles.',
-    columns: { driver: 'Driver', phone: 'Contact', vehicles: 'Vehicles', lastSignIn: 'Last signed in', status: 'Status' },
+    columns: { driver: 'Driver', phone: 'Contact', vehicles: 'Vehicles', documents: 'Licence', lastSignIn: 'Last signed in', status: 'Status' },
     noVehicles: 'No vehicles assigned',
     form: {
       name: 'Full name',
@@ -1028,6 +1050,7 @@ export const strings = {
       contractor: 'Contractor',
       contractorPlaceholder: 'Select a contractor',
       licenseNo: 'Licence number',
+      licenseExpiry: 'Licence expiry',
       photo: 'Photo',
       takePhoto: 'Take or choose photo',
       changePhoto: 'Change photo',
@@ -1326,6 +1349,24 @@ export const strings = {
 
   admin: {
     nav: { dashboard: 'Dashboard', reports: 'Reports', users: 'Users', contractors: 'Contractors', vehicles: 'Vehicles', drivers: 'Drivers', passes: 'Passes', qr: 'QR labels', settings: 'Settings' },
+    vehicleTypes: {
+      title: 'Vehicle types',
+      hint: 'The types admins and supervisors can pick when adding a vehicle. A type that vehicles use cannot be removed or renamed.',
+      name: 'Type name',
+      add: 'Add type',
+      remove: 'Remove',
+      nameError: 'Use 2 to 40 characters, no duplicates',
+      min: 'Keep at least one type.',
+      max: 'You can have at most 30 types.',
+      inUse: 'In use',
+      usingDefaults: 'Showing the default types. Save to make them your own.',
+    },
+    expiry: {
+      title: 'Expiry warnings',
+      hint: 'A vehicle or driver is marked “Expiring soon” when insurance, registration or licence expires within this many days. Updated every night.',
+      days: 'Warn this many days ahead',
+      error: 'Use a whole number from 1 to 90',
+    },
     gates: {
       title: 'Gates',
       hint: 'Security picks one of these on their phone. 1 to 10 gates.',

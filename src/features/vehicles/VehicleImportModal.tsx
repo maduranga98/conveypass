@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal'
 import { importVehicles } from '@/lib/api'
 import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
+import { useTenantDocuments } from '@/features/shared/documents'
 import { useContractorList } from '@/features/shared/queries'
 import { useScope, type Scope } from '@/features/shared/scope'
 import { downloadText, parseVehicleCsv, TEMPLATE_CSV, toCsv, type CsvRow } from './csv'
@@ -37,6 +38,7 @@ function ImportFlow({ scope, onClose }: { scope: Scope; onClose: () => void }) {
   const queryClient = useQueryClient()
   const { isAdmin } = useScope(scope)
   const contractors = useContractorList(scope)
+  const { vehicleTypes } = useTenantDocuments()
   const input = useRef<HTMLInputElement>(null)
   const [step, setStep] = useState<Step>({ name: 'pick' })
   const [contractorId, setContractorId] = useState('')
@@ -48,7 +50,7 @@ function ImportFlow({ scope, onClose }: { scope: Scope; onClose: () => void }) {
   const onFile = async (file: File | undefined) => {
     if (!file) return
     setError(null)
-    const parsed = parseVehicleCsv(await file.text())
+    const parsed = parseVehicleCsv(await file.text(), vehicleTypes)
     if (input.current) input.current.value = ''
     if (!parsed.ok) {
       setError(parsed.reason === 'header' ? t.headerError : t.fileEmpty)

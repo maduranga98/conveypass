@@ -1,5 +1,6 @@
 import {
   audit,
+  eligibilityContext,
   parse,
   PlateTakenError,
   requireActiveCaller,
@@ -18,7 +19,8 @@ import {
   updateVehicleSchema,
 } from './schemas.js'
 import type { AuditEntry, Caller, VehicleData, VehiclePatch } from './types.js'
-import { isVehicleType } from './vehicleTypes.js'
+import { computeEligibility } from './expiry.js'
+import { effectiveVehicleTypes } from './vehicleTypes.js'
 
 const MAX_ID_ATTEMPTS = 3
 
@@ -66,6 +68,13 @@ async function assertDriversAssignable(
   }
   return unique
 }
+
+function assertKnownType(allowed: readonly string[], type: string): void {
+  if (!allowed.includes(type)) throw fail('invalid-argument', 'invalid-type', 'Unknown vehicle type')
+}
+
+const eligibilityOf = (v: { insuranceExpiry?: string | null; registrationExpiry?: string | null }, today: string, warningDays: number) =>
+  computeEligibility([v.insuranceExpiry, v.registrationExpiry], today, warningDays)
 
 const plateTaken = () => fail('already-exists', 'plate-exists', 'A vehicle with this plate already exists')
 
@@ -117,6 +126,8 @@ export async function createVehicle(
   const plate = normalisePlate(input.plateNo)
   if (!plate) throw fail('invalid-argument', 'invalid-input', 'Invalid plate number')
   const assignedDriverIds = await assertDriversAssignable(deps, caller.tenantId, contractorId, input.driverIds ?? [])
+  const ctx = await eligibilityContext(deps, caller.tenantId)
+  assertKnownType(effectiveVehicleTypes(ctx.tenant?.vehicleTypes), input.type)
 
   try {
     const vehicleId = await createVehicleOnce(
@@ -130,6 +141,9 @@ export async function createVehicle(
         type: input.type,
         ...(input.makeModel ? { makeModel: input.makeModel } : {}),
         assignedDriverIds,
+        ...(input.insuranceExpiry ? { insuranceExpiry: input.insuranceExpiry } : {}),
+        ...(input.registrationExpiry ? { registrationExpiry: input.registrationExpiry } : {}),
+        eligibilityStatus: eligibilityOf(input, ctx.today, ctx.warningDays),
       },
       'manual',
     )
@@ -160,9 +174,24 @@ export async function updateVehicle(deps: Deps, caller: Caller, raw: unknown): P
       if (next.plateKey !== vehicle.plateKey) plate = next
     }
   }
+  let ctx: Awaited<ReturnType<typeof eligibilityContext>> | undefined
+  const context = async () => (ctx ??= await eligibilityContext(deps, vehicle.tenantId))
   if (input.type !== undefined && input.type !== vehicle.type) {
+    assertKnownType(effectiveVehicleTypes((await context()).tenant?.vehicleTypes), input.type)
     patch.type = input.type
     meta.type = true
+  }
+  const dates = { insuranceExpiry: vehicle.insuranceExpiry ?? null, registrationExpiry: vehicle.registrationExpiry ?? null }
+  for (const key of ['insuranceExpiry', 'registrationExpiry'] as const) {
+    if (input[key] !== undefined && input[key] !== dates[key]) {
+      patch[key] = input[key]
+      dates[key] = input[key]
+      meta[key] = true
+    }
+  }
+  if (meta.insuranceExpiry || meta.registrationExpiry) {
+    const c = await context()
+    patch.eligibilityStatus = eligibilityOf(dates, c.today, c.warningDays)
   }
   if (input.makeModel !== undefined && input.makeModel !== (vehicle.makeModel ?? '')) {
     patch.makeModel = input.makeModel === '' ? null : input.makeModel
@@ -245,6 +274,7 @@ export async function importVehicles(
   const contractorId = scopedContractorId(caller, input.contractorId)
   await requireActiveContractor(deps, caller, contractorId)
 
+  const allowedTypes = effectiveVehicleTypes((await deps.data.getTenant(caller.tenantId))?.vehicleTypes)
   const results: ImportRowResult[] = []
   for (const [i, row] of input.rows.entries()) {
     const result = (error: ImportRowError): ImportRowResult => ({ row: i + 1, ok: false, error })
@@ -254,7 +284,7 @@ export async function importVehicles(
       continue
     }
     const type = row.type.trim()
-    if (!isVehicleType(type)) {
+    if (!allowedTypes.includes(type)) {
       results.push(result('invalid-type'))
       continue
     }

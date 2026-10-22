@@ -1,3 +1,5 @@
+import { MAX_EXPIRY_WARNING_DAYS, MIN_EXPIRY_WARNING_DAYS } from '@/lib/expiry'
+import { MAX_VEHICLE_TYPES, VEHICLE_TYPE_NAME_MAX, VEHICLE_TYPE_NAME_MIN } from '@/lib/vehicleTypes'
 import { SLA_MAX, SLA_MIN, type SlaSettings } from '@/lib/defaultSla'
 import { GATE_NAME_MAX, GATE_NAME_MIN } from '@/lib/gates'
 
@@ -22,3 +24,15 @@ export const DEFAULT_RETENTION_DAYS = 365
 
 /** 0 (keep forever) or a whole number of days from 30 to 3650. */
 export const retentionOk = (days: number): boolean => days === 0 || (Number.isInteger(days) && days >= RETENTION_MIN && days <= RETENTION_MAX)
+
+export const vehicleTypeNameOk = (name: string): boolean =>
+  name.trim().length >= VEHICLE_TYPE_NAME_MIN && name.trim().length <= VEHICLE_TYPE_NAME_MAX
+
+/** Every name is valid and no two are equal ignoring case; 1 to 30 names. */
+export const vehicleTypesOk = (names: string[]): boolean =>
+  names.length >= 1 &&
+  names.length <= MAX_VEHICLE_TYPES &&
+  names.every(vehicleTypeNameOk) &&
+  new Set(names.map((n) => n.trim().toLowerCase())).size === names.length
+
+export const expiryDaysOk = (n: number): boolean => Number.isInteger(n) && n >= MIN_EXPIRY_WARNING_DAYS && n <= MAX_EXPIRY_WARNING_DAYS

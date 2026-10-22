@@ -1,4 +1,5 @@
 import type { SlaSettings } from './defaultSla.js'
+import type { EligibilityStatus } from './expiry.js'
 import type { GateDef } from './gates.js'
 
 export const ROLES = ['admin', 'officer', 'supervisor', 'safety', 'driver', 'security'] as const
@@ -60,11 +61,20 @@ export interface VehicleData {
   makeModel?: string
   assignedDriverIds: string[]
   status: VehicleStatus
+  /** `YYYY-MM-DD`. Absent on vehicles that predate expiry tracking (= not tracked). */
+  insuranceExpiry?: string
+  registrationExpiry?: string
+  /** Denormalised from the two dates, the tenant's warning window and today. Written by the callables and the daily job. */
+  eligibilityStatus?: EligibilityStatus
 }
 
 /** `null` removes the field. */
-export type VehiclePatch = Partial<Omit<VehicleData, 'tenantId' | 'contractorId' | 'plateKey' | 'makeModel'>> & {
+export type VehiclePatch = Partial<
+  Omit<VehicleData, 'tenantId' | 'contractorId' | 'plateKey' | 'makeModel' | 'insuranceExpiry' | 'registrationExpiry'>
+> & {
   makeModel?: string | null
+  insuranceExpiry?: string | null
+  registrationExpiry?: string | null
 }
 
 /** `drivers/{uid}`: same id as the `users` doc. name, phone and status mirror `users`. */
@@ -75,6 +85,10 @@ export interface DriverData {
   /** Contact number only (Module 12): optional, not unique, never a login. */
   phone: string | null
   licenseNo?: string | null
+  /** `YYYY-MM-DD`. Absent = not tracked. */
+  licenseExpiry?: string | null
+  /** Denormalised from `licenseExpiry` (callables and the daily job). */
+  eligibilityStatus?: EligibilityStatus
   photoPath?: string | null
   status: UserStatus
 }
@@ -131,6 +145,10 @@ export interface TenantData {
   sla?: Partial<SlaSettings>
   /** Evidence retention in days. 0 or absent = keep forever; otherwise 30-3650. */
   retentionDays?: number
+  /** Allowed vehicle types (names). Falls back to the default list when absent or empty. */
+  vehicleTypes?: string[]
+  /** Days before an expiry date when a record turns "expiring soon". Falls back to 14. */
+  expiryWarningDays?: number
 }
 
 

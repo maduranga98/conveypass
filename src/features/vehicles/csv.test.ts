@@ -56,3 +56,14 @@ describe('toCsv', () => {
     expect(toCsv([{ a: '=1+1' }], ['a'])).toContain("'=1+1")
   })
 })
+
+describe('parseVehicleCsv with the tenant type list', () => {
+  const csv = 'plateNo,type,makeModel\nCAB-1234,water bowser,\nCAB-5678,Tipper,\n'
+
+  it('accepts a custom type (any case) and refuses a default that the tenant removed', () => {
+    const parsed = parseVehicleCsv(csv, ['Water Bowser'])
+    if (!parsed.ok) throw new Error('expected rows')
+    expect(parsed.rows[0]?.value?.type).toBe('Water Bowser')
+    expect(parsed.rows[1]?.error).toBeTruthy()
+  })
+})
