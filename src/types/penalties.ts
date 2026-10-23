@@ -1,5 +1,6 @@
 import type { Timestamp } from 'firebase/firestore'
 import type { EligibilityStatus } from '@/lib/expiry'
+import type { ClearanceStatus, InvalidationReason } from '@/lib/inspectionLogic'
 import type { CombinedStatus, PenaltyStatus, PenaltyTarget } from '@/lib/penaltyLogic'
 
 /** `penaltyTypes/{id}`: the company's own list (no seeded types). Function-written. */
@@ -69,11 +70,24 @@ export interface SubjectEligibility {
   penalties: BlockingPenaltyInfo[]
 }
 
-/** What `checkEligibility` returns: documents (Module 2) combined with active penalties. `blocked` overrides everything. */
+/** The vehicle's inspection clearance (status and reason only). */
+export interface InspectionClearance {
+  status: ClearanceStatus
+  cleared: boolean
+  reason: InvalidationReason | null
+  at: number | null
+}
+
+/**
+ * What `checkEligibility` returns: documents (Module 2), active penalties (Module 3) and inspection clearance. `blocked`
+ * overrides the document status; `eligible` is the combined answer (all three layers pass).
+ */
 export interface EligibilityResult {
   status: CombinedStatus
   blocked: boolean
   vehicle: SubjectEligibility | null
   driver: SubjectEligibility | null
+  inspection: InspectionClearance | null
+  eligible: boolean
   checkedAt: number
 }

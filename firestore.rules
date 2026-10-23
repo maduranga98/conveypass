@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Deny by default. Roles/tenant come ONLY from custom claims (set by Cloud Functions).
-// `operators`, `platformAuditLog`, `setupInvites` (no client access at all), `users`, `tenants`, `auditLog`, `vehicles`, `drivers`, `vehiclePlates`, `passes`, `gateEvents`, `penalties` and `penaltyTypes` are never client-writable
+// `operators`, `platformAuditLog`, `setupInvites` (no client access at all), `users`, `tenants`, `auditLog`, `vehicles`, `drivers`, `vehiclePlates`, `passes`, `gateEvents`, `penalties`, `penaltyTypes` and `inspections` are never client-writable
 // (`notifications` accept one client write: `readAt` on your own); `users/*/devices` and `rateLimits` are closed;
 // Cloud Functions use the Admin SDK. `contractors` accept admin writes to descriptive fields only.
 service cloud.firestore {
@@ -82,7 +82,7 @@ service cloud.firestore {
     }
 
     // Vehicles and drivers are written only by Cloud Functions (Admin SDK). The Safety Officer reads them tenant-wide
-    // (expiry status, read only); inspections and penalties come with a later module.
+    // (expiry status and the clearance copy, read only).
     // Drivers read only the vehicles they are assigned to (query with array-contains on their uid).
     match /vehicles/{id} {
       allow read: if signedIn() && sameTenant(resource.data) && (
@@ -140,6 +140,18 @@ service cloud.firestore {
     // The company's own penalty type list (no seeded list). Callables write; the roles that work with penalties read.
     match /penaltyTypes/{id} {
       allow read: if signedIn() && sameTenant(resource.data) && role() in ['admin', 'safety', 'supervisor'];
+      allow write: if false;
+    }
+
+    // Inspections (trip clearance): written only by the callables (recordInspection, withdrawClearance) and the
+    // triggers that cancel a clearance. The Safety Officer and the admin (oversight, read only) read the whole company;
+    // a supervisor only their own contractor's (queries carry the same tenantId + contractorId clauses). Officer,
+    // security and drivers have no access: the gate reads the combined `checkEligibility` output.
+    match /inspections/{id} {
+      allow read: if signedIn() && sameTenant(resource.data) && (
+        role() in ['admin', 'safety']
+        || (role() == 'supervisor' && contractorId() != null && resource.data.contractorId == contractorId())
+      );
       allow write: if false;
     }
 

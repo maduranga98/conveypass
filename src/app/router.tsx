@@ -36,6 +36,8 @@ import {
   PenaltiesPage,
   PenaltyTypesPage,
   IssuePenaltyPage,
+  RecordInspectionPage,
+  ReinspectionPage,
   VerificationQueuePage,
   PrivacyPage,
   QrLabelsPage,
@@ -176,6 +178,8 @@ export const router = createBrowserRouter([
                 children: [
                   { index: true, element: lazyEl(<PenaltiesPage viewer="safety" issuePath="/safety/penalties/new" />) },
                   { path: 'penalties/new', element: lazyEl(<IssuePenaltyPage listPath="/safety" typesPath={null} />) },
+                  { path: 'inspections/new', element: lazyEl(<RecordInspectionPage />) },
+                  { path: 'reinspection', element: lazyEl(<ReinspectionPage />) },
                 ],
               },
             ],

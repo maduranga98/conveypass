@@ -11,6 +11,7 @@ import type {
   DriverData,
   GateEventData,
   PassData,
+  InspectionData,
   PenaltyData,
   PenaltyTypeData,
   PinIndexEntry,
@@ -65,6 +66,7 @@ export interface World {
   passes: Map<string, PassData>
   gateEvents: Map<string, GateEventData>
   penalties: Map<string, PenaltyData>
+  inspections: Map<string, InspectionData>
   penaltyTypes: Map<string, PenaltyTypeData>
   /** Storage objects by full path. */
   files: Map<string, StoredFile>
@@ -93,6 +95,7 @@ export function makeWorld(): World {
     passes: new Map(),
     gateEvents: new Map(),
     penalties: new Map(),
+    inspections: new Map(),
     penaltyTypes: new Map(),
     files: new Map(),
     audits: [],
@@ -257,6 +260,35 @@ export function makeWorld(): World {
                 : (vehicleId !== undefined && p.target.vehicleId === vehicleId) || (driverId !== undefined && p.target.driverId === driverId)),
           )
           .map(([id, p]) => ({ ...structuredClone(p), id })),
+      getInspection: async (id) => structuredClone(w.inspections.get(id) ?? null),
+      inspectionTx: async ({ vehicleId, plan }) => {
+        const vehicle = structuredClone(w.vehicles.get(vehicleId) ?? null)
+        const pointer = vehicle?.clearance?.inspectionId
+        const stored = pointer ? w.inspections.get(pointer) : undefined
+        const current = pointer && stored ? { ...structuredClone(stored), id: pointer } : null
+        const planned = plan({ vehicle, current })
+        if (!planned) return { written: false, current }
+        if (planned.kind === 'record') {
+          const existing = w.inspections.get(planned.inspectionId)
+          if (existing) return { written: false, current: { ...structuredClone(existing), id: planned.inspectionId } }
+          if (pointer && stored && stored.status !== 'superseded') w.inspections.set(pointer, { ...stored, status: 'superseded', supersededBy: planned.inspectionId })
+          w.inspections.set(planned.inspectionId, structuredClone(planned.inspection))
+          const i = planned.inspection
+          w.vehicles.set(vehicleId, {
+            ...(vehicle as VehicleData),
+            clearance: { status: i.result === 'approved' ? 'cleared' : 'rejected', inspectionId: planned.inspectionId, reason: null, at: i.inspectedAt },
+          })
+          w.audits.push(planned.audit)
+          return { written: true, current: { ...structuredClone(i), id: planned.inspectionId } }
+        }
+        if (!pointer || !stored || !current) return { written: false, current }
+        const next = { ...stored, status: 'invalidated' as const, invalidatedReason: planned.reason, invalidatedAt: planned.at, invalidationSource: planned.source, invalidationNote: planned.note }
+        w.inspections.set(pointer, next)
+        w.vehicles.set(vehicleId, { ...(vehicle as VehicleData), clearance: { status: 'needs_reinspection', inspectionId: pointer, reason: planned.reason, at: planned.at } })
+        w.audits.push(planned.audit)
+        return { written: true, current: { ...structuredClone(next), id: pointer } }
+      },
+      listVehicleIdsOfDriver: async (driverId) => [...w.vehicles].filter(([, v]) => v.assignedDriverIds.includes(driverId)).map(([id]) => id),
       countVehiclesOfType: async (tenantId, type) =>
         [...w.vehicles.values()].filter((v) => v.tenantId === tenantId && v.type === type).length,
       getPass: async (id) => structuredClone(w.passes.get(id) ?? null),

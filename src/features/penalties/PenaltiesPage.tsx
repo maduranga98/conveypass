@@ -8,6 +8,7 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { FilterSelect } from '@/components/ui/FilterSelect'
 import { SearchField } from '@/components/ui/SearchField'
 import { ListSkeleton } from '@/components/ui/Skeleton'
+import { ReinspectionCallout } from '@/features/inspections/ReinspectionCallout'
 import { useNow } from '@/features/passes/useToday'
 import { matchesSearch, usePaged } from '@/features/shared/list'
 import { ClearFilters, ShowMore } from '@/features/shared/ListStates'
@@ -86,6 +87,8 @@ export default function PenaltiesPage({ viewer, issuePath }: Props) {
           {strings.penalties.nav.issue}
         </Button>
       </div>
+
+      {viewer === 'safety' && <ReinspectionCallout />}
 
       {feed.isLoading ? (
         <ListSkeleton />

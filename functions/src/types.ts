@@ -1,6 +1,7 @@
 import type { SlaSettings } from './defaultSla.js'
 import type { EligibilityStatus } from './expiry.js'
 import type { GateDef } from './gates.js'
+import type { ClearanceStatus, InspectionResult, InspectionStatus, InvalidationReason } from './inspectionLogic.js'
 import type { PenaltyDurationMs, PenaltyStatus, PenaltyTarget } from './penaltyLogic.js'
 
 export const ROLES = ['admin', 'officer', 'supervisor', 'safety', 'driver', 'security'] as const
@@ -67,6 +68,16 @@ export interface VehicleData {
   registrationExpiry?: string
   /** Denormalised from the two dates, the tenant's warning window and today. Written by the callables and the daily job. */
   eligibilityStatus?: EligibilityStatus
+  /** Denormalised from the current inspection by the inspection functions (one transaction with it). Absent = never inspected. */
+  clearance?: VehicleClearance
+}
+
+/** The vehicle's current inspection in a few fields, so lists and the gate read one document. `at` is milliseconds. */
+export interface VehicleClearance {
+  status: Exclude<ClearanceStatus, 'never_inspected'>
+  inspectionId: string
+  reason: InvalidationReason | null
+  at: number
 }
 
 /** `null` removes the field. */
@@ -102,7 +113,7 @@ export interface AuditEntry {
   actorRole: Role | 'system' | 'superadmin'
   /** Display name of a non-tenant actor (`ConvoyPass Super Admin`): the tenant's admins cannot read `operators`. */
   actorName?: string
-  targetType: 'user' | 'vehicle' | 'contractor' | 'tenant' | 'pass' | 'gateEvent' | 'notification' | 'penalty' | 'penaltyType'
+  targetType: 'user' | 'vehicle' | 'contractor' | 'tenant' | 'pass' | 'gateEvent' | 'notification' | 'penalty' | 'penaltyType' | 'inspection'
   targetId: string
   meta: Record<string, string | number | boolean | null>
 }
@@ -350,4 +361,30 @@ export interface PenaltyData {
   /** Set by the scheduled job when a fixed penalty ends. */
   expiredAt?: number
   verification: PenaltyVerification
+}
+
+// ---- Inspections -----------------------------------------------------------------------------
+
+export type { ClearanceStatus, InspectionResult, InspectionStatus, InvalidationReason }
+
+/** `inspections/{id}`. Timestamps are milliseconds here; the data port converts. A record is never edited, only superseded or invalidated. */
+export interface InspectionData {
+  tenantId: string
+  vehicleId: string
+  contractorId: string
+  /** Plate at inspection time, so history reads without joins. */
+  plateNo: string
+  inspectedBy: { uid: string; name: string }
+  inspectedAt: number
+  result: InspectionResult
+  notes: string
+  status: InspectionStatus
+  invalidatedReason: InvalidationReason | null
+  invalidatedAt: number | null
+  /** What cancelled it: a penalty id, `vehicle`, `driver:<uid>` or the officer's uid (manual). Never a name. */
+  invalidationSource?: string | null
+  /** The Safety Officer's reason for a manual withdrawal (`invalidatedReason: 'manual'`). */
+  invalidationNote?: string | null
+  /** The newer inspection that replaced this one. */
+  supersededBy?: string | null
 }

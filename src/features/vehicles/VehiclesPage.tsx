@@ -11,7 +11,10 @@ import { FilterSelect } from '@/components/ui/FilterSelect'
 import { ListSkeleton } from '@/components/ui/Skeleton'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { ELIGIBILITY_STATUSES } from '@/lib/expiry'
+import { CLEARANCE_STATUSES } from '@/lib/inspectionLogic'
 import { strings } from '@/lib/strings'
+import { ClearanceBadge } from '@/features/inspections/ClearanceBadge'
+import { clearanceOfVehicle } from '@/features/inspections/model'
 import { useBlocked } from '@/features/penalties/feed'
 import { BlockedBadge } from '@/features/penalties/PenaltyBadges'
 import { eligibilityOf, useTenantDocuments } from '@/features/shared/documents'
@@ -39,6 +42,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [eligibility, setEligibility] = useState('')
+  const [clearance, setClearance] = useState('')
   const [type, setType] = useState('')
   const [contractorId, setContractorId] = useState(isAdmin ? (params.get('contractor') ?? '') : '')
   const [formFor, setFormFor] = useState<WithId<Vehicle> | 'new' | null>(params.get('new') ? 'new' : null)
@@ -55,6 +59,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
         (v) =>
           (!status || v.status === status) &&
           (!eligibility || eligibilityOf(v) === eligibility) &&
+          (!clearance || clearanceOfVehicle(v).status === clearance) &&
           (!type || v.type === type) &&
           (!contractorId || v.contractorId === contractorId) &&
           matchesSearch(
@@ -62,7 +67,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
             search,
           ),
       ),
-    [items, status, eligibility, type, contractorId, search, driverNames],
+    [items, status, eligibility, clearance, type, contractorId, search, driverNames],
   )
   const { visible, hasMore, remaining, showMore } = usePaged(filtered)
   const opened = items.find((v) => v.id === openId) ?? null
@@ -74,6 +79,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
     setSearch('')
     setStatus('')
     setEligibility('')
+    setClearance('')
     setType('')
     setContractorId('')
   }
@@ -118,6 +124,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
         </span>
       ),
     },
+    { key: 'clearance', header: t.columns.clearance, cell: (v) => <ClearanceBadge clearance={clearanceOfVehicle(v)} showReason /> },
     { key: 'status', header: t.columns.status, cell: (v) => <StatusBadge status={v.status} /> },
   ]
 
@@ -184,6 +191,14 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
                   {ELIGIBILITY_STATUSES.map((s) => (
                     <option key={s} value={s}>
                       {strings.eligibility[s]}
+                    </option>
+                  ))}
+                </FilterSelect>
+                <FilterSelect label={strings.inspections.clearance.label} value={clearance} onChange={(e) => setClearance(e.target.value)}>
+                  <option value="">{strings.inspections.clearance.all}</option>
+                  {CLEARANCE_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {strings.inspections.clearance[s]}
                     </option>
                   ))}
                 </FilterSelect>

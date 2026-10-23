@@ -64,6 +64,34 @@ Matrix keys: `penalty.view`, `penalty.issue`, `penalty.revoke`, `penalty.verify`
 
 **Eligibility.** `checkEligibility({ vehicleId?, driverId? })` returns `status` = `blocked` when any active penalty names the vehicle or the driver (a penalty on both applies to each side), otherwise the worst live document status (`expired` > `expiringSoon` > `valid`), plus per-record details. It never returns a penalty's reason, issuer or photo. The gate (`checkIn`) and the vehicle-driver assignment (`setVehicleDrivers`) call the same service, `evaluateEligibility`; the future trip-assignment and gate-scan modules should too.
 
+## Inspections and trip clearance
+
+| Action | Super admin | Admin | Officer | Supervisor | Safety | Security | Driver |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Record an inspection (approve or reject) | | | | | yes | | |
+| Withdraw a standing clearance | | | | | yes | | |
+| View inspections and the vehicle's inspection history | | yes (read only) | | own contractor (read only) | yes | | |
+| See a vehicle's clearance badge (copy on the vehicle) | | yes | yes | own contractor | yes | yes | assigned vehicles |
+| Run the live check that includes clearance (`checkEligibility`) | | yes | yes | own contractor | yes | yes | |
+
+Matrix keys: `inspection.view`, `inspection.record`, `inspection.withdraw`. Enforcement: clients only read `inspections` (Firestore rules: admin and Safety Officer the whole company, a supervisor only their contractor's; officer, security and drivers have no direct access); every change is a callable (`recordInspection`, `withdrawClearance`) or one of the three triggers below. The admin cannot create inspections: inspection authority sits with the Safety Officer only.
+
+**One approval covers every trip.** A vehicle is *cleared* when its current inspection is `active` and `approved`. Records are never edited: a new inspection supersedes the current one (`superseded`), including a rejection, which leaves the vehicle *Inspection rejected* until the next approval. Exactly one record per vehicle is current; `vehicles.clearance` is a copy of it (status, reason, `inspectionId`, time) written in the same transaction, so lists read one document.
+
+**Cancellation (`invalidated`) is event driven, by Firestore triggers**, not by editing the penalty or eligibility code:
+
+| Event | Trigger | Effect |
+|---|---|---|
+| A penalty is created against a vehicle | `invalidateInspectionOnPenalty` | that vehicle's approval is cancelled, reason `penalty_issued` |
+| A penalty is created against a driver | same | the approval of **every vehicle the driver is assigned to** is cancelled |
+| A vehicle's `eligibilityStatus` becomes `expired` (daily job or a callable saving an expired date) | `invalidateInspectionOnVehicleExpiry` | reason `document_expired` |
+| A driver's `eligibilityStatus` becomes `expired` (licence) | `invalidateInspectionOnDriverExpiry` | the approval of every vehicle the driver is assigned to, reason `document_expired` |
+| The Safety Officer withdraws a clearance | `withdrawClearance` (callable) | reason `manual`, with a required note |
+
+Triggers retry and may arrive late, so they only cancel an approval that was recorded **before** the event and re-check that the cause still holds (the document is still expired). A repeated delivery changes nothing. The audit entry is written with `actorRole: 'system'`. There is no time or trip-count interval: correcting the problem and a new inspection are the only way back to *cleared*.
+
+**Combined eligibility.** `checkEligibility` now also returns `inspection` (`status`, `cleared`, `reason`, `at`; never the officer or notes) and `eligible`: documents not expired AND no active penalty AND (when a vehicle is asked about) an active approved inspection. The check reads the inspection record itself, not the copy on the vehicle. `checkIn` does not require clearance yet; the gate-scan module should read `eligible`.
+
 ## Areas (route guards)
 
 | Area | Who may open it |

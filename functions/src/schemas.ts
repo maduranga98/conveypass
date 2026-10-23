@@ -5,7 +5,8 @@ import { isExpiryDate, MAX_EXPIRY_WARNING_DAYS, MIN_EXPIRY_WARNING_DAYS } from '
 import { GATE_ID_PATTERN, GATE_NAME_MAX, GATE_NAME_MIN, MAX_GATES, MIN_GATES } from './gates.js'
 import { MAX_DENY_NOTE } from './denyReasons.js'
 import { SLA_MAX, SLA_MIN } from './defaultSla.js'
-import { PENALTY_ID_PATTERN } from './ids.js'
+import { INSPECTION_ID_PATTERN, PENALTY_ID_PATTERN } from './ids.js'
+import { INSPECTION_NOTES_MAX, INSPECTION_RESULTS } from './inspectionLogic.js'
 import { PENALTY_NOTE_MAX, PENALTY_REASON_MAX, PENALTY_REASON_MIN, PENALTY_TYPE_NAME_MAX, PENALTY_TYPE_NAME_MIN } from './penaltyLogic.js'
 
 const name = z.string().trim().min(1).max(100)
@@ -368,3 +369,18 @@ export const verifyPenaltySchema = z.object({
 export const checkEligibilitySchema = z
   .object({ vehicleId: recordId.optional(), driverId: recordId.optional() })
   .refine((v) => v.vehicleId !== undefined || v.driverId !== undefined, { message: 'vehicleId or driverId required' })
+
+// ---- Inspections ---------------------------------------------------------------------------
+
+export const recordInspectionSchema = z.object({
+  /** `insp_` + 10 chars, chosen by the browser: a retry of the same call is idempotent. */
+  inspectionId: z.string().regex(INSPECTION_ID_PATTERN),
+  vehicleId: recordId,
+  result: z.enum(INSPECTION_RESULTS),
+  notes: z.string().trim().max(INSPECTION_NOTES_MAX).default(''),
+})
+
+export const withdrawClearanceSchema = z.object({
+  vehicleId: recordId,
+  note: z.string().trim().min(1).max(INSPECTION_NOTES_MAX),
+})

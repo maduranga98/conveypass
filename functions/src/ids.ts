@@ -12,3 +12,6 @@ export const PENALTY_ID_PATTERN = /^pen_[a-z0-9]{10}$/
 /** `pty_` + 10 random chars: the id of a penalty type. */
 export const newPenaltyTypeId = (): string =>
   `pty_${Array.from({ length: 10 }, () => ALPHABET[randomInt(ALPHABET.length)]).join('')}`
+
+/** The id of an inspection is chosen by the browser (a retry of the same call then creates nothing twice); the server checks the shape and uses `create()`. */
+export const INSPECTION_ID_PATTERN = /^insp_[a-z0-9]{10}$/

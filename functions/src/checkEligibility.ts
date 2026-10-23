@@ -5,6 +5,7 @@
 import { eligibilityContext, parse, requireActiveCaller, type Deps } from './core.js'
 import { fail } from './errors.js'
 import { computeEligibility, type EligibilityStatus } from './expiry.js'
+import { clearanceOf, type ClearanceStatus, type InvalidationReason } from './inspectionLogic.js'
 import { can } from './permissions.js'
 import { blockingPenalties, combineStatus, type CombinedStatus } from './penaltyLogic.js'
 import { checkEligibilitySchema } from './schemas.js'
@@ -27,12 +28,30 @@ export interface SubjectEligibility {
   penalties: BlockingPenaltyInfo[]
 }
 
+/** The vehicle's inspection clearance (third layer). Status and reason only: never the officer, the notes or the dates of other records. */
+export interface InspectionClearance {
+  status: ClearanceStatus
+  /** True only for an active, approved inspection. */
+  cleared: boolean
+  /** Why the vehicle needs re-inspection; null otherwise. */
+  reason: InvalidationReason | null
+  /** When the current record was made (or cancelled, for `needs_reinspection`); null when never inspected. */
+  at: number | null
+}
+
 export interface EligibilityResult {
-  /** `blocked` when anything blocks; otherwise the worst document status. */
+  /** `blocked` when anything blocks; otherwise the worst document status. Documents + penalties only (Modules 2 and 3). */
   status: CombinedStatus
   blocked: boolean
   vehicle: SubjectEligibility | null
   driver: SubjectEligibility | null
+  /** Inspection clearance of the vehicle; null when no vehicle was asked about. */
+  inspection: InspectionClearance | null
+  /**
+   * The combined answer the gate will use: documents not expired AND no active penalty AND (when a vehicle is asked about)
+   * an active approved inspection. A driver-only call has no inspection to check.
+   */
+  eligible: boolean
   /** Milliseconds, server time. */
   checkedAt: number
 }
@@ -54,6 +73,18 @@ export async function resolveDriver(deps: Deps, tenantId: string, uid: string): 
   if (profile) return profile.tenantId === tenantId ? profile : null
   const user = await deps.data.getUser(uid)
   return user && user.tenantId === tenantId && user.role === 'driver' && user.contractorId ? { name: user.name, contractorId: user.contractorId } : null
+}
+
+/**
+ * Reads the record `vehicles.clearance` points at (the vehicle and its record are written in one transaction), not the
+ * denormalised status itself, so a drifted copy can never wave a vehicle through.
+ */
+async function inspectionClearance(deps: Deps, vehicle: { clearance?: { inspectionId: string } | undefined; tenantId: string }): Promise<InspectionClearance> {
+  const stored = vehicle.clearance ? await deps.data.getInspection(vehicle.clearance.inspectionId) : null
+  const current = stored && stored.tenantId === vehicle.tenantId ? stored : null
+  const { status, reason } = clearanceOf(current)
+  const at = current ? (current.status === 'invalidated' ? current.invalidatedAt : current.inspectedAt) : null
+  return { status, cleared: status === 'cleared', reason, at }
 }
 
 /**
@@ -93,11 +124,15 @@ export async function evaluateEligibility(
   const v = vehicle && ref.vehicleId ? subject(ref.vehicleId, { vehicleId: ref.vehicleId }, [vehicle.insuranceExpiry, vehicle.registrationExpiry]) : null
   const d = driver && ref.driverId ? subject(ref.driverId, { driverId: ref.driverId }, [driver.licenseExpiry]) : null
   const blocked = (v?.blocked ?? false) || (d?.blocked ?? false)
+  const status = combineStatus(blocked, [v?.documentStatus, d?.documentStatus])
+  const inspection = vehicle && ref.vehicleId ? await inspectionClearance(deps, vehicle) : null
   return {
-    status: combineStatus(blocked, [v?.documentStatus, d?.documentStatus]),
+    status,
     blocked,
     vehicle: v,
     driver: d,
+    inspection,
+    eligible: status !== 'blocked' && status !== 'expired' && (inspection === null || inspection.cleared),
     checkedAt: nowMs,
   }
 }

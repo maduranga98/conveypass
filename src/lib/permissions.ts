@@ -39,6 +39,12 @@ export const PERMISSIONS = {
   'penaltyType.manage': ['admin'],
   // The live eligibility check (documents + penalties). Security calls it at the gate; supervisors only for their own contractor.
   'eligibility.check': ['admin', 'officer', 'supervisor', 'safety', 'security'],
+  // Inspections and trip clearance. Only the Safety Officer records or withdraws a clearance; the admin has oversight
+  // (read only) and a supervisor reads their own contractor's. Security and drivers never read inspections: the gate
+  // consumes the combined `checkEligibility` output.
+  'inspection.view': ['admin', 'safety', 'supervisor'],
+  'inspection.record': ['safety'],
+  'inspection.withdraw': ['safety'],
   // Own account.
   'account.view': ['admin', 'officer', 'supervisor', 'safety', 'security', 'driver'],
   'account.password.change': [...ALL_STAFF],
