@@ -1,4 +1,4 @@
-import { BarChart3, ClipboardCheck, FileText, LogOut, UserRound } from 'lucide-react'
+import { BarChart3, ChartNoAxesColumn, ClipboardCheck, FileText, LogOut, UserRound } from 'lucide-react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { BrandMark } from '@/components/BrandMark'
 import { cn } from '@/lib/cn'
@@ -14,6 +14,7 @@ const t = strings.officer
 const nav = [
   { to: '/officer', label: t.nav.queue, icon: ClipboardCheck, end: true },
   { to: '/officer/overview', label: t.nav.overview, icon: BarChart3, end: false },
+  { to: '/officer/summary', label: t.nav.visits, icon: ChartNoAxesColumn, end: false },
   { to: '/officer/reports', label: t.nav.reports, icon: FileText, end: false },
 ] as const
 

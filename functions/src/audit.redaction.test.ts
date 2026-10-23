@@ -16,6 +16,9 @@ import { createPenaltyType, deletePenaltyType, issuePenalty, penaltyEvidencePath
 import { submitPass, updateTenantSettings } from './passes.js'
 import { admin, caller, drv1, makeWorld, NOW, sup1, userDoc, type World } from './test-utils.js'
 import type { PassData, PenaltyData, StoredFile } from './types.js'
+import { checkInVisit, checkOutVisit, logUnloadingCheck } from './visits.js'
+import { givePin, makeVisitWorld } from './visits-test-utils.js'
+import { flagDwellVisits } from './dwell.js'
 import { createVehicle, importVehicles, setContractorStatus, setVehicleDrivers, setVehicleStatus, updateVehicle } from './vehicles.js'
 
 const VID = 'veh_aaaaaaaaaa'
@@ -122,6 +125,27 @@ describe('audit redaction: every write path', () => {
       for (const bad of forbidden()) expect(text, `${entry.action} contains ${bad}`).not.toContain(bad)
       for (const v of Object.values(entry.meta)) expect(['string', 'number', 'boolean'].includes(typeof v) || v === null).toBe(true)
     }
+  })
+
+  it('the visit paths never store the driver PIN, the unload place or anything credential-shaped', async () => {
+    const vw = makeVisitWorld(w)
+    const sec = caller('sec', 'security')
+    const yard = caller('yard1', 'yard')
+    const pin = '48291736'
+    givePin(w, 'drv1', pin)
+    await recordInspection(w.deps, caller('safe1', 'safety'), { inspectionId: 'insp_cccccccccc', vehicleId: VID, result: 'approved', notes: '' })
+    await checkInVisit(w.deps, vw.port, vw.throttle, sec, { visitId: 'vis_aaaaaaaaaa', vehicleId: VID, pin, requestId: R1 })
+    await logUnloadingCheck(w.deps, vw.port, yard, { visitId: 'vis_aaaaaaaaaa', unloaded: true, unloadLocation: 'https://x.test/token' })
+    await flagDwellVisits(vw.dwell, NOW * 1000 + 20 * 3_600_000)
+    await checkOutVisit(w.deps, vw.port, sec, { visitId: 'vis_aaaaaaaaaa', requestId: R2 })
+    const visitAudits = w.audits.filter((a) => a.action.startsWith('visit.'))
+    expect(visitAudits.map((a) => a.action)).toEqual(['visit.checkIn', 'visit.unloadingCheck', 'visit.dwellWarning', 'visit.checkOut'])
+    for (const entry of visitAudits) {
+      const text = JSON.stringify(entry)
+      for (const bad of [pin, 'x.test', 'token', 'http', 'password', 'eyJ']) expect(text, `${entry.action} contains ${bad}`).not.toContain(bad)
+    }
+    // The stored visit holds the place (it is the record) but never the PIN.
+    expect(JSON.stringify([...vw.visits.values()])).not.toContain(pin)
   })
 
   it('sanitiseMeta is the net: secret-looking values never survive', () => {

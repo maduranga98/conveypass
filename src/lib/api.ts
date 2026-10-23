@@ -7,6 +7,7 @@ import type { RejectionReasonDef } from './defaultRejectionReasons'
 import type { GateDef } from './gates'
 import type { ClearanceStatus } from '@/lib/inspectionLogic'
 import type { RecordInspectionPayload } from '@/types/inspections'
+import type { CheckInVisitPayload, CheckInVisitResult, CheckOutVisitPayload, CheckOutVisitResult, DailySummary, UnloadingCheckPayload } from '@/types/visits'
 import type { EligibilityResult, IssuePenaltyPayload } from '@/types/penalties'
 import type { ReportRequest, ReportResult, TrendResult } from '@/types/reports'
 import type { SlaSettings } from './defaultSla'
@@ -201,3 +202,10 @@ export const checkEligibility = call<{ vehicleId?: string; driverId?: string }, 
 export const recordInspection = call<RecordInspectionPayload, { inspectionId: string; created: boolean; clearance: ClearanceStatus }>('recordInspection')
 /** Safety Officer only: cancels the vehicle's current approval without a new inspection. */
 export const withdrawClearance = call<{ vehicleId: string; note: string }, { ok: true }>('withdrawClearance')
+
+// Visit lifecycle. Check-in carries the driver's PIN, so it is never retried by the app on its own; the visit id makes a
+// manual retry safe.
+export const checkInVisit = call<CheckInVisitPayload, CheckInVisitResult>('checkInVisit')
+export const checkOutVisit = call<CheckOutVisitPayload, CheckOutVisitResult>('checkOutVisit')
+export const logUnloadingCheck = call<UnloadingCheckPayload, { visitId: string; at: number }>('logUnloadingCheck')
+export const getDailySummary = call<Record<string, never>, DailySummary>('getDailySummary')

@@ -64,3 +64,11 @@ export const OperatorOverviewPage = lazy(() => import('@/features/platform/Overv
 export const OperatorInvitesPage = lazy(() => import('@/features/platform/InvitesPage'))
 export const OperatorWorkspacesPage = lazy(() => import('@/features/platform/WorkspacesPage'))
 export const OperatorWorkspaceDetailPage = lazy(() => import('@/features/platform/WorkspaceDetailPage'))
+// Visit lifecycle: gate (check-in, check-out), yard (unloading check), the shared daily summary and the admin/supervisor views.
+export const VisitCheckInPage = lazy(() => import('@/features/visits/CheckInPage'))
+export const VisitCheckOutPage = lazy(() => import('@/features/visits/CheckOutPage'))
+export const YardLayout = lazy(() => import('@/features/visits/YardLayout'))
+export const UnloadingPage = lazy(() => import('@/features/visits/UnloadingPage'))
+export const DailySummaryPage = lazy(() => import('@/features/visits/DailySummaryPage'))
+export const VisitsPage = lazy(() => import('@/features/visits/VisitsPage'))
+export const VisitDetailPage = lazy(() => import('@/features/visits/VisitDetailPage'))

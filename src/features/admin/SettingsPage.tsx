@@ -19,6 +19,7 @@ import { DEFAULT_REJECTION_REASONS, type RejectionReasonDef } from '@/lib/defaul
 import { slaOf, type SlaSettings } from '@/lib/defaultSla'
 import { DEFAULT_EXPIRY_WARNING_DAYS } from '@/lib/expiry'
 import { effectiveVehicleTypes } from '@/lib/vehicleTypes'
+import { dwellLimitHoursOf, dwellLimitOk } from '@/lib/visitLogic'
 import { DEFAULT_GATES, MIN_GATES, type GateDef } from '@/lib/gates'
 import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
@@ -32,6 +33,7 @@ import { RejectionReasonsEditor } from './RejectionReasonsEditor'
 import { GatesEditor } from './GatesEditor'
 import { RetentionEditor } from './RetentionEditor'
 import { SlaEditor } from './SlaEditor'
+import { DwellEditor } from './DwellEditor'
 import { ExpiryEditor } from './ExpiryEditor'
 import { VehicleTypesEditor } from './VehicleTypesEditor'
 import { AdminsCard } from './AdminsCard'
@@ -53,6 +55,7 @@ interface Baseline {
   retentionDays: number
   vehicleTypes: string[]
   expiryWarningDays: number
+  dwellLimitHours: number
 }
 
 const baselineOf = (tenant: Tenant | null): Baseline => ({
@@ -64,6 +67,7 @@ const baselineOf = (tenant: Tenant | null): Baseline => ({
   retentionDays: tenant?.retentionDays ?? 0,
   vehicleTypes: effectiveVehicleTypes(tenant?.vehicleTypes),
   expiryWarningDays: tenant?.expiryWarningDays ?? DEFAULT_EXPIRY_WARNING_DAYS,
+  dwellLimitHours: dwellLimitHoursOf(tenant),
 })
 
 function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: string }) {
@@ -82,6 +86,7 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
   const [types, setTypes] = useState<string[]>(baseline.vehicleTypes)
   const usingDefaultTypes = !tenant?.vehicleTypes || tenant.vehicleTypes.length === 0
   const [warnDays, setWarnDays] = useState<number>(baseline.expiryWarningDays)
+  const [dwellHours, setDwellHours] = useState<number>(baseline.dwellLimitHours)
   const vehicles = useVehicles('admin')
   const typesInUse = new Set((vehicles.data?.items ?? []).map((v) => v.type))
   const [confirmRetention, setConfirmRetention] = useState(false)
@@ -90,15 +95,16 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
   const [touched, setTouched] = useState(false)
 
   const dirty =
-    JSON.stringify({ items, settings, reasons, gates, sla, retention, types, warnDays }) !==
-    JSON.stringify({ items: baseline.checklist, settings: baseline.settings, reasons: baseline.reasons, gates: baseline.gates, sla: baseline.sla, retention: baseline.retentionDays, types: baseline.vehicleTypes, warnDays: baseline.expiryWarningDays })
+    JSON.stringify({ items, settings, reasons, gates, sla, retention, types, warnDays, dwellHours }) !==
+    JSON.stringify({ items: baseline.checklist, settings: baseline.settings, reasons: baseline.reasons, gates: baseline.gates, sla: baseline.sla, retention: baseline.retentionDays, types: baseline.vehicleTypes, warnDays: baseline.expiryWarningDays, dwellHours: baseline.dwellLimitHours })
   const retentionChanged = !Object.is(retention, baseline.retentionDays)
   const slaChanged = JSON.stringify(sla) !== JSON.stringify(baseline.sla)
   const reasonsChanged = JSON.stringify(reasons) !== JSON.stringify(baseline.reasons)
   const gatesChanged = JSON.stringify(gates) !== JSON.stringify(baseline.gates)
   const typesChanged = JSON.stringify(types) !== JSON.stringify(baseline.vehicleTypes)
   const warnChanged = warnDays !== baseline.expiryWarningDays
-  const documentsBad = !vehicleTypesOk(types) || !expiryDaysOk(warnDays)
+  const dwellChanged = dwellHours !== baseline.dwellLimitHours
+  const documentsBad = !vehicleTypesOk(types) || !expiryDaysOk(warnDays) || !dwellLimitOk(dwellHours)
   const invalidLabels =
     items.some((i) => !labelOk(i.label)) || reasons.some((r) => !reasonLabelOk(r.label)) || gates.some((g) => !gateNameOk(g.name))
   const reasonCountBad = reasons.length < MIN_REASONS || reasons.length > MAX_REASONS || gates.length < MIN_GATES
@@ -147,12 +153,13 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
         ...(retentionChanged ? { retentionDays: retention } : {}),
         ...(typesChanged ? { vehicleTypes: cleanTypes } : {}),
         ...(warnChanged ? { expiryWarningDays: warnDays } : {}),
+        ...(dwellChanged ? { dwellLimitHours: dwellHours } : {}),
       })
       setItems(checklist)
       setReasons(cleanReasons)
       setGates(cleanGates)
       setTypes(cleanTypes)
-      setBaseline({ checklist, settings, reasons: cleanReasons, gates: cleanGates, sla, retentionDays: retention, vehicleTypes: cleanTypes, expiryWarningDays: warnDays })
+      setBaseline({ checklist, settings, reasons: cleanReasons, gates: cleanGates, sla, retentionDays: retention, vehicleTypes: cleanTypes, expiryWarningDays: warnDays, dwellLimitHours: dwellHours })
       await queryClient.invalidateQueries({ queryKey: ['tenant', tenantId] })
       toast.success(t.saved)
     } catch (e) {
@@ -233,6 +240,8 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
       />
 
       <ExpiryEditor value={warnDays} onChange={setWarnDays} showErrors={touched} />
+
+      <DwellEditor value={dwellHours} onChange={setDwellHours} showErrors={touched} />
 
       <SlaEditor value={sla} onChange={setSla} showErrors={touched} usingDefaults={usingDefaultSla} />
 

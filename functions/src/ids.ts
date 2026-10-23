@@ -13,5 +13,8 @@ export const PENALTY_ID_PATTERN = /^pen_[a-z0-9]{10}$/
 export const newPenaltyTypeId = (): string =>
   `pty_${Array.from({ length: 10 }, () => ALPHABET[randomInt(ALPHABET.length)]).join('')}`
 
+/** The id of a visit is chosen by the browser (a retried check-in is then recognised and never creates a second visit); the server checks the shape and uses `create()`. */
+export const VISIT_ID_PATTERN = /^vis_[a-z0-9]{10}$/
+
 /** The id of an inspection is chosen by the browser (a retry of the same call then creates nothing twice); the server checks the shape and uses `create()`. */
 export const INSPECTION_ID_PATTERN = /^insp_[a-z0-9]{10}$/

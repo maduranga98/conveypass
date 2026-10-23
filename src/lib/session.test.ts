@@ -8,9 +8,17 @@ describe('session limits mirror (Module 12)', () => {
     expect(web.PIN_ROLES).toEqual(fn.PIN_ROLES)
     expect(web.SESSION_MAX_AGE_SECONDS).toEqual(fn.SESSION_MAX_AGE_SECONDS)
   })
+  it('the Yard Officer signs in with a PIN like security, with the same 16-hour session', () => {
+    expect(web.PIN_ROLES).toContain('yard')
+    expect(web.isPinRole('yard')).toBe(true)
+    expect(web.SESSION_MAX_AGE_SECONDS.yard).toBe(16 * 3600)
+    expect(web.sessionExpired('yard', 0, 16 * 3600 + 1)).toBe(true)
+    expect(web.sessionExpired('yard', 0, 16 * 3600)).toBe(false)
+    expect(web.isPinRole('safety')).toBe(false)
+  })
   it('agrees on expiry for every role around each limit', () => {
     const now = 2_000_000_000
-    for (const role of ['admin', 'officer', 'supervisor', 'driver', 'security'] as const) {
+    for (const role of ['admin', 'officer', 'supervisor', 'safety', 'driver', 'security', 'yard'] as const) {
       for (const age of [0, 16 * 3600, 16 * 3600 + 1, 90 * 86400, 90 * 86400 + 1]) {
         expect(web.sessionExpired(role, now - age, now)).toBe(fn.sessionExpired(role, now - age, now))
       }

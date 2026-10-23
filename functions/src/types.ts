@@ -4,7 +4,7 @@ import type { GateDef } from './gates.js'
 import type { ClearanceStatus, InspectionResult, InspectionStatus, InvalidationReason } from './inspectionLogic.js'
 import type { PenaltyDurationMs, PenaltyStatus, PenaltyTarget } from './penaltyLogic.js'
 
-export const ROLES = ['admin', 'officer', 'supervisor', 'safety', 'driver', 'security'] as const
+export const ROLES = ['admin', 'officer', 'supervisor', 'safety', 'driver', 'security', 'yard'] as const
 export type Role = (typeof ROLES)[number]
 
 export type { GateDef }
@@ -43,7 +43,7 @@ export type LoginType = 'pin' | 'password'
 export interface PinIndexEntry {
   uid: string
   tenantId: string
-  role: 'driver' | 'security'
+  role: 'driver' | 'security' | 'yard'
 }
 
 export type ContractorStatus = 'active' | 'suspended'
@@ -103,6 +103,10 @@ export interface DriverData {
   eligibilityStatus?: EligibilityStatus
   photoPath?: string | null
   status: UserStatus
+  /** Visit lifecycle: true from a visit's check-in until its check-out. Written ONLY by the visit transactions (never by `updateUser`). Absent = false. */
+  driverOnDutyLock?: boolean
+  /** The visit that holds the lock; null/absent when free. */
+  activeVisitId?: string | null
 }
 
 export interface AuditEntry {
@@ -113,7 +117,7 @@ export interface AuditEntry {
   actorRole: Role | 'system' | 'superadmin'
   /** Display name of a non-tenant actor (`ConvoyPass Super Admin`): the tenant's admins cannot read `operators`. */
   actorName?: string
-  targetType: 'user' | 'vehicle' | 'contractor' | 'tenant' | 'pass' | 'gateEvent' | 'notification' | 'penalty' | 'penaltyType' | 'inspection'
+  targetType: 'user' | 'vehicle' | 'contractor' | 'tenant' | 'pass' | 'gateEvent' | 'notification' | 'penalty' | 'penaltyType' | 'inspection' | 'visit'
   targetId: string
   meta: Record<string, string | number | boolean | null>
 }
@@ -161,6 +165,8 @@ export interface TenantData {
   vehicleTypes?: string[]
   /** Days before an expiry date when a record turns "expiring soon". Falls back to 14. */
   expiryWarningDays?: number
+  /** Hours a visit may stay checked in before it is flagged `dwellWarning` (warning only, nothing is blocked). Falls back to 16. */
+  dwellLimitHours?: number
 }
 
 
@@ -387,4 +393,55 @@ export interface InspectionData {
   invalidationNote?: string | null
   /** The newer inspection that replaced this one. */
   supersededBy?: string | null
+}
+
+// ---- Visit lifecycle -------------------------------------------------------------------------
+
+/**
+ * `visits/{vis_…}`: one vehicle visit with three timestamped stages. Times are milliseconds here (stored as Timestamps).
+ * Plate and driver name are copied at check-in so the Yard Officer and the gate lists need no other collection.
+ * Only callables write it (clients read, rules); `status` is derived from `checkOut` and written with it.
+ */
+export interface VisitData {
+  tenantId: string
+  vehicleId: string
+  driverId: string
+  contractorId: string
+  plateNo: string
+  driverName: string
+  checkIn: {
+    timestamp: number
+    /** `YYYYMMDD` in the tenant timezone (counts per day). */
+    dateKey: string
+    securityUserId: string
+    securityUserName: string
+    gateId: string | null
+    /** Name of the gate (optional). */
+    gateLocation: string | null
+    requestId: string
+  }
+  /** null until the Yard Officer logs it; re-logging replaces it (every change is audited). */
+  unloadingCheck: {
+    performed: true
+    timestamp: number
+    dateKey: string
+    officerUserId: string
+    officerName: string
+    unloaded: boolean
+    unloadLocation: string | null
+  } | null
+  /** null until the vehicle leaves. */
+  checkOut: {
+    timestamp: number
+    dateKey: string
+    securityUserId: string
+    securityUserName: string
+    requestId: string
+  } | null
+  status: 'checked_in' | 'checked_out'
+  /** True from check-in until check-out: mirrors `drivers/{driverId}.driverOnDutyLock`. */
+  driverOnDutyLock: boolean
+  /** Set by the scheduled job once the visit has stayed checked in for the company's dwell limit. A warning only. */
+  dwellWarning: boolean
+  dwellWarningAt?: number | null
 }

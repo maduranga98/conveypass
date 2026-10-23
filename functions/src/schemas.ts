@@ -5,7 +5,8 @@ import { isExpiryDate, MAX_EXPIRY_WARNING_DAYS, MIN_EXPIRY_WARNING_DAYS } from '
 import { GATE_ID_PATTERN, GATE_NAME_MAX, GATE_NAME_MIN, MAX_GATES, MIN_GATES } from './gates.js'
 import { MAX_DENY_NOTE } from './denyReasons.js'
 import { SLA_MAX, SLA_MIN } from './defaultSla.js'
-import { INSPECTION_ID_PATTERN, PENALTY_ID_PATTERN } from './ids.js'
+import { INSPECTION_ID_PATTERN, PENALTY_ID_PATTERN, VISIT_ID_PATTERN } from './ids.js'
+import { MAX_DWELL_LIMIT_HOURS, MIN_DWELL_LIMIT_HOURS, UNLOAD_LOCATION_MAX, UNLOAD_LOCATION_MIN } from './visitLogic.js'
 import { INSPECTION_NOTES_MAX, INSPECTION_RESULTS } from './inspectionLogic.js'
 import { PENALTY_NOTE_MAX, PENALTY_REASON_MAX, PENALTY_REASON_MIN, PENALTY_TYPE_NAME_MAX, PENALTY_TYPE_NAME_MIN } from './penaltyLogic.js'
 
@@ -240,10 +241,12 @@ export const updateTenantSettingsSchema = z
       .optional(),
     /** Days before an expiry date when a record turns "expiring soon". */
     expiryWarningDays: z.number().int().min(MIN_EXPIRY_WARNING_DAYS).max(MAX_EXPIRY_WARNING_DAYS).optional(),
+    /** Hours before a visit that is still checked in gets a dwell warning (warning only; default 16). */
+    dwellLimitHours: z.number().int().min(MIN_DWELL_LIMIT_HOURS).max(MAX_DWELL_LIMIT_HOURS).optional(),
   })
   .refine(
     (v) =>
-      v.passSettings !== undefined || v.checklist !== undefined || v.rejectionReasons !== undefined || v.gates !== undefined || v.sla !== undefined || v.retentionDays !== undefined || v.vehicleTypes !== undefined || v.expiryWarningDays !== undefined,
+      v.passSettings !== undefined || v.checklist !== undefined || v.rejectionReasons !== undefined || v.gates !== undefined || v.sla !== undefined || v.retentionDays !== undefined || v.vehicleTypes !== undefined || v.expiryWarningDays !== undefined || v.dwellLimitHours !== undefined,
     { message: 'Nothing to update' },
   )
 
@@ -383,4 +386,25 @@ export const recordInspectionSchema = z.object({
 export const withdrawClearanceSchema = z.object({
   vehicleId: recordId,
   note: z.string().trim().min(1).max(INSPECTION_NOTES_MAX),
+})
+
+// ---- Visit lifecycle ---------------------------------------------------------------------
+
+const visitId = z.string().regex(VISIT_ID_PATTERN)
+
+/** The PIN is the driver's, typed at the gate. It is validated by `normalisePin` and never stored or logged. */
+export const checkInVisitSchema = z.object({
+  visitId,
+  vehicleId,
+  pin: z.string().max(32),
+  gateId: gateId.optional(),
+  requestId,
+})
+
+export const checkOutVisitSchema = z.object({ visitId, requestId })
+
+export const logUnloadingCheckSchema = z.object({
+  visitId,
+  unloaded: z.boolean(),
+  unloadLocation: z.string().trim().min(UNLOAD_LOCATION_MIN).max(UNLOAD_LOCATION_MAX).nullable().optional(),
 })

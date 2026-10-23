@@ -2,8 +2,8 @@
 // folder only): keep both copies, and their tests, in sync. Pure: no firebase imports (the scripts import it).
 import type { Role } from './types.js'
 
-/** Only these roles sign in with a PIN. Admins, officers and supervisors keep email and password. */
-export const PIN_ROLES = ['driver', 'security'] as const
+/** Only these roles sign in with a PIN. Admins, officers, supervisors and safety officers keep email and password. */
+export const PIN_ROLES = ['driver', 'security', 'yard'] as const
 export type PinRole = (typeof PIN_ROLES)[number]
 
 export const isPinRole = (role: Role | string): role is PinRole => (PIN_ROLES as readonly string[]).includes(role)
@@ -12,6 +12,7 @@ export const isPinRole = (role: Role | string): role is PinRole => (PIN_ROLES as
 export const SESSION_MAX_AGE_SECONDS: Record<PinRole, number> = {
   driver: 90 * 24 * 60 * 60,
   security: 16 * 60 * 60,
+  yard: 16 * 60 * 60,
 }
 
 /** True when a PIN-role session signed in at `authTime` (seconds) is too old at `now` (seconds). */

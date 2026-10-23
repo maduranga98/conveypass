@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Deny by default. Roles/tenant come ONLY from custom claims (set by Cloud Functions).
-// `operators`, `platformAuditLog`, `setupInvites` (no client access at all), `users`, `tenants`, `auditLog`, `vehicles`, `drivers`, `vehiclePlates`, `passes`, `gateEvents`, `penalties`, `penaltyTypes` and `inspections` are never client-writable
+// `operators`, `platformAuditLog`, `setupInvites` (no client access at all), `users`, `tenants`, `auditLog`, `vehicles`, `drivers`, `vehiclePlates`, `passes`, `gateEvents`, `penalties`, `penaltyTypes`, `inspections` and `visits` are never client-writable
 // (`notifications` accept one client write: `readAt` on your own); `users/*/devices` and `rateLimits` are closed;
 // Cloud Functions use the Admin SDK. `contractors` accept admin writes to descriptive fields only.
 service cloud.firestore {
@@ -151,6 +151,19 @@ service cloud.firestore {
       allow read: if signedIn() && sameTenant(resource.data) && (
         role() in ['admin', 'safety']
         || (role() == 'supervisor' && contractorId() != null && resource.data.contractorId == contractorId())
+      );
+      allow write: if false;
+    }
+
+    // Visit lifecycle: written only by the callables (checkInVisit, checkOutVisit, logUnloadingCheck, the dwell job). Admin,
+    // officer, Safety Officer and security read the company's visits; a supervisor only their own contractor's; the Yard
+    // Officer only visits still checked in (the query must say status == 'checked_in'). Drivers have no access: their
+    // check-in and check-out are done BY security. The Yard Officer's unloading check is a callable, never a client write.
+    match /visits/{id} {
+      allow read: if signedIn() && sameTenant(resource.data) && (
+        role() in ['admin', 'officer', 'safety', 'security']
+        || (role() == 'supervisor' && contractorId() != null && resource.data.contractorId == contractorId())
+        || (role() == 'yard' && resource.data.status == 'checked_in')
       );
       allow write: if false;
     }

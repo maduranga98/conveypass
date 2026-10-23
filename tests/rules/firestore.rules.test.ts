@@ -151,6 +151,16 @@ beforeEach(async () => {
         status: 'active', invalidatedReason: null, invalidatedAt: null,
       })
     }
+    // Visits: two of contractor c1 (one checked in, one checked out), one of c2, one in tenant B.
+    for (const [id, tenantId, contractorId, status] of [
+      ['vis_a1', A, 'c1', 'checked_in'], ['vis_a1_out', A, 'c1', 'checked_out'], ['vis_a2', A, 'c2', 'checked_in'], ['vis_b1', B, 'cB', 'checked_in'],
+    ] as const) {
+      await setDoc(doc(db, 'visits', id), {
+        tenantId, contractorId, vehicleId: 'veh_a1', driverId: 'drvA1', plateNo: 'WP LJ-4821', driverName: 'D', status,
+        checkIn: { timestamp: when, dateKey: '20260310', securityUserId: 'secA', securityUserName: 'G', gateId: null, gateLocation: null, requestId: 'r' },
+        unloadingCheck: null, checkOut: null, driverOnDutyLock: status === 'checked_in', dwellWarning: false,
+      })
+    }
     await setDoc(doc(db, 'penaltyTypes', 'pty_a'), { tenantId: A, name: 'Damage', nameKey: 'damage', createdBy: 'adminA' })
     await setDoc(doc(db, 'penaltyTypes', 'pty_b'), { tenantId: B, name: 'Damage', nameKey: 'damage', createdBy: 'adminB' })
     await setDoc(doc(db, 'auditLog', 'a2'), { tenantId: A, action: 'pass.submit', actorUid: 'drvA1', targetType: 'pass', createdAt: when })
@@ -166,6 +176,7 @@ const drvA1 = () => as('drvA1', { role: 'driver', tenantId: A, contractorId: 'c1
 const officerA = () => as('offA', { role: 'officer', tenantId: A })
 const safetyA = () => as('safA', { role: 'safety', tenantId: A })
 const securityA = () => as('secA', { role: 'security', tenantId: A })
+const yardA = () => as('yardA', { role: 'yard', tenantId: A })
 
 describe('unauthenticated', () => {
   it('cannot read anything', async () => {
@@ -892,11 +903,11 @@ describe('setupInvites (Module 8)', () => {
 
 describe('platform operators (Module 9)', () => {
   const operator = () => as('op1', { role: 'platform', platformAdmin: true, email_verified: true })
-  const COLLECTIONS = ['tenants', 'users', 'contractors', 'vehicles', 'drivers', 'vehiclePlates', 'passes', 'gateEvents', 'auditLog', 'notifications', 'rateLimits', 'setupInvites', 'operators', 'platformAuditLog', 'penalties', 'penaltyTypes', 'inspections'] as const
+  const COLLECTIONS = ['tenants', 'users', 'contractors', 'vehicles', 'drivers', 'vehiclePlates', 'passes', 'gateEvents', 'auditLog', 'notifications', 'rateLimits', 'setupInvites', 'operators', 'platformAuditLog', 'penalties', 'penaltyTypes', 'inspections', 'visits'] as const
   const KNOWN_DOCS: Record<string, string[]> = {
     tenants: [A, B], users: ['adminA', 'drvA1', 'op1'], contractors: ['c1'], vehicles: ['veh_a1'], drivers: ['drvA1'],
     vehiclePlates: [`${A}_WPLJ4821`], passes: ['veh_a1_20260310'], gateEvents: ['den_platform'], auditLog: ['a1'], notifications: ['n_drv'],
-    rateLimits: ['drvA1_createUser'], setupInvites: ['c'.repeat(64)], operators: ['op1'], platformAuditLog: ['p1'], penalties: ['pen_c1'], penaltyTypes: ['pty_a'], inspections: ['insp_c1'],
+    rateLimits: ['drvA1_createUser'], setupInvites: ['c'.repeat(64)], operators: ['op1'], platformAuditLog: ['p1'], penalties: ['pen_c1'], penaltyTypes: ['pty_a'], inspections: ['insp_c1'], visits: ['vis_a1'],
   }
 
   it('is denied on every collection: single reads (even of its own uid), lists, tenant-filtered queries and writes', async () => {
@@ -1043,5 +1054,78 @@ describe('inspections', () => {
 
   it('the clearance copy on a vehicle is not writable by anyone', async () => {
     for (const db of [adminA(), safetyA(), supA1()]) await assertFails(updateDoc(doc(db, 'vehicles', 'veh_a1'), { clearance: { status: 'cleared', inspectionId: 'insp_c1', reason: null, at: 1 } }))
+  })
+})
+
+describe('visits', () => {
+  const tenantQuery = (db: ReturnType<typeof adminA>) => getDocs(query(collection(db, 'visits'), where('tenantId', '==', A)))
+  const activeQuery = (db: ReturnType<typeof adminA>) => getDocs(query(collection(db, 'visits'), where('tenantId', '==', A), where('status', '==', 'checked_in')))
+  const ids = (snap: Awaited<ReturnType<typeof tenantQuery>>) => snap.docs.map((d) => d.id).sort()
+
+  it('admin, officer, Safety Officer and security read every visit of their company, and nothing of another', async () => {
+    for (const db of [adminA(), officerA(), safetyA(), securityA()]) {
+      expect(ids(await assertSucceeds(tenantQuery(db)))).toEqual(['vis_a1', 'vis_a1_out', 'vis_a2'])
+      await assertSucceeds(getDoc(doc(db, 'visits', 'vis_a2')))
+      await assertFails(getDoc(doc(db, 'visits', 'vis_b1')))
+      await assertFails(getDocs(query(collection(db, 'visits'), where('tenantId', '==', B))))
+    }
+  })
+
+  it('security can find the active visit of a vehicle (check-out by scan)', async () => {
+    const q = query(collection(securityA(), 'visits'), where('tenantId', '==', A), where('vehicleId', '==', 'veh_a1'), where('status', '==', 'checked_in'))
+    expect(ids(await assertSucceeds(getDocs(q)))).toEqual(['vis_a1', 'vis_a2'])
+  })
+
+  it('a supervisor reads only their own contractor’s visits; the query must carry the contractor', async () => {
+    const db = supA1()
+    expect(ids(await assertSucceeds(getDocs(query(collection(db, 'visits'), where('tenantId', '==', A), where('contractorId', '==', 'c1')))))).toEqual(['vis_a1', 'vis_a1_out'])
+    await assertSucceeds(getDoc(doc(db, 'visits', 'vis_a1')))
+    await assertFails(getDoc(doc(db, 'visits', 'vis_a2')))
+    await assertFails(tenantQuery(db))
+  })
+
+  it('the Yard Officer reads visits that are still checked in, and never one that has left', async () => {
+    const db = yardA()
+    expect(ids(await assertSucceeds(activeQuery(db)))).toEqual(['vis_a1', 'vis_a2'])
+    await assertSucceeds(getDoc(doc(db, 'visits', 'vis_a1')))
+    await assertFails(getDoc(doc(db, 'visits', 'vis_a1_out')))
+    await assertFails(tenantQuery(db))
+    await assertFails(getDoc(doc(db, 'visits', 'vis_b1')))
+  })
+
+  it('the Yard Officer reads nothing else that belongs to the tenant', async () => {
+    const db = yardA()
+    await assertFails(getDocs(query(collection(db, 'penalties'), where('tenantId', '==', A))))
+    await assertFails(getDocs(query(collection(db, 'inspections'), where('tenantId', '==', A))))
+    await assertFails(getDocs(query(collection(db, 'vehicles'), where('tenantId', '==', A))))
+    await assertFails(getDocs(query(collection(db, 'drivers'), where('tenantId', '==', A))))
+    await assertFails(getDocs(query(collection(db, 'passes'), where('tenantId', '==', A))))
+    await assertFails(getDocs(query(collection(db, 'users'), where('tenantId', '==', A))))
+    await assertFails(getDocs(query(collection(db, 'gateEvents'), where('tenantId', '==', A))))
+  })
+
+  it('drivers and signed-out users have no access: security checks them in and out', async () => {
+    for (const db of [drvA1(), env.unauthenticatedContext().firestore()]) {
+      await assertFails(getDoc(doc(db, 'visits', 'vis_a1')))
+      await assertFails(tenantQuery(db))
+      await assertFails(activeQuery(db))
+    }
+  })
+
+  it('nobody writes a visit from a client, the Yard Officer and security included (callables only)', async () => {
+    for (const db of [adminA(), officerA(), safetyA(), supA1(), securityA(), yardA(), drvA1()]) {
+      await assertFails(addDoc(collection(db, 'visits'), { tenantId: A, contractorId: 'c1', status: 'checked_in' }))
+      await assertFails(setDoc(doc(db, 'visits', 'vis_new'), { tenantId: A, contractorId: 'c1', status: 'checked_in' }))
+      await assertFails(updateDoc(doc(db, 'visits', 'vis_a1'), { unloadingCheck: { performed: true, unloaded: true } }))
+      await assertFails(updateDoc(doc(db, 'visits', 'vis_a1'), { status: 'checked_out', driverOnDutyLock: false }))
+      await assertFails(updateDoc(doc(db, 'visits', 'vis_a1'), { dwellWarning: true }))
+      await assertFails(deleteDoc(doc(db, 'visits', 'vis_a1')))
+    }
+  })
+
+  it('the driver lock on the driver record is not writable by anyone', async () => {
+    for (const db of [adminA(), securityA(), yardA(), supA1(), drvA1()]) {
+      await assertFails(updateDoc(doc(db, 'drivers', 'drvA1'), { driverOnDutyLock: false }))
+    }
   })
 })

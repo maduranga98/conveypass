@@ -1,4 +1,4 @@
-import { CircleCheckBig, CloudUpload, LogIn, RefreshCw, ScanLine, Search } from 'lucide-react'
+import { ChartNoAxesColumn, CircleCheckBig, CloudUpload, DoorOpen, LogIn, RefreshCw, ScanLine, Search } from 'lucide-react'
 import { lazy, Suspense, useEffect, useId, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -135,6 +135,21 @@ export default function GateHome() {
           <ScanLine aria-hidden className="size-10" />
           {t.scan}
         </button>
+
+        <nav aria-label={strings.visits.gate.menuHint} className="grid grid-cols-2 gap-3">
+          <Link to="/security/visit/check-in" className="flex h-20 items-center justify-center gap-2 rounded-2xl border-2 border-brand bg-surface px-2 text-lg font-black text-brand hover:bg-slate-100 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus">
+            <LogIn aria-hidden className="size-7 shrink-0" />
+            {strings.visits.gate.menuCheckIn}
+          </Link>
+          <Link to="/security/visit/check-out" className="flex h-20 items-center justify-center gap-2 rounded-2xl border-2 border-brand bg-surface px-2 text-lg font-black text-brand hover:bg-slate-100 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus">
+            <DoorOpen aria-hidden className="size-7 shrink-0" />
+            {strings.visits.gate.menuCheckOut}
+          </Link>
+          <Link to="/security/summary" className="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl text-base font-bold text-brand underline-offset-2 hover:underline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus">
+            <ChartNoAxesColumn aria-hidden className="size-5" />
+            {strings.visits.gate.menuSummary}
+          </Link>
+        </nav>
 
         <section className="space-y-2">
           <label htmlFor={searchId} className="text-base font-bold text-brand">{t.searchLabel}</label>

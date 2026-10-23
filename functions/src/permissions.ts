@@ -21,6 +21,7 @@ export const PERMISSIONS = {
   'user.create.supervisor': ['admin'],
   'user.create.safety': ['admin'],
   'user.create.security': ['admin'],
+  'user.create.yard': ['admin'],
   'user.create.driver': ['admin', 'supervisor'],
   'user.manage': ['admin', 'supervisor'],
   'user.pin.reissue': ['admin', 'supervisor'],
@@ -46,8 +47,16 @@ export const PERMISSIONS = {
   'inspection.view': ['admin', 'safety', 'supervisor'],
   'inspection.record': ['safety'],
   'inspection.withdraw': ['safety'],
+  // Visit lifecycle: one record per vehicle visit (check-in, unloading check, check-out). Only Security records the gate
+  // stages and only the Yard Officer records the unloading check, each on its own part of the visit. Everyone else reads.
+  // Supervisors read their own contractor's visits only. Eligibility is consumed from `eligibility.check`, never decided here.
+  'visit.view': ['admin', 'officer', 'supervisor', 'safety', 'security', 'yard'],
+  'visit.checkIn': ['security'],
+  'visit.checkOut': ['security'],
+  'visit.unloadingCheck': ['yard'],
+  'visit.summary': ['admin', 'officer', 'supervisor', 'safety', 'security', 'yard'],
   // Own account.
-  'account.view': ['admin', 'officer', 'supervisor', 'safety', 'security', 'driver'],
+  'account.view': ['admin', 'officer', 'supervisor', 'safety', 'security', 'yard', 'driver'],
   'account.password.change': [...ALL_STAFF],
   // Workspace setup (Company Admin).
   'contractor.manage': ['admin'],
@@ -59,6 +68,7 @@ export const PERMISSIONS = {
   'area.supervisor': ['supervisor'],
   'area.safety': ['safety'],
   'area.security': ['security'],
+  'area.yard': ['yard'],
   'area.driver': ['driver'],
 } as const satisfies Record<string, readonly Principal[]>
 

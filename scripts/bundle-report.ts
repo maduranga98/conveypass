@@ -13,12 +13,14 @@ import { initialFiles, ROUTES, routeFiles, type Manifest } from './bundleReport.
  * Gzipped KB a phone downloads for the first visit: a regression guard set a little above today's size (Firebase's
  * Firestore, Auth and Functions SDKs, React and the router are most of it). Driver and security routes are phones on
  * mobile data: raise a number only on purpose.
+ * Visit lifecycle (check-in, unloading check, check-out) added about 2.5 KB to the shell (its strings, the Yard Officer
+ * role and the API wrappers are shared by every route); the budgets moved up by 5 KB for that and nothing else.
  */
 const BUDGET_KB: Record<string, number> = {
-  'Driver home (/driver)': 300,
-  'Driver pre-trip form (/v/:id)': 345,
-  'Security gate (/security)': 310,
-  'Security vehicle view (/v/:id)': 345,
+  'Driver home (/driver)': 305,
+  'Driver pre-trip form (/v/:id)': 350,
+  'Security gate (/security)': 315,
+  'Security vehicle view (/v/:id)': 350,
 }
 
 const manifest = JSON.parse(readFileSync('dist/.vite/manifest.json', 'utf8')) as Manifest

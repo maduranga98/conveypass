@@ -17,3 +17,6 @@ export const newPenaltyId = (): string => `pen_${randomSuffix()}`
 
 /** `insp_` + 10 random chars [a-z0-9] (crypto). Chosen by the browser so a retried inspection is recognised and never recorded twice. */
 export const newInspectionId = (): string => `insp_${randomSuffix()}`
+
+/** `vis_` + 10 random chars [a-z0-9] (crypto). Chosen by the browser so a retried visit check-in is recognised and never creates a second visit. */
+export const newVisitId = (): string => `vis_${randomSuffix()}`
