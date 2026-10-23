@@ -98,7 +98,7 @@ function StaffSettings() {
 
   const installFirst = env.ios === 'needs-install'
   const blocked = env.permission === 'denied'
-  const canToggle = !installFirst && env.supported && (on || !blocked) && claims.role !== 'security'
+  const canToggle = !installFirst && env.supported && (on || !blocked) && claims.role !== 'security' && claims.role !== 'yard'
   const permissionText =
     env.permission === 'granted' ? t.permissionGranted : env.permission === 'denied' ? t.permissionDenied : env.permission === 'default' ? t.permissionDefault : t.unsupported
 

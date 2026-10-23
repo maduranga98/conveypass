@@ -66,4 +66,29 @@ describe('permissions matrix', () => {
     expect(web.rolesFor('vehicleType.manage')).toEqual(['admin'])
     expect(web.rolesFor('expiry.settings')).toEqual(['admin'])
   })
+
+  it('visit lifecycle: security writes the gate stages, the Yard Officer the unloading check, everyone else reads', () => {
+    expect(web.rolesFor('visit.checkIn')).toEqual(['security'])
+    expect(web.rolesFor('visit.checkOut')).toEqual(['security'])
+    expect(web.rolesFor('visit.unloadingCheck')).toEqual(['yard'])
+    expect(web.rolesFor('visit.view')).toEqual(['admin', 'officer', 'supervisor', 'safety', 'security', 'yard'])
+    expect(web.rolesFor('visit.summary')).toEqual(web.rolesFor('visit.view'))
+    for (const role of ['admin', 'officer', 'supervisor', 'safety', 'driver'] as const) {
+      for (const action of ['visit.checkIn', 'visit.checkOut', 'visit.unloadingCheck'] as const) expect(web.can(role, action)).toBe(false)
+    }
+    expect(web.can('driver', 'visit.view')).toBe(false)
+    expect(web.can('superadmin', 'visit.view')).toBe(false)
+  })
+
+  it('the Yard Officer is created by the admin only and has no access to penalties, inspections or admin screens', () => {
+    expect(web.rolesFor('user.create.yard')).toEqual(['admin'])
+    expect(web.canCreateRole('admin', 'yard')).toBe(true)
+    expect(web.canCreateRole('supervisor', 'yard')).toBe(false)
+    expect(web.rolesFor('area.yard')).toEqual(['yard'])
+    for (const action of ['penalty.view', 'penalty.issue', 'inspection.view', 'inspection.record', 'vehicle.view', 'driver.view', 'eligibility.check', 'settings.manage', 'audit.view', 'area.admin'] as const) {
+      expect(web.can('yard', action)).toBe(false)
+    }
+    expect(web.can('yard', 'account.view')).toBe(true)
+    expect(web.can('yard', 'account.password.change')).toBe(false) // PIN users have no password
+  })
 })

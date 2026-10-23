@@ -6,6 +6,7 @@ import { strings } from '@/lib/strings'
 import { useBlocked } from '@/features/penalties/feed'
 import { BlockedBadge } from '@/features/penalties/PenaltyBadges'
 import { PenaltyHistory } from '@/features/penalties/PenaltyHistory'
+import { VisitHistory } from '@/features/visits/VisitHistory'
 import { ExpiryRow } from '@/features/shared/ExpiryRow'
 import type { Scope } from '@/features/shared/scope'
 import type { Driver, WithId } from '@/types'
@@ -64,6 +65,7 @@ function Body({ scope, driver, contractorName }: { scope: Scope; driver: WithId<
       </section>
 
       <PenaltyHistory scope={scope} driverId={driver.id} />
+      <VisitHistory scope={scope} field="driverId" id={driver.id} />
     </div>
   )
 }

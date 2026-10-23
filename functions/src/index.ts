@@ -35,6 +35,8 @@ import { deliver } from './notifications.js'
 import { notifyDeps } from './notificationTriggers.js'
 import { PIN_LIMITS } from './config.js'
 import * as vehicles from './vehicles.js'
+import * as visits from './visits.js'
+import { pinThrottle, visitPort } from './visitsPort.js'
 
 initializeApp()
 // `enforceAppCheck` applies to callables only (ENFORCE_APP_CHECK=true in functions/.env.<alias>, never in the emulator).
@@ -111,12 +113,19 @@ export const recordInspection = callable('recordInspection', inspections.recordI
 export const withdrawClearance = callable('withdrawClearance', inspections.withdrawClearance)
 export { invalidateInspectionOnPenalty, invalidateInspectionOnVehicleExpiry, invalidateInspectionOnDriverExpiry } from './inspectionTriggers.js'
 
+// Visit lifecycle (check-in, unloading check, check-out). Clients only read `visits`. Check-in resolves the driver by PIN,
+// so it binds PIN_PEPPER and keeps the gate's cold-start setting; failed PINs are throttled per guard.
+export const checkInVisit = callable('checkInVisit', (d, c, data) => visits.checkInVisit(d, visitPort(), pinThrottle(), c, data), { warm: true, rateLimit: true, secrets: [PIN_PEPPER] })
+export const checkOutVisit = callable('checkOutVisit', (d, c, data) => visits.checkOutVisit(d, visitPort(), c, data), { warm: true })
+export const logUnloadingCheck = callable('logUnloadingCheck', (d, c, data) => visits.logUnloadingCheck(d, visitPort(), c, data))
+export const getDailySummary = callable('getDailySummary', (d, c) => visits.getDailySummary(d, visitPort(), c))
+
 // Module 6: dashboard trend and reports (admin and officer, read only).
 export const getDashboardTrend = callable('getDashboardTrend', reportsApi.getDashboardTrend, { timeoutSeconds: 60 })
 export const runReport = callable('runReport', (d, c, data) => reportsApi.runReport(d, c, data), { timeoutSeconds: 300, memory: '1GiB' })
 
 // Module 7: notifications. Triggers (passes, gateEvents) and the SLA schedule live in notificationTriggers.ts.
-export { onGateEventCreated, onPassWritten, purgeOldEvidenceDaily as purgeOldEvidence, expirePenaltiesHourly as expirePenalties, recomputeEligibilityDaily as recomputeEligibility, slaReminders } from './notificationTriggers.js'
+export { flagDwellVisitsScheduled as flagDwellVisits, onGateEventCreated, onPassWritten, purgeOldEvidenceDaily as purgeOldEvidence, expirePenaltiesHourly as expirePenalties, recomputeEligibilityDaily as recomputeEligibility, slaReminders } from './notificationTriggers.js'
 export const registerDevice = callable(
   'registerDevice',
   (d, caller, data, meta) => devices.registerDevice(d, devicePort(), caller, data, meta),

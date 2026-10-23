@@ -11,7 +11,7 @@ export type OptInView = 'hidden' | 'enable' | 'ios-install'
  */
 export function optInView(input: { env: PushEnv; role: string; enabledHere: boolean; dismissedAt: number | null; now: number }): OptInView {
   const { env, role, enabledHere, dismissedAt, now } = input
-  if (role === 'security' || enabledHere) return 'hidden'
+  if (role === 'security' || role === 'yard' || enabledHere) return 'hidden'
   if (dismissedAt !== null && now - dismissedAt < DISMISS_DAYS * 86_400_000) return 'hidden'
   if (env.ios === 'needs-install') return 'ios-install'
   if (!env.supported || env.permission === 'denied') return 'hidden'

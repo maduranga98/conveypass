@@ -87,6 +87,14 @@ export type Reason =
   | 'penalty-blocked'
   | 'notes-required'
   | 'not-cleared'
+  | 'driver-on-duty'
+  | 'vehicle-on-site'
+  | 'driver-not-assigned'
+  | 'visit-not-found'
+  | 'visit-not-active'
+  | 'visit-checked-out'
+  | 'unload-location-required'
+  | 'pin-throttled'
   | 'internal'
 
 /** Typed error: `code` is the gRPC-style code, `details.reason` is a stable key the client maps to a string. */

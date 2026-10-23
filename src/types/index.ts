@@ -31,6 +31,8 @@ export interface Tenant {
   vehicleTypes?: string[]
   /** Days before an expiry date when a record turns "expiring soon". Falls back to 14. */
   expiryWarningDays?: number
+  /** Hours before a visit still checked in gets a dwell warning (warning only). Absent = 16. */
+  dwellLimitHours?: number
 }
 
 export interface UserDoc {
@@ -106,6 +108,9 @@ export interface Driver {
   eligibilityStatus?: EligibilityStatus
   photoPath?: string | null
   status: UserStatus
+  /** True while the driver is on a visit (check-in to check-out). Written only by the visit functions. */
+  driverOnDutyLock?: boolean
+  activeVisitId?: string | null
   createdAt: Timestamp
   updatedAt: Timestamp
 }

@@ -4,6 +4,8 @@ import { APP_BASE_URL, REGION } from './config.js'
 import { recomputeEligibility } from './eligibility.js'
 import { eligibilityPort } from './eligibilityPort.js'
 import { logInfo } from './logger.js'
+import { flagDwellVisits } from './dwell.js'
+import { dwellPort } from './dwellPort.js'
 import { expirePenalties } from './penaltyExpiry.js'
 import { penaltyExpiryPort } from './penaltyExpiryPort.js'
 import { actorOf, deliver, isStaleEvent, planDenial, planPassChange, type NotifyDeps } from './notifications.js'
@@ -72,4 +74,12 @@ export const recomputeEligibilityDaily = onSchedule({ schedule: '10 0 * * *', ti
  */
 export const expirePenaltiesHourly = onSchedule({ schedule: '5 * * * *', timeZone: 'UTC', timeoutSeconds: 300 }, async () => {
   await expirePenalties(penaltyExpiryPort(), Date.now())
+})
+
+/**
+ * Every 15 minutes: flags visits that stayed checked in past the company's dwell limit (default 16 h). A warning only;
+ * it never blocks a check-out or any other action.
+ */
+export const flagDwellVisitsScheduled = onSchedule({ schedule: '*/15 * * * *', timeZone: 'UTC', timeoutSeconds: 300 }, async () => {
+  await flagDwellVisits(dwellPort(), Date.now())
 })

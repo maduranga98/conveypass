@@ -17,6 +17,7 @@ import { clearanceOfVehicle } from '@/features/inspections/model'
 import { useBlocked } from '@/features/penalties/feed'
 import { BlockedBadge } from '@/features/penalties/PenaltyBadges'
 import { PenaltyHistory } from '@/features/penalties/PenaltyHistory'
+import { VisitHistory } from '@/features/visits/VisitHistory'
 import { ExpiryRow } from '@/features/shared/ExpiryRow'
 import { VehicleQrPanel } from '@/features/qr/VehicleQrPanel'
 import { useDrivers } from '@/features/shared/queries'
@@ -168,6 +169,7 @@ function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'veh
       <PenaltyHistory scope={scope} vehicleId={vehicle.id} />
 
       <InspectionHistory scope={scope} vehicleId={vehicle.id} />
+      <VisitHistory scope={scope} field="vehicleId" id={vehicle.id} />
 
       <div className="flex flex-col gap-2 border-t border-slate-100 pt-5 sm:flex-row">
         <Button variant="secondary" className="sm:flex-1" icon={<Pencil aria-hidden className="size-4" />} onClick={() => onEdit(vehicle)}>

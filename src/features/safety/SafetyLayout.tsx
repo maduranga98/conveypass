@@ -1,4 +1,4 @@
-import { ClipboardCheck, ListChecks, LogOut, RotateCcw, ShieldPlus, UserRound } from 'lucide-react'
+import { ChartNoAxesColumn, ClipboardCheck, ListChecks, LogOut, RotateCcw, ShieldPlus, UserRound } from 'lucide-react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { BrandMark } from '@/components/BrandMark'
 import { cn } from '@/lib/cn'
@@ -17,6 +17,7 @@ const nav = [
   { to: '/safety/penalties/new', label: t.nav.issue, icon: ShieldPlus, end: false },
   { to: '/safety/inspections/new', label: t.nav.inspect, icon: ClipboardCheck, end: false },
   { to: '/safety/reinspection', label: t.nav.reinspection, icon: RotateCcw, end: false },
+  { to: '/safety/summary', label: t.nav.today, icon: ChartNoAxesColumn, end: false },
 ] as const
 
 /** Safety Officer shell: navy top bar with the penalty screens and the inspection screens (record, re-inspection list). Single column. */

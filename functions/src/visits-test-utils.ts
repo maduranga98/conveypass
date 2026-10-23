@@ -1,0 +1,113 @@
+// In-memory fakes of the visit ports, on top of the World of test-utils. Not part of the build (see tsconfig.json).
+import { pinKey } from './pin.js'
+import { TEST_PEPPER, type World } from './test-utils.js'
+import type { DriverData, PinIndexEntry, UserData, VisitData } from './types.js'
+import { PIN_FAILURE_LIMIT, type PinThrottle, type VisitPort, type VisitRecord } from './visits.js'
+import type { DwellPort } from './dwell.js'
+import { dwellLimitHoursOf } from './visitLogic.js'
+
+export interface VisitWorld {
+  visits: Map<string, VisitData>
+  failures: Map<string, number>
+  penaltiesIssued: { tenantId: string; contractorId: string; issuedAt: number }[]
+  port: VisitPort
+  throttle: PinThrottle
+  dwell: DwellPort
+}
+
+/** Registers a driver PIN the way `createUser` does (HMAC in `pinIndex`). */
+export const givePin = (w: World, uid: string, pin: string, over: Partial<PinIndexEntry> = {}): void => {
+  w.pins.set(pinKey(pin, TEST_PEPPER), { uid, tenantId: 'T1', role: 'driver', ...over })
+}
+
+export function makeVisitWorld(w: World): VisitWorld {
+  const vw: VisitWorld = {
+    visits: new Map(),
+    failures: new Map(),
+    penaltiesIssued: [],
+    port: undefined as unknown as VisitPort,
+    throttle: undefined as unknown as PinThrottle,
+    dwell: undefined as unknown as DwellPort,
+  }
+  const rec = (id: string): VisitRecord | null => {
+    const v = vw.visits.get(id)
+    return v ? { ...structuredClone(v), id } : null
+  }
+  const inScope = (v: VisitData, s: { tenantId: string; contractorId: string | null }) =>
+    v.tenantId === s.tenantId && (s.contractorId === null || v.contractorId === s.contractorId)
+
+  vw.port = {
+    lookupPin: async (key) => structuredClone(w.pins.get(key) ?? null),
+    getVisit: async (id) => rec(id),
+    // The fakes read and write synchronously from the plan to the write, which models the transaction.
+    checkInTx: async ({ visitId, tenantId, vehicleId, driverId, plan }) => {
+      const active = [...vw.visits].find(([, v]) => v.tenantId === tenantId && v.vehicleId === vehicleId && v.status === 'checked_in')
+      const planned = plan({
+        existing: rec(visitId),
+        vehicleActive: active ? rec(active[0]) : null,
+        driver: structuredClone(w.drivers.get(driverId) ?? null),
+        driverUser: structuredClone(w.users.get(driverId) ?? null),
+      })
+      if (planned.kind === 'replay') return planned
+      vw.visits.set(visitId, structuredClone(planned.visit))
+      const user = w.users.get(driverId) as UserData
+      const base: DriverData = w.drivers.get(driverId) ?? { tenantId: user.tenantId, contractorId: user.contractorId as string, name: user.name, phone: user.phone, status: user.status }
+      w.drivers.set(driverId, { ...base, driverOnDutyLock: true, activeVisitId: visitId })
+      w.audits.push(planned.audit)
+      return planned
+    },
+    checkOutTx: async ({ visitId, plan }) => {
+      const visit = rec(visitId)
+      const planned = plan(visit)
+      if (planned.kind === 'replay' || !visit) return planned
+      vw.visits.set(visitId, { ...(vw.visits.get(visitId) as VisitData), status: 'checked_out', checkOut: structuredClone(planned.checkOut), driverOnDutyLock: false })
+      const d = w.drivers.get(visit.driverId)
+      if (d && d.activeVisitId === visitId) w.drivers.set(visit.driverId, { ...d, driverOnDutyLock: false, activeVisitId: null })
+      w.audits.push(planned.audit)
+      return planned
+    },
+    unloadTx: async ({ visitId, plan }) => {
+      const planned = plan(rec(visitId))
+      vw.visits.set(visitId, { ...(vw.visits.get(visitId) as VisitData), unloadingCheck: structuredClone(planned.unloadingCheck) })
+      w.audits.push(planned.audit)
+      return planned
+    },
+    countStage: async (scope, stage, dateKey) => [...vw.visits.values()].filter((v) => inScope(v, scope) && v[stage]?.dateKey === dateKey).length,
+    countActive: async (scope, { awaitingUnload }) =>
+      [...vw.visits.values()].filter((v) => inScope(v, scope) && v.status === 'checked_in' && (!awaitingUnload || v.unloadingCheck === null)).length,
+    listDwell: async (scope, limit) =>
+      [...vw.visits]
+        .filter(([, v]) => inScope(v, scope) && v.status === 'checked_in' && v.dwellWarning)
+        .sort((a, b) => a[1].checkIn.timestamp - b[1].checkIn.timestamp)
+        .slice(0, limit)
+        .map(([id]) => rec(id) as VisitRecord),
+    countPenaltiesIssued: async (scope, from, to) =>
+      vw.penaltiesIssued.filter((p) => p.tenantId === scope.tenantId && (scope.contractorId === null || p.contractorId === scope.contractorId) && p.issuedAt >= from && p.issuedAt <= to).length,
+  }
+  vw.throttle = {
+    isLocked: async (uid) => (vw.failures.get(uid) ?? 0) >= PIN_FAILURE_LIMIT,
+    recordFailure: async (uid) => void vw.failures.set(uid, (vw.failures.get(uid) ?? 0) + 1),
+  }
+  vw.dwell = {
+    listTenants: async () => [...w.tenants].map(([id, data]) => ({ id, data })),
+    listOverdue: async (tenantId, cutoff, limit) =>
+      [...vw.visits]
+        .filter(([, v]) => v.tenantId === tenantId && v.status === 'checked_in' && !v.dwellWarning && v.checkIn.timestamp <= cutoff)
+        .sort((a, b) => a[1].checkIn.timestamp - b[1].checkIn.timestamp)
+        .slice(0, limit)
+        .map(([id]) => id),
+    flag: async (tenantId, ids, cutoff, nowMs) => {
+      let n = 0
+      const limitHours = dwellLimitHoursOf(w.tenants.get(tenantId))
+      for (const id of ids) {
+        const v = vw.visits.get(id)
+        if (!v || v.status !== 'checked_in' || v.dwellWarning || v.checkIn.timestamp > cutoff) continue
+        vw.visits.set(id, { ...v, dwellWarning: true, dwellWarningAt: nowMs })
+        w.audits.push({ tenantId, action: 'visit.dwellWarning', actorUid: 'system', actorRole: 'system', targetType: 'visit', targetId: id, meta: { limitHours } })
+        n++
+      }
+      return n
+    },
+  }
+  return vw
+}

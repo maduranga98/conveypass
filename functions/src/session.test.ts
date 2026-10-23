@@ -31,14 +31,16 @@ const checkInInput = { passId: `${VID}_20231115`, expectedAttempt: 1, gateId: 'm
 const denyInput = { vehicleId: VID, reasonCode: 'other', note: 'a long enough note', gateId: 'main', requestId: R }
 
 describe('session limits (module constants)', () => {
-  it('driver 90 days, security 16 hours, nobody else', () => {
-    expect(SESSION_MAX_AGE_SECONDS).toEqual({ driver: 90 * DAY, security: 16 * 3600 })
+  it('driver 90 days, security and yard officer 16 hours, nobody else', () => {
+    expect(SESSION_MAX_AGE_SECONDS).toEqual({ driver: 90 * DAY, security: 16 * 3600, yard: 16 * 3600 })
+    expect(sessionExpired('yard', NOW - 16 * 3600 - 1, NOW)).toBe(true)
+    expect(sessionExpired('yard', NOW - 16 * 3600, NOW)).toBe(false)
     expect(sessionExpired('driver', NOW - 90 * DAY, NOW)).toBe(false)
     expect(sessionExpired('driver', NOW - 90 * DAY - 1, NOW)).toBe(true)
     expect(sessionExpired('security', NOW - 16 * 3600 - 1, NOW)).toBe(true)
     for (const role of ['admin', 'officer', 'supervisor'] as const) expect(sessionExpired(role, 0, NOW)).toBe(false)
-    expect(['driver', 'security'].every(isPinRole)).toBe(true)
-    expect(['admin', 'officer', 'supervisor', 'platform'].some(isPinRole)).toBe(false)
+    expect(['driver', 'security', 'yard'].every(isPinRole)).toBe(true)
+    expect(['admin', 'officer', 'supervisor', 'safety', 'platform'].some(isPinRole)).toBe(false)
   })
 })
 

@@ -1,4 +1,4 @@
-import { ClipboardCheck, Home, LogOut, QrCode, ShieldAlert, Truck, UserRound, Users } from 'lucide-react'
+import { ClipboardCheck, Footprints, Home, LogOut, QrCode, ShieldAlert, Truck, UserRound, Users } from 'lucide-react'
 import { Link, NavLink, Outlet, useMatch } from 'react-router-dom'
 import { BrandMark } from '@/components/BrandMark'
 import { cn } from '@/lib/cn'
@@ -18,6 +18,7 @@ const nav = [
   { to: '/supervisor', label: t.nav.home, short: t.nav.home, icon: Home, end: true },
   { to: '/supervisor/approvals', label: t.nav.approvals, short: t.nav.approvals, icon: ClipboardCheck, end: false },
   { to: '/supervisor/penalties', label: t.nav.penalties, short: t.nav.penalties, icon: ShieldAlert, end: false },
+  { to: '/supervisor/visits', label: t.nav.visits, short: t.nav.visits, icon: Footprints, end: false },
   { to: '/supervisor/vehicles', label: t.nav.vehicles, short: t.nav.vehicles, icon: Truck, end: false },
   { to: '/supervisor/drivers', label: t.nav.drivers, short: t.nav.drivers, icon: Users, end: false },
   { to: '/supervisor/qr', label: t.nav.qr, short: t.nav.qrShort, icon: QrCode, end: false },
