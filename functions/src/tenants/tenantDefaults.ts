@@ -26,6 +26,8 @@ export interface TenantDefaults {
   retentionDays: number
   vehicleTypes: string[]
   expiryWarningDays: number
+  /** Gate passes: manual review is the default; automatic issue at month rollover is an option the Company Admin switches on. */
+  autoIssueGatePasses: boolean
 }
 
 /** A fresh copy every time, so no caller can mutate the shared constants. */
@@ -40,6 +42,7 @@ export function tenantDefaults(timezone: string = DEFAULT_TIMEZONE): TenantDefau
     retentionDays: 0,
     vehicleTypes: [...VEHICLE_TYPES],
     expiryWarningDays: DEFAULT_EXPIRY_WARNING_DAYS,
+    autoIssueGatePasses: false,
   }
 }
 

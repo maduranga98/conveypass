@@ -29,6 +29,7 @@ describe('tenant defaults', () => {
       retentionDays: 0,
       vehicleTypes: [...VEHICLE_TYPES],
       expiryWarningDays: DEFAULT_EXPIRY_WARNING_DAYS,
+      autoIssueGatePasses: false,
     })
     expect(DEFAULT_TIMEZONE).toBe('Asia/Colombo')
   })

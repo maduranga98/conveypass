@@ -33,6 +33,8 @@ export interface Tenant {
   expiryWarningDays?: number
   /** Hours before a visit still checked in gets a dwell warning (warning only). Absent = 16. */
   dwellLimitHours?: number
+  /** Gate passes: issue every qualified pairing's pass at month rollover. Absent or false = the admin chooses from the month-end list. */
+  autoIssueGatePasses?: boolean
 }
 
 export interface UserDoc {

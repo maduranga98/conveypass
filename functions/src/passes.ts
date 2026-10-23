@@ -358,6 +358,7 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
       ...(input.vehicleTypes ? { vehicleTypes: input.vehicleTypes } : {}),
       ...(input.expiryWarningDays !== undefined ? { expiryWarningDays: input.expiryWarningDays } : {}),
       ...(input.dwellLimitHours !== undefined ? { dwellLimitHours: input.dwellLimitHours } : {}),
+      ...(input.autoIssueGatePasses !== undefined ? { autoIssueGatePasses: input.autoIssueGatePasses } : {}),
     },
     audit(
       caller,
@@ -373,6 +374,7 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
         vehicleTypes: input.vehicleTypes?.length ?? null,
         expiryWarningDays: input.expiryWarningDays ?? null,
         dwellLimitHours: input.dwellLimitHours ?? null,
+        autoIssueGatePasses: input.autoIssueGatePasses ?? null,
         requireLocation: input.passSettings?.requireLocation ?? null,
         maxExtraPhotos: input.passSettings?.maxExtraPhotos ?? null,
       },

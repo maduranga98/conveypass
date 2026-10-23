@@ -5,6 +5,7 @@ import { recordInspection } from './inspections.js'
 import { pinKey } from './pin.js'
 import { dayBoundsMs, checkInVisit, checkOutVisit, getDailySummary, logUnloadingCheck } from './visits.js'
 import { NOW, TEST_PEPPER, admin, caller, drv1, makeWorld, rejects, sup1, sup2, type World } from './test-utils.js'
+import { givePass } from './gatepass-test-utils.js'
 import { givePin, makeVisitWorld, type VisitWorld } from './visits-test-utils.js'
 
 const NOW_MS = NOW * 1000
@@ -29,6 +30,8 @@ beforeEach(async () => {
   w.users.set('drv1b', { ...(w.users.get('drv1') as never), name: 'Second Driver' })
   givePin(w, 'drv1', PIN)
   givePin(w, 'drv1b', '73920518')
+  // Module 6: the monthly gate pass is the last gate, so every pairing these tests check in holds an active pass.
+  for (const [v, d] of [[VID, 'drv1'], [VID, 'drv1b'], [V2, 'drv1']] as const) givePass(vw.gatePasses, v, d)
   // Module 4: only a vehicle with a standing approved inspection is eligible, so clear the two test vehicles first.
   for (const [i, vehicleId] of [VID, V2].entries()) {
     await recordInspection(w.deps, caller('safe1', 'safety'), { inspectionId: `insp_aaaaaaaaa${i}`, vehicleId, result: 'approved', notes: '' })

@@ -1,4 +1,4 @@
-import { Building2, ChartNoAxesColumn, ClipboardList, FileBarChart, Footprints, History, LayoutDashboard, LogOut, Menu, QrCode, Settings, ShieldAlert, Tags, Truck, UserRound, Users, X } from 'lucide-react'
+import { BadgeCheck, Building2, CalendarCheck, ChartNoAxesColumn, ClipboardList, FileBarChart, Footprints, History, LayoutDashboard, LogOut, Menu, QrCode, Settings, ShieldAlert, Tags, Truck, UserRound, Users, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { BrandMark } from '@/components/BrandMark'
@@ -17,6 +17,8 @@ const nav = [
   { to: '/admin/drivers', label: strings.admin.nav.drivers, icon: UserRound },
   { to: '/admin/passes', label: strings.admin.nav.passes, icon: ClipboardList },
   { to: '/admin/visits', label: strings.admin.nav.visits, icon: Footprints },
+  { to: '/admin/gate-passes', label: strings.gatePasses.nav, icon: BadgeCheck, end: true },
+  { to: '/admin/gate-passes/month-end', label: strings.gatePasses.navQualification, icon: CalendarCheck },
   { to: '/admin/summary', label: strings.admin.nav.today, icon: ChartNoAxesColumn },
   { to: '/admin/penalties', label: strings.admin.nav.penalties, icon: ShieldAlert },
   { to: '/admin/penalty-types', label: strings.admin.nav.penaltyTypes, icon: Tags },
@@ -31,10 +33,11 @@ const darkFocus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-
 function NavItems({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav aria-label={strings.admin.panel} className="space-y-1">
-      {nav.map(({ to, label, icon: Icon }) => (
+      {nav.map(({ to, label, icon: Icon, ...rest }) => (
         <NavLink
           key={to}
           to={to}
+          end={'end' in rest}
           onClick={onNavigate}
           className={({ isActive }) =>
             cn(

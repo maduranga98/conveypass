@@ -1,3 +1,4 @@
+import type { GatePassCheck } from '@/lib/gatePassLogic'
 import type { Timestamp } from 'firebase/firestore'
 import type { SummaryMetric, VisitStatus } from '@/lib/visitLogic'
 import type { EligibilityResult } from '@/types/penalties'
@@ -54,6 +55,8 @@ export interface CheckInVisitPayload {
 export type CheckInVisitResult =
   | { outcome: 'checked_in'; visitId: string; at: number; driverName: string; plateNo: string }
   | { outcome: 'blocked'; driverName: string; plateNo: string; eligibility: EligibilityResult }
+  /** Eligible, but the pairing has no active monthly gate pass this month. */
+  | { outcome: 'no_gate_pass'; driverName: string; plateNo: string; gatePass: Exclude<GatePassCheck, { state: 'active' }> }
 
 export interface CheckOutVisitPayload {
   visitId: string

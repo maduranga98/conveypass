@@ -22,6 +22,7 @@ import { INSPECTION_NOTES_MAX, REJECTION_NOTE_MIN, type InspectionResult } from 
 import { strings } from '@/lib/strings'
 import type { BlockingPenaltyInfo, EligibilityResult } from '@/types/penalties'
 import type { Vehicle, WithId } from '@/types'
+import { GatePassSection } from '@/features/gatePasses/GatePassSection'
 import { ClearanceBadge } from './ClearanceBadge'
 import { InspectionHistory } from './InspectionHistory'
 import { clearanceOfVehicle } from './model'
@@ -285,6 +286,9 @@ export default function RecordInspectionPage() {
               </section>
 
               <Checks vehicle={vehicle} driverNames={driverNames} tz={tz} />
+
+              {/* Read only: a restored clearance does not bring a blocked pass back, the Company Admin reactivates it. */}
+              <GatePassSection scope="admin" field="vehicleId" id={vehicle.id} />
 
               <form
                 className="space-y-4"

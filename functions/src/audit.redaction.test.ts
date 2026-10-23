@@ -17,6 +17,7 @@ import { submitPass, updateTenantSettings } from './passes.js'
 import { admin, caller, drv1, makeWorld, NOW, sup1, userDoc, type World } from './test-utils.js'
 import type { PassData, PenaltyData, StoredFile } from './types.js'
 import { checkInVisit, checkOutVisit, logUnloadingCheck } from './visits.js'
+import { givePass } from './gatepass-test-utils.js'
 import { givePin, makeVisitWorld } from './visits-test-utils.js'
 import { flagDwellVisits } from './dwell.js'
 import { createVehicle, importVehicles, setContractorStatus, setVehicleDrivers, setVehicleStatus, updateVehicle } from './vehicles.js'
@@ -133,6 +134,7 @@ describe('audit redaction: every write path', () => {
     const yard = caller('yard1', 'yard')
     const pin = '48291736'
     givePin(w, 'drv1', pin)
+    givePass(vw.gatePasses, VID, 'drv1')
     await recordInspection(w.deps, caller('safe1', 'safety'), { inspectionId: 'insp_cccccccccc', vehicleId: VID, result: 'approved', notes: '' })
     await checkInVisit(w.deps, vw.port, vw.throttle, sec, { visitId: 'vis_aaaaaaaaaa', vehicleId: VID, pin, requestId: R1 })
     await logUnloadingCheck(w.deps, vw.port, yard, { visitId: 'vis_aaaaaaaaaa', unloaded: true, unloadLocation: 'https://x.test/token' })

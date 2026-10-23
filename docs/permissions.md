@@ -122,6 +122,37 @@ One `visits/{vis_…}` record per vehicle visit with three timestamped stages. C
 4. **Driver PIN on the guard's phone.** The driver's sign-in PIN is typed on a device that is not theirs. The guard could shoulder-surf it and sign in as the driver. Keys are masked and failures are throttled, but if this matters, replace it with a one-time check-in code the driver generates in their own app.
 5. **`checkIn` does not read `eligible` yet.** It still checks documents/penalties only, as before; the new visit check-in uses the combined `eligible` (including inspection clearance).
 
+## Monthly gate pass (Module 6: issuance and renewal)
+
+One `gatePasses` document per vehicle + driver pairing per calendar month (company timezone), id `{YYYY-MM}_{vehicleId}_{driverId}`. It is the last gate of the eligibility chain: check-in asks for it **after** the combined `evaluateEligibility` (documents, penalties, inspection), which it consumes and never re-derives.
+
+| Action | Admin | Supervisor | Safety | Officer | Security | Driver | Yard |
+|---|---|---|---|---|---|---|---|
+| `gatePass.view` (status, reason) | yes | own contractor | yes | no | no (the check-in function consumes it) | no | no |
+| `gatePass.issue` | yes | no | no | no | no | no | no |
+| `gatePass.block` (manual, note required) | yes | no | no | no | no | no | no |
+| `gatePass.reactivate` | yes | no | no | no | no | no | no |
+| `gatePass.qualification.view` / `.refresh` | yes | no | no | no | no | no | no |
+| `gatePass.autoIssue.manage` | yes | no | no | no | no | no | no |
+
+Enforcement: clients only read `gatePasses` (Firestore rules: admin and Safety Officer the whole company, a supervisor only their contractor's, queries carry the clauses) and `monthEndQualification` (admin only, entries in a subcollection). Nobody writes from the client. Writes are the callables `issueGatePasses`, `blockGatePass`, `reactivateGatePass`, `refreshQualificationList`, the setting `updateTenantSettings({ autoIssueGatePasses })`, the inspection triggers and two schedules.
+
+**Status.** `active | blocked | expired`. `blockedReason`: `penalty | document_expired | inspection_invalidated` (system) or `manual` (admin block, note required).
+
+**Continuous re-evaluation.** The existing Module 4 triggers (`inspectionTriggers.ts`) now do two things per event, never a fourth listener: new penalty (vehicle: that vehicle's passes; driver: all of that driver's passes) blocks with `penalty`; `eligibilityStatus` becoming `expired` on a vehicle or driver blocks with `document_expired`; `vehicles.clearance` leaving `cleared` blocks with the cause that cancelled it (`penalty_issued` -> `penalty`, `document_expired` -> `document_expired`, withdrawn or rejected -> `inspection_invalidated`). Active passes of this month **and later** are blocked. First cause wins and the reason is kept; each reaction re-checks that the cause still holds, so a late retry cannot block a pass the admin already reactivated.
+
+**No silent return.** A pass never becomes active again by itself, not even after re-inspection or when a penalty ends. `reactivateGatePass` (admin) runs the shared eligibility check **and** requires an active vehicle, contractor and driver: otherwise `failed-precondition / issue-unresolved` with the causes. The overview disables Reactivate until the same check passes and says what is still wrong.
+
+**Expiry.** `rolloverGatePasses` (every 10 min) expires `active` and `blocked` passes of earlier months, once per company per month in its own timezone (`tenants.gatePassRolloverMonth`). `expired` is normal end of cycle; a blocked pass keeps its reason.
+
+**Month-end list.** `computeQualificationLists` (daily 00:30 UTC) recomputes next month's list for companies in the last 4 days of their month; the admin can Refresh any time (this month or next, which is also how a company starts). Stored in `monthEndQualification/{tenantId}_{month}` with entries in `entries/{vehicleId}_{driverId}`; nothing is computed on page load. A pairing qualifies when its vehicle, contractor and driver are active, the driver is assigned, there is no pass yet for the month and `evaluateEligibility` says `eligible`.
+
+**Manual (default) and automatic.** Manual: the admin ticks pairs (select all or one by one) and `issueGatePasses` re-checks each pairing server side, one transaction each, per-pair results, max 200, idempotent (the pass id is the pairing). Automatic: `tenants.autoIssueGatePasses` (default `false`, changed on the month-end screen behind a confirmation) makes the rollover job recompute the list and issue to everyone on it with `issueMode: 'auto'` and `issuedBy: system`.
+
+**Check-in (Module 5).** `checkInVisit` answers `{ outcome: 'no_gate_pass', gatePass }` when the pairing is eligible but has no active pass for the current month: `none` ("No gate pass issued for this month"), `blocked` + reason ("Gate pass blocked: penalty"), `expired` ("Gate pass expired": the pairing had a pass for an earlier month, or the month's pass is marked over). Eligibility is evaluated first; its reasons win when both fail. Nothing is written except a `visit.checkInBlocked` audit entry.
+
+**Rollout note.** The gate pass is enforced for every company from the day this ships. A company with no passes yet refuses every check-in until the admin opens *Monthly passes > Month-end list*, chooses *This month*, refreshes and issues.
+
 ## Areas (route guards)
 
 | Area | Who may open it |

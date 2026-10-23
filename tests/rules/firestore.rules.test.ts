@@ -161,6 +161,17 @@ beforeEach(async () => {
         unloadingCheck: null, checkOut: null, driverOnDutyLock: status === 'checked_in', dwellWarning: false,
       })
     }
+    // Gate passes: one per contractor of tenant A, one in tenant B; the month-end list of tenant A and B with one entry each.
+    for (const [id, tenantId, contractorId] of [['2026-03_veh_a1_drvA1', A, 'c1'], ['2026-03_veh_a2_drvA2', A, 'c2'], ['2026-03_veh_b1_drvB1', B, 'cB']] as const) {
+      await setDoc(doc(db, 'gatePasses', id), {
+        tenantId, contractorId, vehicleId: 'veh_a1', driverId: 'drvA1', plateNo: 'WP LJ-4821', driverName: 'D', month: '2026-03', status: 'active',
+        issuedAt: when, issuedBy: { uid: 'adminA', name: 'A' }, issueMode: 'manual', blockedReason: null, blockedAt: null, blockNote: null, reactivation: null, expiredAt: null,
+      })
+    }
+    for (const [tenantId, entry] of [[A, 'veh_a1_drvA1'], [B, 'veh_b1_drvB1']] as const) {
+      await setDoc(doc(db, 'monthEndQualification', `${tenantId}_2026-04`), { tenantId, month: '2026-04', computedAt: when, qualifiedCount: 1 })
+      await setDoc(doc(db, 'monthEndQualification', `${tenantId}_2026-04`, 'entries', entry), { tenantId, month: '2026-04', vehicleId: 'veh_a1', driverId: 'drvA1', contractorId: 'c1', plateNo: 'P', driverName: 'D', computedAt: when })
+    }
     await setDoc(doc(db, 'penaltyTypes', 'pty_a'), { tenantId: A, name: 'Damage', nameKey: 'damage', createdBy: 'adminA' })
     await setDoc(doc(db, 'penaltyTypes', 'pty_b'), { tenantId: B, name: 'Damage', nameKey: 'damage', createdBy: 'adminB' })
     await setDoc(doc(db, 'auditLog', 'a2'), { tenantId: A, action: 'pass.submit', actorUid: 'drvA1', targetType: 'pass', createdAt: when })
@@ -903,11 +914,11 @@ describe('setupInvites (Module 8)', () => {
 
 describe('platform operators (Module 9)', () => {
   const operator = () => as('op1', { role: 'platform', platformAdmin: true, email_verified: true })
-  const COLLECTIONS = ['tenants', 'users', 'contractors', 'vehicles', 'drivers', 'vehiclePlates', 'passes', 'gateEvents', 'auditLog', 'notifications', 'rateLimits', 'setupInvites', 'operators', 'platformAuditLog', 'penalties', 'penaltyTypes', 'inspections', 'visits'] as const
+  const COLLECTIONS = ['tenants', 'users', 'contractors', 'vehicles', 'drivers', 'vehiclePlates', 'passes', 'gateEvents', 'auditLog', 'notifications', 'rateLimits', 'setupInvites', 'operators', 'platformAuditLog', 'penalties', 'penaltyTypes', 'inspections', 'visits', 'gatePasses', 'monthEndQualification'] as const
   const KNOWN_DOCS: Record<string, string[]> = {
     tenants: [A, B], users: ['adminA', 'drvA1', 'op1'], contractors: ['c1'], vehicles: ['veh_a1'], drivers: ['drvA1'],
     vehiclePlates: [`${A}_WPLJ4821`], passes: ['veh_a1_20260310'], gateEvents: ['den_platform'], auditLog: ['a1'], notifications: ['n_drv'],
-    rateLimits: ['drvA1_createUser'], setupInvites: ['c'.repeat(64)], operators: ['op1'], platformAuditLog: ['p1'], penalties: ['pen_c1'], penaltyTypes: ['pty_a'], inspections: ['insp_c1'], visits: ['vis_a1'],
+    rateLimits: ['drvA1_createUser'], setupInvites: ['c'.repeat(64)], operators: ['op1'], platformAuditLog: ['p1'], penalties: ['pen_c1'], penaltyTypes: ['pty_a'], inspections: ['insp_c1'], visits: ['vis_a1'], gatePasses: ['2026-03_veh_a1_drvA1'], monthEndQualification: [`${A}_2026-04`],
   }
 
   it('is denied on every collection: single reads (even of its own uid), lists, tenant-filtered queries and writes', async () => {
@@ -1054,6 +1065,72 @@ describe('inspections', () => {
 
   it('the clearance copy on a vehicle is not writable by anyone', async () => {
     for (const db of [adminA(), safetyA(), supA1()]) await assertFails(updateDoc(doc(db, 'vehicles', 'veh_a1'), { clearance: { status: 'cleared', inspectionId: 'insp_c1', reason: null, at: 1 } }))
+  })
+})
+
+describe('gatePasses (monthly gate pass)', () => {
+  const tenantQuery = (db: ReturnType<typeof adminA>) => getDocs(query(collection(db, 'gatePasses'), where('tenantId', '==', A)))
+  const ids = (snap: Awaited<ReturnType<typeof tenantQuery>>) => snap.docs.map((d) => d.id).sort()
+
+  it('the admin and the Safety Officer read every pass of their company, and nothing of another', async () => {
+    for (const db of [adminA(), safetyA()]) {
+      expect(ids(await assertSucceeds(tenantQuery(db)))).toEqual(['2026-03_veh_a1_drvA1', '2026-03_veh_a2_drvA2'])
+      await assertSucceeds(getDoc(doc(db, 'gatePasses', '2026-03_veh_a2_drvA2')))
+      await assertFails(getDoc(doc(db, 'gatePasses', '2026-03_veh_b1_drvB1')))
+      await assertFails(getDocs(query(collection(db, 'gatePasses'), where('tenantId', '==', B))))
+    }
+  })
+
+  it('a supervisor reads only their own contractor’s passes; the query must carry the contractor', async () => {
+    const db = supA1()
+    expect(ids(await assertSucceeds(getDocs(query(collection(db, 'gatePasses'), where('tenantId', '==', A), where('contractorId', '==', 'c1')))))).toEqual(['2026-03_veh_a1_drvA1'])
+    await assertSucceeds(getDoc(doc(db, 'gatePasses', '2026-03_veh_a1_drvA1')))
+    await assertFails(getDoc(doc(db, 'gatePasses', '2026-03_veh_a2_drvA2')))
+    await assertFails(tenantQuery(db))
+  })
+
+  it('security, officer, drivers, the Yard Officer and signed-out users cannot read passes at all (the check-in function consumes them)', async () => {
+    for (const db of [securityA(), officerA(), drvA1(), yardA(), env.unauthenticatedContext().firestore()]) {
+      await assertFails(getDoc(doc(db, 'gatePasses', '2026-03_veh_a1_drvA1')))
+      await assertFails(tenantQuery(db))
+    }
+  })
+
+  it('nobody writes: not even the admin (issue, block and reactivate are callables)', async () => {
+    for (const db of [adminA(), safetyA(), supA1(), securityA(), drvA1()]) {
+      await assertFails(setDoc(doc(db, 'gatePasses', 'x'), { tenantId: A, status: 'active', contractorId: 'c1' }))
+      await assertFails(addDoc(collection(db, 'gatePasses'), { tenantId: A, status: 'active', contractorId: 'c1' }))
+      await assertFails(updateDoc(doc(db, 'gatePasses', '2026-03_veh_a1_drvA1'), { status: 'active', blockedReason: null }))
+      await assertFails(updateDoc(doc(db, 'gatePasses', '2026-03_veh_a1_drvA1'), { status: 'blocked' }))
+      await assertFails(deleteDoc(doc(db, 'gatePasses', '2026-03_veh_a1_drvA1')))
+    }
+  })
+})
+
+describe('monthEndQualification', () => {
+  it('only the admin reads the list and its entries, of their own company', async () => {
+    const db = adminA()
+    await assertSucceeds(getDoc(doc(db, 'monthEndQualification', `${A}_2026-04`)))
+    await assertSucceeds(getDocs(query(collection(db, 'monthEndQualification', `${A}_2026-04`, 'entries'), where('tenantId', '==', A))))
+    await assertFails(getDoc(doc(db, 'monthEndQualification', `${B}_2026-04`)))
+    await assertFails(getDocs(query(collection(db, 'monthEndQualification', `${B}_2026-04`, 'entries'), where('tenantId', '==', B))))
+  })
+
+  it('every other role is denied, entries included', async () => {
+    for (const db of [safetyA(), supA1(), securityA(), officerA(), drvA1(), yardA(), env.unauthenticatedContext().firestore()]) {
+      await assertFails(getDoc(doc(db, 'monthEndQualification', `${A}_2026-04`)))
+      await assertFails(getDocs(query(collection(db, 'monthEndQualification'), where('tenantId', '==', A))))
+      await assertFails(getDocs(query(collection(db, 'monthEndQualification', `${A}_2026-04`, 'entries'), where('tenantId', '==', A))))
+    }
+  })
+
+  it('nobody writes, the admin included', async () => {
+    for (const db of [adminA(), safetyA()]) {
+      await assertFails(setDoc(doc(db, 'monthEndQualification', `${A}_2026-05`), { tenantId: A }))
+      await assertFails(updateDoc(doc(db, 'monthEndQualification', `${A}_2026-04`), { qualifiedCount: 99 }))
+      await assertFails(setDoc(doc(db, 'monthEndQualification', `${A}_2026-04`, 'entries', 'x'), { tenantId: A }))
+      await assertFails(deleteDoc(doc(db, 'monthEndQualification', `${A}_2026-04`, 'entries', 'veh_a1_drvA1')))
+    }
   })
 })
 
