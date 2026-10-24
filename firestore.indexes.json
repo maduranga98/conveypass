@@ -837,6 +837,162 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "gatePasses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tenantId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "month",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "gatePasses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tenantId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "vehicleId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "gatePasses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tenantId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "driverId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "gatePasses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tenantId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "vehicleId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "driverId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "month",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "gatePasses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tenantId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "vehicleId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "month",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "gatePasses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tenantId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "driverId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "month",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "gatePasses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tenantId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contractorId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "vehicleId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "month",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "gatePasses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tenantId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contractorId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "driverId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "month",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

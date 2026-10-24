@@ -11,6 +11,8 @@ import { dateKey as computeDateKey, DEFAULT_TIMEZONE, isValidTimezone } from './
 import { fail, failWith } from './errors.js'
 import { isoFromDateKey } from './expiry.js'
 import { gatesOf } from './gates.js'
+import { checkGatePassForCheckIn, type GatePassPort } from './gatePasses.js'
+import type { GatePassCheck } from './gatePassLogic.js'
 import { assertPepper, normalisePin, pinKey } from './pin.js'
 import { endOfDayMs } from './penaltyLogic.js'
 import { can, type Action } from './permissions.js'
@@ -48,6 +50,8 @@ export interface VisitScope {
 }
 
 export interface VisitPort {
+  /** The monthly gate pass of a pairing (Module 6): see `GatePassPort.lookupForPairing`. Read only. */
+  lookupForPairing: GatePassPort['lookupForPairing']
   /** `pinIndex/{key}` (the HMAC of a PIN), or null. */
   lookupPin(key: string): Promise<PinIndexEntry | null>
   getVisit(visitId: string): Promise<VisitRecord | null>
@@ -104,6 +108,8 @@ export type CheckInVisitResult =
   | { outcome: 'checked_in'; visitId: string; at: number; driverName: string; plateNo: string }
   /** Entry refused by the shared eligibility check: `eligibility` is its output, unchanged (documents, penalties, clearance). */
   | { outcome: 'blocked'; driverName: string; plateNo: string; eligibility: EligibilityResult }
+  /** Eligible, but the pairing has no active monthly gate pass: none this month, blocked (with the reason) or expired. */
+  | { outcome: 'no_gate_pass'; driverName: string; plateNo: string; gatePass: Exclude<GatePassCheck, { state: 'active' }> }
 
 interface PlanInput {
   caller: Caller
@@ -244,6 +250,23 @@ export async function checkInVisit(
       )
       .catch(() => undefined)
     return { outcome: 'blocked', driverName: driverUser?.name ?? '', plateNo: vehicle.plateNo, eligibility }
+  }
+
+  // ---- the monthly gate pass: the last gate, after eligibility. Only an ACTIVE pass of this month lets the vehicle in ----
+  const gatePass = await checkGatePassForCheckIn(port, tenant, caller.tenantId, input.vehicleId, driverId, nowMs)
+  if (gatePass.state !== 'active') {
+    await deps.data
+      .writeAudit(
+        makeAudit(
+          caller,
+          'visit.checkInBlocked',
+          input.visitId,
+          { vehicleId: input.vehicleId, driverId, gatePass: gatePass.state, gatePassReason: gatePass.state === 'blocked' ? gatePass.reason : null },
+          'visit',
+        ),
+      )
+      .catch(() => undefined)
+    return { outcome: 'no_gate_pass', driverName: driverUser?.name ?? '', plateNo: vehicle.plateNo, gatePass }
   }
 
   const dateKey = computeDateKey(timezoneOf(tenant), new Date(nowMs))

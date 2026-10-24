@@ -486,6 +486,7 @@ roughly 1 to 3 seconds to the first request after quiet periods). Change it in `
 
 - Web push needs the VAPID key pair: Firebase console > Project settings > Cloud Messaging > Web Push certificates > *Generate key pair*; the public key is `VITE_FIREBASE_VAPID_KEY`.
 - Notifications are created by Firestore triggers; pushes are data-only and drawn by the service worker. Approval pushes are collapsed per person (tag `pending-<role>-<contractor|tenant>`).
+- **Monthly gate passes**: `rolloverGatePasses` (every 10 minutes) and `computeQualificationLists` (daily 00:30 UTC) need Cloud Scheduler; deploy the new `gatePasses` composite indexes (`firestore.indexes.json`) before the functions. After the first deploy every company must issue its passes (Monthly passes > Month-end list > This month > Refresh > Issue) or check-in refuses every vehicle.
 - **SLA reminders** run every 10 minutes (`slaReminders`) and need Cloud Scheduler. Locally they only run when you trigger them: `npm run sla:check`.
 - Dead tokens are deleted automatically when FCM reports them unregistered or invalid. A failing push never fails a business call.
 - iOS: web push works only for an installed web app (Add to Home Screen, iOS 16.4+). The app says so on iPhones and iPads.

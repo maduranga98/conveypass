@@ -2,6 +2,7 @@
 // writes and converts Timestamps. Every write that touches a visit also touches the driver lock and the audit log in the
 // same transaction.
 import { FieldValue, getFirestore, Timestamp, type DocumentData, type Query } from 'firebase-admin/firestore'
+import { gatePassPort } from './gatePassPort.js'
 import { newAuditDoc } from './ports.js'
 import type { CheckInContext, PinThrottle, VisitPort, VisitRecord, VisitScope } from './visits.js'
 import { PIN_FAILURE_LIMIT, PIN_FAILURE_WINDOW_MS } from './visits.js'
@@ -38,7 +39,9 @@ export const visitPort = (): VisitPort => {
     return scope.contractorId ? q.where('contractorId', '==', scope.contractorId) : q
   }
 
+  const gatePasses = gatePassPort()
   return {
+    lookupForPairing: gatePasses.lookupForPairing,
     lookupPin: async (key) => {
       const snap = await db.doc(`pinIndex/${key}`).get()
       return snap.exists ? (snap.data() as PinIndexEntry) : null

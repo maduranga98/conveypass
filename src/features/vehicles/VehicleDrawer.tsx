@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { setVehicleDrivers, setVehicleStatus } from '@/lib/api'
 import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
+import { GatePassSection } from '@/features/gatePasses/GatePassSection'
 import { ClearanceBadge } from '@/features/inspections/ClearanceBadge'
 import { InspectionHistory } from '@/features/inspections/InspectionHistory'
 import { clearanceOfVehicle } from '@/features/inspections/model'
@@ -126,6 +127,8 @@ function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'veh
           <p className="text-sm text-slate-700">{strings.inspections.reasonDetail[vehicle.clearance.reason]}</p>
         )}
       </section>
+
+      <GatePassSection scope={scope} field="vehicleId" id={vehicle.id} overviewPath={scope === 'admin' ? '/admin/gate-passes' : undefined} />
 
       <VehicleQrPanel vehicle={vehicle} scope={scope} />
 

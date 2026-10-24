@@ -4,6 +4,7 @@ import { TEST_PEPPER, type World } from './test-utils.js'
 import type { DriverData, PinIndexEntry, UserData, VisitData } from './types.js'
 import { PIN_FAILURE_LIMIT, type PinThrottle, type VisitPort, type VisitRecord } from './visits.js'
 import type { DwellPort } from './dwell.js'
+import { makeGatePassWorld, type GatePassWorld } from './gatepass-test-utils.js'
 import { dwellLimitHoursOf } from './visitLogic.js'
 
 export interface VisitWorld {
@@ -13,6 +14,8 @@ export interface VisitWorld {
   port: VisitPort
   throttle: PinThrottle
   dwell: DwellPort
+  /** Module 6: the monthly gate passes the check-in consults. A test seeds them with `givePass(vw.gatePasses, …)`. */
+  gatePasses: GatePassWorld
 }
 
 /** Registers a driver PIN the way `createUser` does (HMAC in `pinIndex`). */
@@ -28,6 +31,7 @@ export function makeVisitWorld(w: World): VisitWorld {
     port: undefined as unknown as VisitPort,
     throttle: undefined as unknown as PinThrottle,
     dwell: undefined as unknown as DwellPort,
+    gatePasses: makeGatePassWorld(w),
   }
   const rec = (id: string): VisitRecord | null => {
     const v = vw.visits.get(id)
@@ -37,6 +41,7 @@ export function makeVisitWorld(w: World): VisitWorld {
     v.tenantId === s.tenantId && (s.contractorId === null || v.contractorId === s.contractorId)
 
   vw.port = {
+    lookupForPairing: (...a) => vw.gatePasses.port.lookupForPairing(...a),
     lookupPin: async (key) => structuredClone(w.pins.get(key) ?? null),
     getVisit: async (id) => rec(id),
     // The fakes read and write synchronously from the plan to the write, which models the transaction.

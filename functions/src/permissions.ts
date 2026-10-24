@@ -47,6 +47,18 @@ export const PERMISSIONS = {
   'inspection.view': ['admin', 'safety', 'supervisor'],
   'inspection.record': ['safety'],
   'inspection.withdraw': ['safety'],
+  // Monthly gate pass (the last gate of the eligibility chain, after documents, penalties and the inspection). The Company Admin
+  // issues, blocks and reactivates passes, reviews the month-end qualification list and owns the auto-issue setting. The
+  // supervisor (own contractor) and the Safety Officer read pass status only. Security never reads passes: the check-in function
+  // consumes them. Drivers and the Yard Officer have no access. A system block (penalty, expired document, cancelled inspection)
+  // is done by triggers, never by a role.
+  'gatePass.view': ['admin', 'safety', 'supervisor'],
+  'gatePass.issue': ['admin'],
+  'gatePass.block': ['admin'],
+  'gatePass.reactivate': ['admin'],
+  'gatePass.qualification.view': ['admin'],
+  'gatePass.qualification.refresh': ['admin'],
+  'gatePass.autoIssue.manage': ['admin'],
   // Visit lifecycle: one record per vehicle visit (check-in, unloading check, check-out). Only Security records the gate
   // stages and only the Yard Officer records the unloading check, each on its own part of the visit. Everyone else reads.
   // Supervisors read their own contractor's visits only. Eligibility is consumed from `eligibility.check`, never decided here.

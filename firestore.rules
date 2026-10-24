@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Deny by default. Roles/tenant come ONLY from custom claims (set by Cloud Functions).
-// `operators`, `platformAuditLog`, `setupInvites` (no client access at all), `users`, `tenants`, `auditLog`, `vehicles`, `drivers`, `vehiclePlates`, `passes`, `gateEvents`, `penalties`, `penaltyTypes`, `inspections` and `visits` are never client-writable
+// `operators`, `platformAuditLog`, `setupInvites` (no client access at all), `users`, `tenants`, `auditLog`, `vehicles`, `drivers`, `vehiclePlates`, `passes`, `gateEvents`, `penalties`, `penaltyTypes`, `inspections`, `visits`, `gatePasses` and `monthEndQualification` are never client-writable
 // (`notifications` accept one client write: `readAt` on your own); `users/*/devices` and `rateLimits` are closed;
 // Cloud Functions use the Admin SDK. `contractors` accept admin writes to descriptive fields only.
 service cloud.firestore {
@@ -166,6 +166,27 @@ service cloud.firestore {
         || (role() == 'yard' && resource.data.status == 'checked_in')
       );
       allow write: if false;
+    }
+
+    // Monthly gate passes: written only by the callables, the Module 4 triggers and the schedules. The Company Admin and the Safety
+    // Officer read the company's passes; a supervisor only their own contractor's (queries carry the same tenantId + contractorId
+    // clauses). Security never reads them (the check-in function consumes pass status), nor do officers, drivers or the Yard Officer.
+    match /gatePasses/{id} {
+      allow read: if signedIn() && sameTenant(resource.data) && (
+        role() in ['admin', 'safety']
+        || (role() == 'supervisor' && contractorId() != null && resource.data.contractorId == contractorId())
+      );
+      allow write: if false;
+    }
+
+    // Month-end qualification list: computed by the schedule or the admin's refresh, so the screen opens on stored data. Admin only.
+    match /monthEndQualification/{id} {
+      allow read: if signedIn() && role() == 'admin' && sameTenant(resource.data);
+      allow write: if false;
+      match /entries/{entryId} {
+        allow read: if signedIn() && role() == 'admin' && sameTenant(resource.data);
+        allow write: if false;
+      }
     }
 
     match /auditLog/{id} {

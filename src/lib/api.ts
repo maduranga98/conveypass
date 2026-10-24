@@ -9,6 +9,7 @@ import type { ClearanceStatus } from '@/lib/inspectionLogic'
 import type { RecordInspectionPayload } from '@/types/inspections'
 import type { CheckInVisitPayload, CheckInVisitResult, CheckOutVisitPayload, CheckOutVisitResult, DailySummary, UnloadingCheckPayload } from '@/types/visits'
 import type { EligibilityResult, IssuePenaltyPayload } from '@/types/penalties'
+import type { IssueGatePassesPayload, IssueGatePassesResult, QualificationMetaResult } from '@/types/gatePasses'
 import type { ReportRequest, ReportResult, TrendResult } from '@/types/reports'
 import type { SlaSettings } from './defaultSla'
 import type { CreatedInvite, InviteRow, InviteStatus, OperatorOverview, TenantRow, WorkspaceCredentials, WorkspaceDetail } from '@/types/platform'
@@ -118,7 +119,7 @@ export const submitPass = call<SubmitPassPayload, { passId: string; status: 'sub
   60_000,
 )
 export const updateTenantSettings = call<
-  { passSettings?: PassSettings; checklist?: ChecklistItemDef[]; rejectionReasons?: RejectionReasonDef[]; gates?: GateDef[]; sla?: SlaSettings; retentionDays?: number; vehicleTypes?: string[]; expiryWarningDays?: number },
+  { passSettings?: PassSettings; checklist?: ChecklistItemDef[]; rejectionReasons?: RejectionReasonDef[]; gates?: GateDef[]; sla?: SlaSettings; retentionDays?: number; vehicleTypes?: string[]; expiryWarningDays?: number; dwellLimitHours?: number; autoIssueGatePasses?: boolean },
   { ok: true }
 >('updateTenantSettings')
 
@@ -199,6 +200,11 @@ export const verifyPenalty = call<{ penaltyId: string; note?: string }, { ok: tr
 /** The live check shared by the gate and trip assignment: documents + active penalties. */
 export const checkEligibility = call<{ vehicleId?: string; driverId?: string }, EligibilityResult>('checkEligibility')
 /** Safety Officer only. An approval clears the vehicle for every trip until a penalty or an expired document cancels it. A retry with the same `inspectionId` is safe. */
+// Monthly gate passes. Reads go straight to Firestore (rules); these are the only writes. The Company Admin only.
+export const issueGatePasses = call<IssueGatePassesPayload, IssueGatePassesResult>('issueGatePasses', 120_000)
+export const blockGatePass = call<{ passId: string; note: string }, { ok: true }>('blockGatePass', 30_000)
+export const reactivateGatePass = call<{ passId: string }, { ok: true }>('reactivateGatePass', 30_000)
+export const refreshQualificationList = call<{ month: string }, QualificationMetaResult>('refreshQualificationList', 300_000)
 export const recordInspection = call<RecordInspectionPayload, { inspectionId: string; created: boolean; clearance: ClearanceStatus }>('recordInspection')
 /** Safety Officer only: cancels the vehicle's current approval without a new inspection. */
 export const withdrawClearance = call<{ vehicleId: string; note: string }, { ok: true }>('withdrawClearance')

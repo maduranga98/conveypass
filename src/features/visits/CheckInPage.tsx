@@ -15,6 +15,7 @@ import { strings } from '@/lib/strings'
 import type { Vehicle } from '@/types'
 import type { CheckInVisitResult } from '@/types/visits'
 import { DRIVER_PIN_LENGTH, PinKeypad } from './PinKeypad'
+import { gatePassDenial } from './gatePassDenial'
 import { deniedReasons } from './reasons'
 import { clock } from './time'
 
@@ -173,6 +174,20 @@ export default function CheckInPage() {
                 <li key={reason}>{reason}</li>
               ))}
             </ul>
+          </div>
+        </section>
+      )}
+
+      {step.kind === 'result' && step.result.outcome === 'no_gate_pass' && (
+        <section role="alert" className="space-y-4 rounded-3xl bg-danger-strong p-6 text-on-solid">
+          <OctagonX aria-hidden className="size-16" />
+          <p className="text-5xl font-black tracking-tight">{t.denied}</p>
+          <p className="text-4xl leading-tight font-black tracking-tight">{step.plateNo}</p>
+          <p className="text-xl font-semibold">{t.allowedBody(step.result.driverName)}</p>
+          <div>
+            <p className="text-lg font-bold">{t.deniedFor}</p>
+            <p className="mt-1 text-2xl font-black">{gatePassDenial(step.result.gatePass)}</p>
+            <p className="mt-2 text-lg">{strings.gatePasses.gate.askOffice}</p>
           </div>
         </section>
       )}

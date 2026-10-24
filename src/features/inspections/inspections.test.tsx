@@ -20,6 +20,7 @@ vi.mock('@/lib/api', () => ({
   withdrawClearance: (...a: unknown[]) => withdrawClearance(...a),
   checkEligibility: (...a: unknown[]) => checkEligibility(...a),
 }))
+vi.mock('@/features/gatePasses/GatePassSection', () => ({ GatePassSection: () => null }))
 vi.mock('@/features/auth/useAuth', () => ({ useSession: () => ({ claims: { tenantId: 'T' } }) }))
 vi.mock('@/features/penalties/queries', () => ({ useTenantTimezone: () => 'Asia/Colombo' }))
 vi.mock('@/features/shared/queries', () => ({

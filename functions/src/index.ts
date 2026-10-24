@@ -35,6 +35,8 @@ import { deliver } from './notifications.js'
 import { notifyDeps } from './notificationTriggers.js'
 import { PIN_LIMITS } from './config.js'
 import * as vehicles from './vehicles.js'
+import * as gatePasses from './gatePasses.js'
+import { gatePassPort } from './gatePassPort.js'
 import * as visits from './visits.js'
 import { pinThrottle, visitPort } from './visitsPort.js'
 
@@ -119,6 +121,14 @@ export const checkInVisit = callable('checkInVisit', (d, c, data) => visits.chec
 export const checkOutVisit = callable('checkOutVisit', (d, c, data) => visits.checkOutVisit(d, visitPort(), c, data), { warm: true })
 export const logUnloadingCheck = callable('logUnloadingCheck', (d, c, data) => visits.logUnloadingCheck(d, visitPort(), c, data))
 export const getDailySummary = callable('getDailySummary', (d, c) => visits.getDailySummary(d, visitPort(), c))
+
+// Monthly gate pass (the last gate of the eligibility chain). Clients only read `gatePasses` and `monthEndQualification`. System blocks
+// come from the inspection triggers above; expiry and the optional auto-issue from the schedules in gatePassSchedules.ts.
+export const issueGatePasses = callable('issueGatePasses', (d, c, data) => gatePasses.issueGatePasses(d, gatePassPort(), c, data), { rateLimit: true, timeoutSeconds: 120 })
+export const blockGatePass = callable('blockGatePass', (d, c, data) => gatePasses.blockGatePass(d, gatePassPort(), c, data))
+export const reactivateGatePass = callable('reactivateGatePass', (d, c, data) => gatePasses.reactivateGatePass(d, gatePassPort(), c, data))
+export const refreshQualificationList = callable('refreshQualificationList', (d, c, data) => gatePasses.refreshQualificationList(d, gatePassPort(), c, data), { rateLimit: true, timeoutSeconds: 300, memory: '512MiB' })
+export { rolloverGatePassesScheduled as rolloverGatePasses, computeQualificationScheduled as computeQualificationLists } from './gatePassSchedules.js'
 
 // Module 6: dashboard trend and reports (admin and officer, read only).
 export const getDashboardTrend = callable('getDashboardTrend', reportsApi.getDashboardTrend, { timeoutSeconds: 60 })

@@ -229,6 +229,7 @@ export interface DataPort {
       vehicleTypes?: string[]
       expiryWarningDays?: number
       dwellLimitHours?: number
+      autoIssueGatePasses?: boolean
     },
     audit: AuditEntry,
   ): Promise<void>

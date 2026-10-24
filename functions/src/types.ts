@@ -117,7 +117,7 @@ export interface AuditEntry {
   actorRole: Role | 'system' | 'superadmin'
   /** Display name of a non-tenant actor (`ConvoyPass Super Admin`): the tenant's admins cannot read `operators`. */
   actorName?: string
-  targetType: 'user' | 'vehicle' | 'contractor' | 'tenant' | 'pass' | 'gateEvent' | 'notification' | 'penalty' | 'penaltyType' | 'inspection' | 'visit'
+  targetType: 'user' | 'vehicle' | 'contractor' | 'tenant' | 'pass' | 'gateEvent' | 'notification' | 'penalty' | 'penaltyType' | 'inspection' | 'visit' | 'gatePass' | 'qualification'
   targetId: string
   meta: Record<string, string | number | boolean | null>
 }
@@ -167,6 +167,10 @@ export interface TenantData {
   expiryWarningDays?: number
   /** Hours a visit may stay checked in before it is flagged `dwellWarning` (warning only, nothing is blocked). Falls back to 16. */
   dwellLimitHours?: number
+  /** Gate passes: issue the month's pass to every qualified pairing at month rollover (default off = the Company Admin selects). */
+  autoIssueGatePasses?: boolean
+  /** The month (`YYYY-MM`) whose rollover (expiry, optional auto-issue) already ran. */
+  gatePassRolloverMonth?: string
 }
 
 

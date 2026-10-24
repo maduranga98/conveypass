@@ -7,6 +7,7 @@ import { MAX_DENY_NOTE } from './denyReasons.js'
 import { SLA_MAX, SLA_MIN } from './defaultSla.js'
 import { INSPECTION_ID_PATTERN, PENALTY_ID_PATTERN, VISIT_ID_PATTERN } from './ids.js'
 import { MAX_DWELL_LIMIT_HOURS, MIN_DWELL_LIMIT_HOURS, UNLOAD_LOCATION_MAX, UNLOAD_LOCATION_MIN } from './visitLogic.js'
+import { isValidMonth, MANUAL_BLOCK_NOTE_MAX, MANUAL_BLOCK_NOTE_MIN } from './gatePassLogic.js'
 import { INSPECTION_NOTES_MAX, INSPECTION_RESULTS } from './inspectionLogic.js'
 import { PENALTY_NOTE_MAX, PENALTY_REASON_MAX, PENALTY_REASON_MIN, PENALTY_TYPE_NAME_MAX, PENALTY_TYPE_NAME_MIN } from './penaltyLogic.js'
 
@@ -243,10 +244,12 @@ export const updateTenantSettingsSchema = z
     expiryWarningDays: z.number().int().min(MIN_EXPIRY_WARNING_DAYS).max(MAX_EXPIRY_WARNING_DAYS).optional(),
     /** Hours before a visit that is still checked in gets a dwell warning (warning only; default 16). */
     dwellLimitHours: z.number().int().min(MIN_DWELL_LIMIT_HOURS).max(MAX_DWELL_LIMIT_HOURS).optional(),
+    /** Gate passes: issue every qualified pairing's pass at month rollover (default off). */
+    autoIssueGatePasses: z.boolean().optional(),
   })
   .refine(
     (v) =>
-      v.passSettings !== undefined || v.checklist !== undefined || v.rejectionReasons !== undefined || v.gates !== undefined || v.sla !== undefined || v.retentionDays !== undefined || v.vehicleTypes !== undefined || v.expiryWarningDays !== undefined || v.dwellLimitHours !== undefined,
+      v.passSettings !== undefined || v.checklist !== undefined || v.rejectionReasons !== undefined || v.gates !== undefined || v.sla !== undefined || v.retentionDays !== undefined || v.vehicleTypes !== undefined || v.expiryWarningDays !== undefined || v.dwellLimitHours !== undefined || v.autoIssueGatePasses !== undefined,
     { message: 'Nothing to update' },
   )
 
@@ -408,3 +411,26 @@ export const logUnloadingCheckSchema = z.object({
   unloaded: z.boolean(),
   unloadLocation: z.string().trim().min(UNLOAD_LOCATION_MIN).max(UNLOAD_LOCATION_MAX).nullable().optional(),
 })
+
+// ---- Gate passes (monthly) -----------------------------------------------------------------
+
+const month = z.string().refine(isValidMonth, 'invalid month')
+export const MAX_ISSUE_ITEMS = 200
+
+export const issueGatePassesSchema = z.object({
+  /** The current month (catch-up) or the next one; the server checks it against the company timezone. */
+  month,
+  pairs: z
+    .array(z.object({ vehicleId: recordId, driverId: recordId }))
+    .min(1)
+    .max(MAX_ISSUE_ITEMS),
+})
+
+export const blockGatePassSchema = z.object({
+  passId: recordId,
+  note: z.string().trim().min(MANUAL_BLOCK_NOTE_MIN).max(MANUAL_BLOCK_NOTE_MAX),
+})
+
+export const reactivateGatePassSchema = z.object({ passId: recordId })
+
+export const refreshQualificationSchema = z.object({ month })

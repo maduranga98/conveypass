@@ -4,6 +4,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { formatPhone } from '@/lib/credentials'
 import { strings } from '@/lib/strings'
 import { useBlocked } from '@/features/penalties/feed'
+import { GatePassSection } from '@/features/gatePasses/GatePassSection'
 import { BlockedBadge } from '@/features/penalties/PenaltyBadges'
 import { PenaltyHistory } from '@/features/penalties/PenaltyHistory'
 import { VisitHistory } from '@/features/visits/VisitHistory'
@@ -63,6 +64,8 @@ function Body({ scope, driver, contractorName }: { scope: Scope; driver: WithId<
           <ExpiryRow label={strings.eligibility.license} date={driver.licenseExpiry} />
         </dl>
       </section>
+
+      <GatePassSection scope={scope} field="driverId" id={driver.id} overviewPath={scope === 'admin' ? '/admin/gate-passes' : undefined} />
 
       <PenaltyHistory scope={scope} driverId={driver.id} />
       <VisitHistory scope={scope} field="driverId" id={driver.id} />

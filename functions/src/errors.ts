@@ -95,6 +95,14 @@ export type Reason =
   | 'visit-checked-out'
   | 'unload-location-required'
   | 'pin-throttled'
+  | 'gate-pass-not-found'
+  | 'gate-pass-not-active'
+  | 'gate-pass-not-blocked'
+  | 'gate-pass-over'
+  | 'issue-unresolved'
+  | 'month-invalid'
+  | 'not-eligible'
+  | 'gate-pass-exists'
   | 'internal'
 
 /** Typed error: `code` is the gRPC-style code, `details.reason` is a stable key the client maps to a string. */
