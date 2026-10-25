@@ -181,7 +181,10 @@ service cloud.firestore {
 
     // Month-end qualification list: computed by the schedule or the admin's refresh, so the screen opens on stored data. Admin only.
     match /monthEndQualification/{id} {
-      allow read: if signedIn() && role() == 'admin' && sameTenant(resource.data);
+      // `resource == null` lets the admin's getDoc of a list that was not computed yet resolve as "not found" (empty state)
+      // instead of permission-denied; a missing document leaks nothing, and the id carries the tenant for the caller's own read.
+      allow read: if signedIn() && role() == 'admin' && tenantId() != null
+        && (resource == null ? id.matches('^' + tenantId() + '_.*') : sameTenant(resource.data));
       allow write: if false;
       match /entries/{entryId} {
         allow read: if signedIn() && role() == 'admin' && sameTenant(resource.data);

@@ -1116,6 +1116,12 @@ describe('monthEndQualification', () => {
     await assertFails(getDocs(query(collection(db, 'monthEndQualification', `${B}_2026-04`, 'entries'), where('tenantId', '==', B))))
   })
 
+  it('a list that was not computed yet reads as missing for the admin of that company, not as denied', async () => {
+    const snap = await assertSucceeds(getDoc(doc(adminA(), 'monthEndQualification', `${A}_2031-01`)))
+    expect(snap.exists()).toBe(false)
+    await assertFails(getDoc(doc(adminA(), 'monthEndQualification', `${B}_2031-01`)))
+  })
+
   it('every other role is denied, entries included', async () => {
     for (const db of [safetyA(), supA1(), securityA(), officerA(), drvA1(), yardA(), env.unauthenticatedContext().firestore()]) {
       await assertFails(getDoc(doc(db, 'monthEndQualification', `${A}_2026-04`)))
