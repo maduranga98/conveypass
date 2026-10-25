@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -42,6 +43,10 @@ import { NotificationBanner } from '@/components/ui/NotificationBanner'
 const t = strings.admin.settings
 const MAX_ITEMS = 12
 
+const TABS = ['passes', 'gate', 'fleet', 'workspace'] as const
+type TabId = (typeof TABS)[number]
+const isTab = (v: string | null): v is TabId => TABS.some((x) => x === v)
+
 /** Ids are generated once, when an item is added, and never edited: passes keep answers by id. */
 const newId = (): string => `custom_${Math.random().toString(36).slice(2, 8)}`
 const labelOk = (label: string): boolean => label.trim().length >= 3 && label.trim().length <= 60
@@ -71,6 +76,10 @@ const baselineOf = (tenant: Tenant | null): Baseline => ({
 })
 
 function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: string }) {
+  const [params, setParams] = useSearchParams()
+  const requested = params.get('tab')
+  const tab: TabId = isTab(requested) ? requested : 'passes'
+  const selectTab = (next: TabId) => setParams({ tab: next }, { replace: true })
   const queryClient = useQueryClient()
   const usingDefaults = !tenant?.checklist || tenant.checklist.length === 0
   const [baseline, setBaseline] = useState<Baseline>(() => baselineOf(tenant))
@@ -109,6 +118,35 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
     items.some((i) => !labelOk(i.label)) || reasons.some((r) => !reasonLabelOk(r.label)) || gates.some((g) => !gateNameOk(g.name))
   const reasonCountBad = reasons.length < MIN_REASONS || reasons.length > MAX_REASONS || gates.length < MIN_GATES
   const problem = items.length === 0 ? t.needOne : null
+  const tabProblem: Record<TabId, boolean> = {
+    passes: items.some((i) => !labelOk(i.label)) || items.length === 0 || reasons.some((r) => !reasonLabelOk(r.label)) || reasons.length < MIN_REASONS || reasons.length > MAX_REASONS,
+    gate: gates.some((g) => !gateNameOk(g.name)) || gates.length < MIN_GATES || !slaOk(sla) || !dwellLimitOk(dwellHours),
+    fleet: !vehicleTypesOk(types) || !expiryDaysOk(warnDays),
+    workspace: !retentionOk(retention),
+  }
+  const discard = () => {
+    setItems(baseline.checklist)
+    setSettings(baseline.settings)
+    setReasons(baseline.reasons)
+    setGates(baseline.gates)
+    setSla(baseline.sla)
+    setRetention(baseline.retentionDays)
+    setTypes(baseline.vehicleTypes)
+    setWarnDays(baseline.expiryWarningDays)
+    setDwellHours(baseline.dwellLimitHours)
+    setTouched(false)
+    setError(null)
+  }
+  const onTabKey = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+    if (!step) return
+    e.preventDefault()
+    const next = TABS[(index + step + TABS.length) % TABS.length]
+    if (next) {
+      selectTab(next)
+      document.getElementById(`settings-tab-${next}`)?.focus()
+    }
+  }
 
   const update = (index: number, patch: Partial<ChecklistItemDef>) =>
     setItems((list) => list.map((it, i) => (i === index ? { ...it, ...patch } : it)))
@@ -170,7 +208,38 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <div className="-mx-1 overflow-x-auto px-1">
+        <div role="tablist" aria-label={t.tabsLabel} className="flex min-w-max gap-1 border-b border-slate-200">
+          {TABS.map((id, index) => {
+            const active = id === tab
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                id={`settings-tab-${id}`}
+                aria-selected={active}
+                aria-controls={`settings-panel-${id}`}
+                tabIndex={active ? 0 : -1}
+                onClick={() => selectTab(id)}
+                onKeyDown={(e) => onTabKey(e, index)}
+                className={`-mb-px flex min-h-11 items-center gap-2 border-b-2 px-4 text-sm font-medium outline-offset-[-2px] focus-visible:outline-2 focus-visible:outline-focus ${active ? 'border-accent text-brand' : 'border-transparent text-slate-500 hover:text-brand'}`}
+              >
+                {t.tabs[id]}
+                {touched && tabProblem[id] && (
+                  <span className="rounded-full bg-danger-soft px-2 py-0.5 text-xs text-danger-ink">{t.needsAttention}</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div role="tabpanel" id={`settings-panel-${tab}`} aria-labelledby={`settings-tab-${tab}`} className="space-y-6">
+        <p className="text-sm text-slate-500">{t.tabHints[tab]}</p>
+        {tab === 'passes' && (
+          <>
       <section aria-labelledby="chk-title" className="space-y-4">
         <div>
           <h2 id="chk-title" className="text-lg font-semibold">{t.checklistTitle}</h2>
@@ -227,27 +296,8 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
       </section>
 
       <RejectionReasonsEditor items={reasons} onChange={setReasons} showErrors={touched} usingDefaults={usingDefaultReasons} />
-
-      <GatesEditor items={gates} onChange={setGates} showErrors={touched} usingDefaults={usingDefaultGates} />
-
-      <VehicleTypesEditor
-        items={types}
-        saved={baseline.vehicleTypes}
-        inUse={typesInUse}
-        onChange={setTypes}
-        showErrors={touched}
-        usingDefaults={usingDefaultTypes && !typesChanged}
-      />
-
-      <ExpiryEditor value={warnDays} onChange={setWarnDays} showErrors={touched} />
-
-      <DwellEditor value={dwellHours} onChange={setDwellHours} showErrors={touched} />
-
-      <SlaEditor value={sla} onChange={setSla} showErrors={touched} usingDefaults={usingDefaultSla} />
-
-      <RetentionEditor value={retention} onChange={setRetention} showErrors={touched} />
-
-      <section aria-label={strings.admin.nav.settings} className="space-y-4 rounded-xl border border-slate-200 bg-surface p-4">
+      <section aria-labelledby="opts-title" className="space-y-4 rounded-xl border border-slate-200 bg-surface p-4">
+        <h2 id="opts-title" className="text-lg font-semibold">{t.passOptionsTitle}</h2>
         <label className="flex min-h-10 items-start gap-3 text-sm">
           <input
             type="checkbox"
@@ -264,14 +314,52 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
         >
           {[0, 1, 2].map((n) => <option key={n} value={n}>{n}</option>)}
         </Select>
-        <Input label={t.timezone} value={tenant?.timezone ?? DEFAULT_TIMEZONE} readOnly hint={t.timezoneHint} />
       </section>
 
+          </>
+        )}
+        {tab === 'gate' && (
+          <>
+      <GatesEditor items={gates} onChange={setGates} showErrors={touched} usingDefaults={usingDefaultGates} />
+      <DwellEditor value={dwellHours} onChange={setDwellHours} showErrors={touched} />
+      <SlaEditor value={sla} onChange={setSla} showErrors={touched} usingDefaults={usingDefaultSla} />
+          </>
+        )}
+        {tab === 'fleet' && (
+          <>
+      <VehicleTypesEditor
+        items={types}
+        saved={baseline.vehicleTypes}
+        inUse={typesInUse}
+        onChange={setTypes}
+        showErrors={touched}
+        usingDefaults={usingDefaultTypes && !typesChanged}
+      />
+
+      <ExpiryEditor value={warnDays} onChange={setWarnDays} showErrors={touched} />
+          </>
+        )}
+        {tab === 'workspace' && (
+          <>
+      <section aria-labelledby="tz-title" className="space-y-4 rounded-xl border border-slate-200 bg-surface p-4">
+        <h2 id="tz-title" className="text-lg font-semibold">{t.timezone}</h2>
+        <Input label={t.timezone} value={tenant?.timezone ?? DEFAULT_TIMEZONE} readOnly hint={t.timezoneHint} />
+      </section>
+      <RetentionEditor value={retention} onChange={setRetention} showErrors={touched} />
+            <AdminsCard />
+          </>
+        )}
+      </div>
+
       {error && <NotificationBanner tone="error">{error}</NotificationBanner>}
-      <div>
-        <Button loading={saving} disabled={!dirty} onClick={askOrSave}>
-          {saving ? strings.common.saving : t.save}
-        </Button>
+      <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-surface p-3 shadow-sm">
+        <p role="status" className="text-sm text-slate-600">{dirty ? t.unsaved : t.allSaved}</p>
+        <div className="flex gap-2">
+          <Button variant="ghost" disabled={!dirty || saving} onClick={discard}>{t.discard}</Button>
+          <Button loading={saving} disabled={!dirty} onClick={askOrSave}>
+            {saving ? strings.common.saving : t.save}
+          </Button>
+        </div>
       </div>
       <ConfirmDialog
         open={confirmRetention}
@@ -295,7 +383,7 @@ export default function SettingsPage() {
   }, [claims.tenantId])
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
         <p className="mt-1 text-sm text-slate-500">{t.intro}</p>
@@ -310,7 +398,6 @@ export default function SettingsPage() {
       ) : (
         <SettingsForm tenant={tenant.data} tenantId={claims.tenantId} />
       )}
-      <AdminsCard />
     </div>
   )
 }
