@@ -9,6 +9,15 @@ import { INSPECTION_ID_PATTERN, PENALTY_ID_PATTERN, VISIT_ID_PATTERN } from './i
 import { MAX_DWELL_LIMIT_HOURS, MIN_DWELL_LIMIT_HOURS, UNLOAD_LOCATION_MAX, UNLOAD_LOCATION_MIN } from './visitLogic.js'
 import { isValidMonth, MANUAL_BLOCK_NOTE_MAX, MANUAL_BLOCK_NOTE_MIN } from './gatePassLogic.js'
 import { INSPECTION_NOTES_MAX, INSPECTION_RESULTS } from './inspectionLogic.js'
+import {
+  MAX_PERMITS,
+  MAX_QUALIFICATION_TYPES,
+  PERMIT_NUMBER_MAX,
+  PERMIT_NUMBER_MIN,
+  QUALIFICATION_ID_PATTERN,
+  QUALIFICATION_NAME_MAX,
+  QUALIFICATION_NAME_MIN,
+} from './requirementLogic.js'
 import { PENALTY_NOTE_MAX, PENALTY_REASON_MAX, PENALTY_REASON_MIN, PENALTY_TYPE_NAME_MAX, PENALTY_TYPE_NAME_MIN } from './penaltyLogic.js'
 
 const name = z.string().trim().min(1).max(100)
@@ -94,6 +103,7 @@ export const createVehicleSchema = z.object({
   driverIds: driverIds.optional(),
   insuranceExpiry: expiryDate.optional(),
   registrationExpiry: expiryDate.optional(),
+  annualInspectionExpiry: expiryDate.optional(),
 })
 
 export const updateVehicleSchema = z
@@ -105,6 +115,7 @@ export const updateVehicleSchema = z
     /** `null` clears the date (it is then not tracked). */
     insuranceExpiry: expiryDate.nullable().optional(),
     registrationExpiry: expiryDate.nullable().optional(),
+    annualInspectionExpiry: expiryDate.nullable().optional(),
   })
   .refine(
     (v) =>
@@ -112,7 +123,8 @@ export const updateVehicleSchema = z
       v.type !== undefined ||
       v.makeModel !== undefined ||
       v.insuranceExpiry !== undefined ||
-      v.registrationExpiry !== undefined,
+      v.registrationExpiry !== undefined ||
+      v.annualInspectionExpiry !== undefined,
     { message: 'Nothing to update' },
   )
 
@@ -246,12 +258,32 @@ export const updateTenantSettingsSchema = z
     dwellLimitHours: z.number().int().min(MIN_DWELL_LIMIT_HOURS).max(MAX_DWELL_LIMIT_HOURS).optional(),
     /** Gate passes: issue every qualified pairing's pass at month rollover (default off). */
     autoIssueGatePasses: z.boolean().optional(),
+    /** The qualifications every driver must hold (each valid one year). An empty list requires none. Ids never change. */
+    qualificationTypes: z
+      .array(z.object({ id: z.string().regex(QUALIFICATION_ID_PATTERN), name: z.string().trim().min(QUALIFICATION_NAME_MIN).max(QUALIFICATION_NAME_MAX) }))
+      .max(MAX_QUALIFICATION_TYPES)
+      .optional(),
   })
   .refine(
     (v) =>
-      v.passSettings !== undefined || v.checklist !== undefined || v.rejectionReasons !== undefined || v.gates !== undefined || v.sla !== undefined || v.retentionDays !== undefined || v.vehicleTypes !== undefined || v.expiryWarningDays !== undefined || v.dwellLimitHours !== undefined || v.autoIssueGatePasses !== undefined,
+      v.passSettings !== undefined || v.checklist !== undefined || v.rejectionReasons !== undefined || v.gates !== undefined || v.sla !== undefined || v.retentionDays !== undefined || v.vehicleTypes !== undefined || v.expiryWarningDays !== undefined || v.dwellLimitHours !== undefined || v.autoIssueGatePasses !== undefined || v.qualificationTypes !== undefined,
     { message: 'Nothing to update' },
   )
+
+// ---- Qualifications and permits ----------------------------------------------------------------
+
+/** `recordQualification`: the training was completed on `completedOn`; the server adds the year. */
+export const recordQualificationSchema = z.object({
+  driverId: z.string().min(1).max(128),
+  typeId: z.string().regex(QUALIFICATION_ID_PATTERN),
+  completedOn: expiryDate,
+})
+
+/** `setMyPermits`: the driver's whole list (0-2 numbers). Each number is normalised and checked in the callable. */
+export const setMyPermitsSchema = z.object({
+  permits: z.array(z.string().min(1).max(100)).max(MAX_PERMITS),
+})
+export { PERMIT_NUMBER_MAX, PERMIT_NUMBER_MIN }
 
 // ---- Module 5: the gate ----------------------------------------------------------------------
 

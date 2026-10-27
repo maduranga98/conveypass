@@ -19,6 +19,7 @@ import {
 import { DEFAULT_REJECTION_REASONS, type RejectionReasonDef } from '@/lib/defaultRejectionReasons'
 import { slaOf, type SlaSettings } from '@/lib/defaultSla'
 import { DEFAULT_EXPIRY_WARNING_DAYS } from '@/lib/expiry'
+import { effectiveQualificationTypes, type QualificationTypeDef } from '@/lib/requirementLogic'
 import { effectiveVehicleTypes } from '@/lib/vehicleTypes'
 import { dwellLimitHoursOf, dwellLimitOk } from '@/lib/visitLogic'
 import { DEFAULT_GATES, MIN_GATES, type GateDef } from '@/lib/gates'
@@ -29,7 +30,7 @@ import { markSettingsVisited } from '@/features/onboarding/storage'
 import { useTenant } from '@/features/passes/queries'
 import { useVehicles } from '@/features/shared/queries'
 import type { Tenant } from '@/types'
-import { expiryDaysOk, gateNameOk, MAX_REASONS, MIN_REASONS, reasonLabelOk, retentionOk, slaOk, vehicleTypesOk } from './reasons'
+import { expiryDaysOk, gateNameOk, MAX_REASONS, MIN_REASONS, reasonLabelOk, qualificationTypesOk, retentionOk, slaOk, vehicleTypesOk } from './reasons'
 import { RejectionReasonsEditor } from './RejectionReasonsEditor'
 import { GatesEditor } from './GatesEditor'
 import { RetentionEditor } from './RetentionEditor'
@@ -37,6 +38,7 @@ import { SlaEditor } from './SlaEditor'
 import { DwellEditor } from './DwellEditor'
 import { ExpiryEditor } from './ExpiryEditor'
 import { VehicleTypesEditor } from './VehicleTypesEditor'
+import { QualificationTypesEditor } from './QualificationTypesEditor'
 import { AdminsCard } from './AdminsCard'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
@@ -61,6 +63,7 @@ interface Baseline {
   vehicleTypes: string[]
   expiryWarningDays: number
   dwellLimitHours: number
+  qualificationTypes: QualificationTypeDef[]
 }
 
 const baselineOf = (tenant: Tenant | null): Baseline => ({
@@ -73,6 +76,7 @@ const baselineOf = (tenant: Tenant | null): Baseline => ({
   vehicleTypes: effectiveVehicleTypes(tenant?.vehicleTypes),
   expiryWarningDays: tenant?.expiryWarningDays ?? DEFAULT_EXPIRY_WARNING_DAYS,
   dwellLimitHours: dwellLimitHoursOf(tenant),
+  qualificationTypes: effectiveQualificationTypes(tenant?.qualificationTypes),
 })
 
 function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: string }) {
@@ -96,6 +100,8 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
   const usingDefaultTypes = !tenant?.vehicleTypes || tenant.vehicleTypes.length === 0
   const [warnDays, setWarnDays] = useState<number>(baseline.expiryWarningDays)
   const [dwellHours, setDwellHours] = useState<number>(baseline.dwellLimitHours)
+  const [qualTypes, setQualTypes] = useState<QualificationTypeDef[]>(baseline.qualificationTypes)
+  const usingDefaultQuals = tenant?.qualificationTypes === undefined
   const vehicles = useVehicles('admin')
   const typesInUse = new Set((vehicles.data?.items ?? []).map((v) => v.type))
   const [confirmRetention, setConfirmRetention] = useState(false)
@@ -104,8 +110,9 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
   const [touched, setTouched] = useState(false)
 
   const dirty =
-    JSON.stringify({ items, settings, reasons, gates, sla, retention, types, warnDays, dwellHours }) !==
-    JSON.stringify({ items: baseline.checklist, settings: baseline.settings, reasons: baseline.reasons, gates: baseline.gates, sla: baseline.sla, retention: baseline.retentionDays, types: baseline.vehicleTypes, warnDays: baseline.expiryWarningDays, dwellHours: baseline.dwellLimitHours })
+    JSON.stringify({ items, settings, reasons, gates, sla, retention, types, warnDays, dwellHours, qualTypes }) !==
+    JSON.stringify({ items: baseline.checklist, settings: baseline.settings, reasons: baseline.reasons, gates: baseline.gates, sla: baseline.sla, retention: baseline.retentionDays, types: baseline.vehicleTypes, warnDays: baseline.expiryWarningDays, dwellHours: baseline.dwellLimitHours, qualTypes: baseline.qualificationTypes })
+  const qualChanged = JSON.stringify(qualTypes) !== JSON.stringify(baseline.qualificationTypes)
   const retentionChanged = !Object.is(retention, baseline.retentionDays)
   const slaChanged = JSON.stringify(sla) !== JSON.stringify(baseline.sla)
   const reasonsChanged = JSON.stringify(reasons) !== JSON.stringify(baseline.reasons)
@@ -113,7 +120,7 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
   const typesChanged = JSON.stringify(types) !== JSON.stringify(baseline.vehicleTypes)
   const warnChanged = warnDays !== baseline.expiryWarningDays
   const dwellChanged = dwellHours !== baseline.dwellLimitHours
-  const documentsBad = !vehicleTypesOk(types) || !expiryDaysOk(warnDays) || !dwellLimitOk(dwellHours)
+  const documentsBad = !vehicleTypesOk(types) || !expiryDaysOk(warnDays) || !dwellLimitOk(dwellHours) || !qualificationTypesOk(qualTypes)
   const invalidLabels =
     items.some((i) => !labelOk(i.label)) || reasons.some((r) => !reasonLabelOk(r.label)) || gates.some((g) => !gateNameOk(g.name))
   const reasonCountBad = reasons.length < MIN_REASONS || reasons.length > MAX_REASONS || gates.length < MIN_GATES
@@ -121,7 +128,7 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
   const tabProblem: Record<TabId, boolean> = {
     passes: items.some((i) => !labelOk(i.label)) || items.length === 0 || reasons.some((r) => !reasonLabelOk(r.label)) || reasons.length < MIN_REASONS || reasons.length > MAX_REASONS,
     gate: gates.some((g) => !gateNameOk(g.name)) || gates.length < MIN_GATES || !slaOk(sla) || !dwellLimitOk(dwellHours),
-    fleet: !vehicleTypesOk(types) || !expiryDaysOk(warnDays),
+    fleet: !vehicleTypesOk(types) || !expiryDaysOk(warnDays) || !qualificationTypesOk(qualTypes),
     workspace: !retentionOk(retention),
   }
   const discard = () => {
@@ -134,6 +141,7 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
     setTypes(baseline.vehicleTypes)
     setWarnDays(baseline.expiryWarningDays)
     setDwellHours(baseline.dwellLimitHours)
+    setQualTypes(baseline.qualificationTypes)
     setTouched(false)
     setError(null)
   }
@@ -178,6 +186,7 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
     const cleanReasons = reasons.map((r) => ({ ...r, label: r.label.trim() }))
     const cleanGates = gates.map((g) => ({ ...g, name: g.name.trim() }))
     const cleanTypes = types.map((n) => n.trim())
+    const cleanQuals = qualTypes.map((q) => ({ id: q.id, name: q.name.trim() }))
     try {
       // The default reasons are only written once the admin actually changes them (or already has their own).
       const saveReasons = reasonsChanged || !usingDefaultReasons
@@ -192,12 +201,14 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
         ...(typesChanged ? { vehicleTypes: cleanTypes } : {}),
         ...(warnChanged ? { expiryWarningDays: warnDays } : {}),
         ...(dwellChanged ? { dwellLimitHours: dwellHours } : {}),
+        ...(qualChanged ? { qualificationTypes: cleanQuals } : {}),
       })
       setItems(checklist)
       setReasons(cleanReasons)
       setGates(cleanGates)
       setTypes(cleanTypes)
-      setBaseline({ checklist, settings, reasons: cleanReasons, gates: cleanGates, sla, retentionDays: retention, vehicleTypes: cleanTypes, expiryWarningDays: warnDays, dwellLimitHours: dwellHours })
+      setQualTypes(cleanQuals)
+      setBaseline({ checklist, settings, reasons: cleanReasons, gates: cleanGates, sla, retentionDays: retention, vehicleTypes: cleanTypes, expiryWarningDays: warnDays, dwellLimitHours: dwellHours, qualificationTypes: cleanQuals })
       await queryClient.invalidateQueries({ queryKey: ['tenant', tenantId] })
       toast.success(t.saved)
     } catch (e) {
@@ -337,6 +348,7 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
       />
 
       <ExpiryEditor value={warnDays} onChange={setWarnDays} showErrors={touched} />
+      <QualificationTypesEditor items={qualTypes} onChange={setQualTypes} showErrors={touched} usingDefaults={usingDefaultQuals && !qualChanged} />
           </>
         )}
         {tab === 'workspace' && (

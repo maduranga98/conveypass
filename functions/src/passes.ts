@@ -327,6 +327,14 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
       throw fail('invalid-argument', 'invalid-input', 'The “other” reason cannot be removed')
     }
   }
+  if (input.qualificationTypes) {
+    // Ids are slugs created once; drivers keep their records under the id, so removing a type only stops requiring it.
+    const ids = input.qualificationTypes.map((t) => t.id)
+    const names = input.qualificationTypes.map((t) => t.name.toLowerCase())
+    if (new Set(ids).size !== ids.length || new Set(names).size !== names.length) {
+      throw fail('invalid-argument', 'invalid-input', 'Qualification ids and names must be unique')
+    }
+  }
   if (input.gates) {
     // Ids are slugs created once and never edited (check-ins and denials keep the id); at least one gate remains.
     if (new Set(input.gates.map((g) => g.id)).size !== input.gates.length) {
@@ -359,6 +367,7 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
       ...(input.expiryWarningDays !== undefined ? { expiryWarningDays: input.expiryWarningDays } : {}),
       ...(input.dwellLimitHours !== undefined ? { dwellLimitHours: input.dwellLimitHours } : {}),
       ...(input.autoIssueGatePasses !== undefined ? { autoIssueGatePasses: input.autoIssueGatePasses } : {}),
+      ...(input.qualificationTypes ? { qualificationTypes: input.qualificationTypes } : {}),
     },
     audit(
       caller,
@@ -375,6 +384,7 @@ export async function updateTenantSettings(deps: Deps, caller: Caller, raw: unkn
         expiryWarningDays: input.expiryWarningDays ?? null,
         dwellLimitHours: input.dwellLimitHours ?? null,
         autoIssueGatePasses: input.autoIssueGatePasses ?? null,
+        qualificationTypes: input.qualificationTypes?.length ?? null,
         requireLocation: input.passSettings?.requireLocation ?? null,
         maxExtraPhotos: input.passSettings?.maxExtraPhotos ?? null,
       },

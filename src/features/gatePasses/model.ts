@@ -49,15 +49,19 @@ export function filterPasses(rows: readonly PassRow[], status: GatePassStatus | 
  * What still stands in the way of a pass, read from the shared `checkEligibility` output (the same output the gate
  * consumes; nothing is re-derived). Empty = nothing is wrong any more, so the pass may be reactivated.
  */
-export function unresolvedCauses(e: EligibilityResult): BlockReason[] {
-  const out: BlockReason[] = []
+export type UnresolvedCause = BlockReason | 'annual_inspection' | 'qualification'
+
+export function unresolvedCauses(e: EligibilityResult): UnresolvedCause[] {
+  const out: UnresolvedCause[] = []
   if (e.vehicle?.blocked || e.driver?.blocked) out.push('penalty')
   if (e.vehicle?.documentStatus === 'expired' || e.driver?.documentStatus === 'expired') out.push('document_expired')
   if (e.inspection && !e.inspection.cleared) out.push('inspection_invalidated')
+  if (e.vehicle?.annualInspection && (e.vehicle.annualInspection === 'missing' || e.vehicle.annualInspection === 'expired')) out.push('annual_inspection')
+  if (e.driver?.qualifications && !e.driver.qualifications.ok) out.push('qualification')
   return out
 }
 
-export const unresolvedText = (causes: readonly BlockReason[]): string => causes.map((c) => (c === 'manual' ? t.reason.manual : t.unresolved[c])).join(' · ')
+export const unresolvedText = (causes: readonly UnresolvedCause[]): string => causes.map((c) => (c === 'manual' ? t.reason.manual : t.unresolved[c])).join(' · ')
 
 /** The pass the badge on a vehicle or driver shows: the current month's, best status first. */
 export function badgeOf(passes: readonly { status: GatePassStatus; blockedReason: BlockReason | null }[]): { status: GatePassBadgeStatus; reason: BlockReason | null } {

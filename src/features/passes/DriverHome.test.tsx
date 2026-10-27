@@ -10,6 +10,7 @@ vi.mock('@/features/auth/useAuth', () => ({
   useAuth: () => ({ signOut }),
 }))
 vi.mock('@/features/notifications/Bell', () => ({ Bell: () => <button type="button">Notifications</button> }))
+vi.mock('@/features/qualifications/PermitsCard', () => ({ PermitsCard: () => null }))
 vi.mock('@/features/notifications/PushOptInCard', () => ({ PushOptInCard: () => null }))
 vi.mock('@/features/scan/QrScanner', () => ({ QrScanner: () => <div role="dialog" aria-label="Scan vehicle QR" /> }))
 vi.mock('./queries', () => ({

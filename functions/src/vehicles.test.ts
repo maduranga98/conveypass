@@ -17,7 +17,7 @@ beforeEach(() => {
 })
 
 const create = (c = admin(), over: Record<string, unknown> = {}) =>
-  createVehicle(w.deps, c, { contractorId: 'C1', plateNo: 'WP LJ-4821', type: 'Tipper', ...over })
+  createVehicle(w.deps, c, { contractorId: 'C1', plateNo: 'WP LJ-4821', type: 'Tipper', annualInspectionExpiry: '2099-12-31', ...over })
 
 describe('newVehicleId', () => {
   it('is veh_ + 10 chars of [a-z0-9], and differs between calls', () => {
@@ -41,6 +41,7 @@ describe('createVehicle', () => {
       makeModel: 'Tata',
       assignedDriverIds: [],
       status: 'active',
+      annualInspectionExpiry: '2099-12-31',
       eligibilityStatus: 'valid',
     })
     expect(w.plates.get('T1_WPLJ4821')).toBe(vehicleId)
@@ -212,6 +213,26 @@ describe('setVehicleStatus', () => {
     expect(w.vehicles.get(vehicleId)?.status).toBe('active')
     expect(w.audits.at(-1)?.action).toBe('vehicle.activate')
     await rejects(setVehicleStatus(w.deps, admin(), { vehicleId, status: 'deleted' }), 'invalid-argument')
+  })
+})
+
+describe('annual inspection', () => {
+  it('a vehicle with no annual inspection, or an expired one, cannot be given drivers', async () => {
+    await rejects(create(admin(), { annualInspectionExpiry: '2023-11-01', driverIds: ['drv1'] }), 'failed-precondition', 'annual-inspection-invalid')
+    const { vehicleId } = await create(admin())
+    w.vehicles.set(vehicleId, { ...(w.vehicles.get(vehicleId) as VehicleData), annualInspectionExpiry: undefined }) // legacy vehicle: never inspected
+    await rejects(setVehicleDrivers(w.deps, admin(), { vehicleId, driverIds: ['drv1'] }), 'failed-precondition', 'annual-inspection-invalid')
+    await updateVehicle(w.deps, admin(), { vehicleId, annualInspectionExpiry: '2099-12-31' })
+    await setVehicleDrivers(w.deps, admin(), { vehicleId, driverIds: ['drv1'] })
+    expect(w.vehicles.get(vehicleId)?.assignedDriverIds).toEqual(['drv1'])
+  })
+
+  it('an expired annual inspection makes the vehicle expired, and removing drivers is still allowed', async () => {
+    const { vehicleId } = await create(admin(), { driverIds: ['drv1'] })
+    await updateVehicle(w.deps, admin(), { vehicleId, annualInspectionExpiry: '2023-11-01' })
+    expect(w.vehicles.get(vehicleId)?.eligibilityStatus).toBe('expired')
+    await setVehicleDrivers(w.deps, admin(), { vehicleId, driverIds: [] })
+    expect(w.vehicles.get(vehicleId)?.assignedDriverIds).toEqual([])
   })
 })
 

@@ -8,6 +8,7 @@ import * as core from './core.js'
 import { handleCspReport } from './cspReport.js'
 import * as devices from './devices.js'
 import * as gate from './gate.js'
+import * as requirements from './requirements.js'
 import * as passes from './passes.js'
 import * as inspections from './inspections.js'
 import * as penalties from './penalties.js'
@@ -83,6 +84,8 @@ export const updateVehicle = callable('updateVehicle', vehicles.updateVehicle)
 export const setVehicleStatus = callable('setVehicleStatus', vehicles.setVehicleStatus)
 export const setVehicleDrivers = callable('setVehicleDrivers', vehicles.setVehicleDrivers)
 // 200 rows, one transaction each.
+export const recordQualification = callable('recordQualification', requirements.recordQualification)
+export const setMyPermits = callable('setMyPermits', requirements.setMyPermits)
 export const importVehicles = callable('importVehicles', vehicles.importVehicles, { timeoutSeconds: 180, rateLimit: true })
 export const setContractorStatus = callable('setContractorStatus', vehicles.setContractorStatus, { timeoutSeconds: 120 })
 

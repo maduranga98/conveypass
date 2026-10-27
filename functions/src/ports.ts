@@ -339,13 +339,14 @@ export const dataPort = (): DataPort => {
           if (guard.exists && (guard.data() as { vehicleId?: string }).vehicleId !== vehicleId) throw new PlateTakenError()
         }
 
-        const { makeModel, insuranceExpiry, registrationExpiry, ...rest } = patch
+        const { makeModel, insuranceExpiry, registrationExpiry, annualInspectionExpiry, ...rest } = patch
         const clearable = (v: string | null | undefined) => (v === null ? FieldValue.delete() : v)
         tx.update(vehicleRef, {
           ...rest,
           ...(makeModel !== undefined ? { makeModel: clearable(makeModel) } : {}),
           ...(insuranceExpiry !== undefined ? { insuranceExpiry: clearable(insuranceExpiry) } : {}),
           ...(registrationExpiry !== undefined ? { registrationExpiry: clearable(registrationExpiry) } : {}),
+          ...(annualInspectionExpiry !== undefined ? { annualInspectionExpiry: clearable(annualInspectionExpiry) } : {}),
           ...(moving && plate ? { plateKey: plate.plateKey } : {}),
           updatedAt: FieldValue.serverTimestamp(),
         })

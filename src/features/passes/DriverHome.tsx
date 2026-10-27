@@ -8,6 +8,7 @@ import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
 import { useAuth, useSession } from '@/features/auth/useAuth'
 import { Bell } from '@/features/notifications/Bell'
+import { PermitsCard } from '@/features/qualifications/PermitsCard'
 import { PushOptInCard } from '@/features/notifications/PushOptInCard'
 import { SimpleMenu } from '@/features/shared/SimpleMenu'
 import type { PassStatus } from '@/types/passes'
@@ -133,6 +134,8 @@ export default function DriverHome() {
           </ul>
         )}
       </section>
+
+      <PermitsCard />
 
       <PushOptInCard />
 

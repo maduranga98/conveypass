@@ -357,7 +357,7 @@ describe('rolloverGatePasses', () => {
   })
 
   it('auto-issues the qualified list at rollover when the company switched it on, and only to eligible pairings', async () => {
-    w.tenants.set('T1', { timezone: 'Asia/Colombo', autoIssueGatePasses: true })
+    w.tenants.set('T1', { timezone: 'Asia/Colombo', autoIssueGatePasses: true, qualificationTypes: [] })
     w.penalties.set('pen_1', penalty({ driverId: 'drv1b', vehicleId: null }))
     const res = await rolloverGatePasses(w.deps, gp.port, NOW_MS)
     expect(res.autoIssued).toBe(2) // (V1,drv1) and (V2,drv1); drv1b has a penalty
@@ -368,7 +368,7 @@ describe('rolloverGatePasses', () => {
   })
 
   it('auto-issue skips pairings that already have a pass and never creates a second one', async () => {
-    w.tenants.set('T1', { timezone: 'Asia/Colombo', autoIssueGatePasses: true })
+    w.tenants.set('T1', { timezone: 'Asia/Colombo', autoIssueGatePasses: true, qualificationTypes: [] })
     givePass(gp, V1, 'drv1', { issueMode: 'manual' })
     expect(await autoIssueGatePasses(w.deps, gp.port, 'T1', TEST_MONTH, NOW_MS)).toMatchObject({ issued: 2 })
     expect(await autoIssueGatePasses(w.deps, gp.port, 'T1', TEST_MONTH, NOW_MS)).toMatchObject({ issued: 0 })

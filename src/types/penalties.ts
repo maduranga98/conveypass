@@ -68,6 +68,10 @@ export interface SubjectEligibility {
   documentStatus: EligibilityStatus
   blocked: boolean
   penalties: BlockingPenaltyInfo[]
+  /** Vehicles only: the annual inspection (`missing` = never recorded). */
+  annualInspection?: 'valid' | 'expiringSoon' | 'expired' | 'missing'
+  /** Drivers only: required qualifications that are missing or expired (names). */
+  qualifications?: { missing: string[]; expired: string[]; ok: boolean }
 }
 
 /** The vehicle's inspection clearance (status and reason only). */

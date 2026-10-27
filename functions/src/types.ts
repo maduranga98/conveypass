@@ -2,6 +2,7 @@ import type { SlaSettings } from './defaultSla.js'
 import type { EligibilityStatus } from './expiry.js'
 import type { GateDef } from './gates.js'
 import type { ClearanceStatus, InspectionResult, InspectionStatus, InvalidationReason } from './inspectionLogic.js'
+import type { PermitRecord, QualificationRecords, QualificationTypeDef } from './requirementLogic.js'
 import type { PenaltyDurationMs, PenaltyStatus, PenaltyTarget } from './penaltyLogic.js'
 
 export const ROLES = ['admin', 'officer', 'supervisor', 'safety', 'driver', 'security', 'yard'] as const
@@ -66,6 +67,8 @@ export interface VehicleData {
   /** `YYYY-MM-DD`. Absent on vehicles that predate expiry tracking (= not tracked). */
   insuranceExpiry?: string
   registrationExpiry?: string
+  /** `YYYY-MM-DD`: the annual inspection is valid through this day. Required to be assigned, issued a gate pass and checked in (absent = never inspected). */
+  annualInspectionExpiry?: string
   /** Denormalised from the two dates, the tenant's warning window and today. Written by the callables and the daily job. */
   eligibilityStatus?: EligibilityStatus
   /** Denormalised from the current inspection by the inspection functions (one transaction with it). Absent = never inspected. */
@@ -82,11 +85,12 @@ export interface VehicleClearance {
 
 /** `null` removes the field. */
 export type VehiclePatch = Partial<
-  Omit<VehicleData, 'tenantId' | 'contractorId' | 'plateKey' | 'makeModel' | 'insuranceExpiry' | 'registrationExpiry'>
+  Omit<VehicleData, 'tenantId' | 'contractorId' | 'plateKey' | 'makeModel' | 'insuranceExpiry' | 'registrationExpiry' | 'annualInspectionExpiry'>
 > & {
   makeModel?: string | null
   insuranceExpiry?: string | null
   registrationExpiry?: string | null
+  annualInspectionExpiry?: string | null
 }
 
 /** `drivers/{uid}`: same id as the `users` doc. name, phone and status mirror `users`. */
@@ -102,6 +106,10 @@ export interface DriverData {
   /** Denormalised from `licenseExpiry` (callables and the daily job). */
   eligibilityStatus?: EligibilityStatus
   photoPath?: string | null
+  /** Qualifications recorded by the Admin or Officer, by qualification type id. Written only by `recordQualification`. */
+  qualifications?: QualificationRecords
+  /** The driver's own permit numbers (0-2). Information only; written only by `setMyPermits`. */
+  permits?: PermitRecord[]
   status: UserStatus
   /** Visit lifecycle: true from a visit's check-in until its check-out. Written ONLY by the visit transactions (never by `updateUser`). Absent = false. */
   driverOnDutyLock?: boolean
@@ -167,6 +175,8 @@ export interface TenantData {
   expiryWarningDays?: number
   /** Hours a visit may stay checked in before it is flagged `dwellWarning` (warning only, nothing is blocked). Falls back to 16. */
   dwellLimitHours?: number
+  /** Qualifications every driver must hold (one year each). Falls back to the defaults when never saved. */
+  qualificationTypes?: QualificationTypeDef[]
   /** Gate passes: issue the month's pass to every qualified pairing at month rollover (default off = the Company Admin selects). */
   autoIssueGatePasses?: boolean
   /** The month (`YYYY-MM`) whose rollover (expiry, optional auto-issue) already ran. */

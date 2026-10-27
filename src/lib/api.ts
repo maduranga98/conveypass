@@ -81,6 +81,7 @@ export interface VehicleInput {
   /** `YYYY-MM-DD`; on update `null` clears the date. */
   insuranceExpiry?: string | null
   registrationExpiry?: string | null
+  annualInspectionExpiry?: string | null
 }
 
 export type ImportRowError = 'invalid-plate' | 'invalid-type' | 'invalid-make-model' | 'plate-exists' | 'internal'
@@ -93,11 +94,12 @@ export interface ImportRowResult {
 }
 
 export const createVehicle = call<
-  Omit<VehicleInput, 'insuranceExpiry' | 'registrationExpiry'> & {
+  Omit<VehicleInput, 'insuranceExpiry' | 'registrationExpiry' | 'annualInspectionExpiry'> & {
     contractorId?: string
     driverIds?: string[]
     insuranceExpiry?: string
     registrationExpiry?: string
+    annualInspectionExpiry?: string
   },
   { vehicleId: string; plateNo: string }
 >('createVehicle')
@@ -119,9 +121,14 @@ export const submitPass = call<SubmitPassPayload, { passId: string; status: 'sub
   60_000,
 )
 export const updateTenantSettings = call<
-  { passSettings?: PassSettings; checklist?: ChecklistItemDef[]; rejectionReasons?: RejectionReasonDef[]; gates?: GateDef[]; sla?: SlaSettings; retentionDays?: number; vehicleTypes?: string[]; expiryWarningDays?: number; dwellLimitHours?: number; autoIssueGatePasses?: boolean },
+  { passSettings?: PassSettings; checklist?: ChecklistItemDef[]; rejectionReasons?: RejectionReasonDef[]; gates?: GateDef[]; sla?: SlaSettings; retentionDays?: number; vehicleTypes?: string[]; expiryWarningDays?: number; dwellLimitHours?: number; autoIssueGatePasses?: boolean; qualificationTypes?: { id: string; name: string }[] },
   { ok: true }
 >('updateTenantSettings')
+
+/** Admin or Officer: the driver completed this training on `completedOn` (`YYYY-MM-DD`); the server adds the year. */
+export const recordQualification = call<{ driverId: string; typeId: string; completedOn: string }, { expiresOn: string }>('recordQualification')
+/** Driver: replaces their own permit numbers (0-2). Information only. */
+export const setMyPermits = call<{ permits: string[] }, { permits: { number: string; enteredOn: string; expiresOn: string }[] }>('setMyPermits')
 
 // Module 4: approvals. The client says what it was looking at (expectedStatus/Attempt); the server decides.
 export const decidePass = call<DecidePassPayload, { passId: string; status: PassStatus; attempt: number }>(

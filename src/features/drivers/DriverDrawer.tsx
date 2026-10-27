@@ -7,6 +7,7 @@ import { useBlocked } from '@/features/penalties/feed'
 import { GatePassSection } from '@/features/gatePasses/GatePassSection'
 import { BlockedBadge } from '@/features/penalties/PenaltyBadges'
 import { PenaltyHistory } from '@/features/penalties/PenaltyHistory'
+import { DriverRequirements } from '@/features/qualifications/DriverRequirements'
 import { VisitHistory } from '@/features/visits/VisitHistory'
 import { ExpiryRow } from '@/features/shared/ExpiryRow'
 import type { Scope } from '@/features/shared/scope'
@@ -64,6 +65,8 @@ function Body({ scope, driver, contractorName }: { scope: Scope; driver: WithId<
           <ExpiryRow label={strings.eligibility.license} date={driver.licenseExpiry} />
         </dl>
       </section>
+
+      <DriverRequirements driver={driver} />
 
       <GatePassSection scope={scope} field="driverId" id={driver.id} overviewPath={scope === 'admin' ? '/admin/gate-passes' : undefined} />
 

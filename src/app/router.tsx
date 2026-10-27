@@ -18,6 +18,7 @@ import {
   DriverHome,
   ForgotPasswordPage,
   DriversPage,
+  DriverQualificationsPage,
   GateHome,
   GatePassesPage,
   QualificationPage,
@@ -129,6 +130,7 @@ export const router = createBrowserRouter([
                   { path: 'vehicles', element: lazyEl(<VehiclesPage scope="admin" />) },
                   { path: 'drivers', element: lazyEl(<DriversPage scope="admin" />) },
                   { path: 'passes', element: lazyEl(<PassesPage />) },
+                  { path: 'qualifications', element: lazyEl(<DriverQualificationsPage />) },
                   { path: 'gate-passes', element: lazyEl(<GatePassesPage />) },
                   { path: 'gate-passes/month-end', element: lazyEl(<QualificationPage />) },
                   { path: 'penalties', element: lazyEl(<PenaltiesPage viewer="admin" issuePath="/admin/penalties/new" />) },
@@ -180,6 +182,7 @@ export const router = createBrowserRouter([
                 element: lazyEl(<OfficerLayout />),
                 children: [
                   { index: true, element: lazyEl(<OfficerQueue />) },
+                  { path: 'qualifications', element: lazyEl(<DriverQualificationsPage />) },
                   { path: 'overview', element: lazyEl(<DashboardPage scope="officer" />) },
                   { path: 'reports', element: lazyEl(<ReportsPage />) },
                   { path: 'summary', element: lazyEl(<DailySummaryPage />) },

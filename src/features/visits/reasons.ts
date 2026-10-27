@@ -14,6 +14,9 @@ export function deniedReasons(e: EligibilityResult): string[] {
   const out: string[] = []
   if (e.vehicle?.documentStatus === 'expired') out.push(r.vehicleDocs)
   if (e.driver?.documentStatus === 'expired') out.push(r.driverDocs)
+  if (e.vehicle?.annualInspection === 'missing' || e.vehicle?.annualInspection === 'expired') out.push(r.annualInspection)
+  const q = e.driver?.qualifications
+  if (q && !q.ok) out.push(r.qualification([...q.missing, ...q.expired]))
   for (const p of e.vehicle?.penalties ?? []) out.push(r.vehiclePenalty(p.typeName, untilLabel(p.endDate)))
   for (const p of e.driver?.penalties ?? []) out.push(r.driverPenalty(p.typeName, untilLabel(p.endDate)))
   const i = e.inspection

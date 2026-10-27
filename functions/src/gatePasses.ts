@@ -129,6 +129,8 @@ export function unresolvedReasons(e: EligibilityResult): string[] {
   if (e.vehicle?.blocked || e.driver?.blocked) out.push('penalty')
   if (e.vehicle?.documentStatus === 'expired' || e.driver?.documentStatus === 'expired') out.push('document_expired')
   if (e.inspection && !e.inspection.cleared) out.push('inspection_invalidated')
+  if (e.vehicle?.annualInspection && e.vehicle.annualInspection !== 'valid' && e.vehicle.annualInspection !== 'expiringSoon') out.push('annual_inspection')
+  if (e.driver?.qualifications && !e.driver.qualifications.ok) out.push('qualification')
   return out
 }
 

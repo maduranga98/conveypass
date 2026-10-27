@@ -1,4 +1,4 @@
-import { BadgeCheck, Building2, CalendarCheck, ChartNoAxesColumn, ClipboardList, FileBarChart, Footprints, History, LayoutDashboard, LogOut, Menu, QrCode, Settings, ShieldAlert, Tags, Truck, UserRound, Users, X } from 'lucide-react'
+import { BadgeCheck, Building2, CalendarCheck, ChartNoAxesColumn, ClipboardList, FileBarChart, Footprints, GraduationCap, History, LayoutDashboard, LogOut, Menu, QrCode, Settings, ShieldAlert, Tags, Truck, UserRound, Users, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { BrandMark } from '@/components/BrandMark'
@@ -15,6 +15,7 @@ const nav = [
   { to: '/admin/contractors', label: strings.admin.nav.contractors, icon: Building2 },
   { to: '/admin/vehicles', label: strings.admin.nav.vehicles, icon: Truck },
   { to: '/admin/drivers', label: strings.admin.nav.drivers, icon: UserRound },
+  { to: '/admin/qualifications', label: strings.qualifications.nav, icon: GraduationCap },
   { to: '/admin/passes', label: strings.admin.nav.passes, icon: ClipboardList },
   { to: '/admin/visits', label: strings.admin.nav.visits, icon: Footprints },
   { to: '/admin/gate-passes', label: strings.gatePasses.nav, icon: BadgeCheck, end: true },

@@ -30,6 +30,11 @@ export const PERMISSIONS = {
   'driver.view': ['admin', 'officer', 'supervisor', 'safety', 'security'],
   'vehicleType.manage': ['admin'],
   'expiry.settings': ['admin'],
+  // Driver qualifications (safety, defensive driving, work instruction, ...; valid one year). Admin and Officer record them;
+  // the Admin edits the list of required types (`settings.manage`). Without every required one a driver is not eligible.
+  'qualification.record': ['admin', 'officer'],
+  // A driver enters their own permit numbers (1-2, valid three months). Information only.
+  'permit.set': ['driver'],
   // Penalties and suspensions. Admin and Safety Officer issue (a penalty takes effect at once); only an admin revokes;
   // a supervisor confirms, after the fact, penalties against their own contractor and reads those only.
   'penalty.view': ['admin', 'safety', 'supervisor'],

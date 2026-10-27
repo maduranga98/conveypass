@@ -32,6 +32,7 @@ import { DEFAULT_CHECKLIST } from '../src/lib/defaultChecklist.ts'
 import { DEFAULT_REJECTION_REASONS } from '../src/lib/defaultRejectionReasons.ts'
 import { tenantDefaults } from '../functions/src/tenants/tenantDefaults.ts'
 import { normalisePlate } from '../src/lib/plate.ts'
+import { DEFAULT_QUALIFICATION_TYPES, permitExpiry, qualificationExpiry } from '../functions/src/requirementLogic.ts'
 import { realDeps, runScript, type Target } from './lib/env.ts'
 import { scriptPepper } from './lib/pinScript.ts'
 import { formatPin, isTrivialPin, pinKey } from '../functions/src/pin.ts'
@@ -255,6 +256,13 @@ async function main(): Promise<void> {
     )
   }
 
+  // Eligibility needs every required qualification and a valid annual inspection: the demo drivers and fleet hold them.
+  const todayIso = new Date().toISOString().slice(0, 10)
+  const demoQualifications = Object.fromEntries(
+    DEFAULT_QUALIFICATION_TYPES.map((t) => [t.id, { completedOn: todayIso, expiresOn: qualificationExpiry(todayIso), recordedByUid: 'seed-demo', recordedByName: 'Demo admin', recordedAt: Date.now() }]),
+  )
+  const annualInspectionExpiry = qualificationExpiry(todayIso)
+
   const driverIds = new Map<string, string>()
   const uploads: { path: string; file: string }[] = []
   for (const d of drivers) {
@@ -269,6 +277,8 @@ async function main(): Promise<void> {
     batch.create(db.doc(`drivers/${uid}`), {
       tenantId: TENANT, contractorId: cid(d.contractor), name: d.name, phone,
       ...('licenseNo' in d ? { licenseNo: d.licenseNo } : {}), ...(photoPath ? { photoPath } : {}),
+      qualifications: demoQualifications,
+      ...(d.key === 'd1' ? { permits: [{ number: 'PRM 20417', enteredOn: todayIso, expiresOn: permitExpiry(todayIso) }] } : {}),
       status: d.status, createdAt: ts, updatedAt: ts,
     })
   }
@@ -282,7 +292,7 @@ async function main(): Promise<void> {
     batch.create(db.doc(`vehicles/${id}`), {
       tenantId: TENANT, contractorId: cid(v.contractor), plateNo: plate.plateNo, plateKey: plate.plateKey, type: v.type,
       ...('makeModel' in v ? { makeModel: v.makeModel } : {}),
-      assignedDriverIds: v.drivers.map((k) => driverIds.get(k) as string),
+      assignedDriverIds: v.drivers.map((k) => driverIds.get(k) as string), annualInspectionExpiry,
       status: 'status' in v ? v.status : 'active', createdAt: ts, createdBy: 'seed-demo', updatedAt: ts,
     })
     audit('seed.demo.vehicle', 'vehicle', id)
@@ -299,7 +309,7 @@ async function main(): Promise<void> {
     batch.create(db.doc(`vehiclePlates/${TENANT}_${plate.plateKey}`), { vehicleId: id })
     batch.create(db.doc(`vehicles/${id}`), {
       tenantId: TENANT, contractorId: cid(key), plateNo: plate.plateNo, plateKey: plate.plateKey, type: ['Tipper', 'Lorry', 'Flatbed', 'Cement Bulker'][i % 4] as string,
-      assignedDriverIds: assigned.map((k) => driverIds.get(k) as string), status: 'active', createdAt: ts, createdBy: 'seed-demo', updatedAt: ts,
+      assignedDriverIds: assigned.map((k) => driverIds.get(k) as string), annualInspectionExpiry, status: 'active', createdAt: ts, createdBy: 'seed-demo', updatedAt: ts,
     })
     historyFleet.push({ vehicleId: id, contractorKey: key, plateNo: plate.plateNo, vehicleType: ['Tipper', 'Lorry', 'Flatbed', 'Cement Bulker'][i % 4] as string, driverIds: assigned.map((k) => driverIds.get(k) as string) })
   }

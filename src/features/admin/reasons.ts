@@ -1,3 +1,4 @@
+import { MAX_QUALIFICATION_TYPES, QUALIFICATION_NAME_MAX, QUALIFICATION_NAME_MIN } from '@/lib/requirementLogic'
 import { MAX_EXPIRY_WARNING_DAYS, MIN_EXPIRY_WARNING_DAYS } from '@/lib/expiry'
 import { MAX_VEHICLE_TYPES, VEHICLE_TYPE_NAME_MAX, VEHICLE_TYPE_NAME_MIN } from '@/lib/vehicleTypes'
 import { SLA_MAX, SLA_MIN, type SlaSettings } from '@/lib/defaultSla'
@@ -36,3 +37,15 @@ export const vehicleTypesOk = (names: string[]): boolean =>
   new Set(names.map((n) => n.trim().toLowerCase())).size === names.length
 
 export const expiryDaysOk = (n: number): boolean => Number.isInteger(n) && n >= MIN_EXPIRY_WARNING_DAYS && n <= MAX_EXPIRY_WARNING_DAYS
+
+/** Required qualifications: each name 2-60 characters, unique ignoring case, at most 12; an empty list requires none. */
+export const qualificationNameOk = (name: string): boolean =>
+  name.trim().length >= QUALIFICATION_NAME_MIN && name.trim().length <= QUALIFICATION_NAME_MAX
+
+export const qualificationTypesOk = (items: readonly { name: string }[]): boolean =>
+  items.length <= MAX_QUALIFICATION_TYPES &&
+  items.every((i) => qualificationNameOk(i.name)) &&
+  new Set(items.map((i) => i.name.trim().toLowerCase())).size === items.length
+
+/** Ids are generated once when an item is added and never edited: drivers keep their records under the id. */
+export const newQualificationId = (): string => `q_${Math.random().toString(36).slice(2, 10)}`
