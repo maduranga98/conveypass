@@ -20,6 +20,7 @@ import {
 } from './schemas.js'
 import type { AuditEntry, Caller, VehicleData, VehiclePatch } from './types.js'
 import { computeEligibility } from './expiry.js'
+import { annualInspectionOk, annualInspectionState } from './requirementLogic.js'
 import { effectiveVehicleTypes } from './vehicleTypes.js'
 import { blockingPenalties } from './penaltyLogic.js'
 
@@ -74,8 +75,16 @@ function assertKnownType(allowed: readonly string[], type: string): void {
   if (!allowed.includes(type)) throw fail('invalid-argument', 'invalid-type', 'Unknown vehicle type')
 }
 
-const eligibilityOf = (v: { insuranceExpiry?: string | null; registrationExpiry?: string | null }, today: string, warningDays: number) =>
-  computeEligibility([v.insuranceExpiry, v.registrationExpiry], today, warningDays)
+type VehicleDates = { insuranceExpiry?: string | null; registrationExpiry?: string | null; annualInspectionExpiry?: string | null }
+const eligibilityOf = (v: VehicleDates, today: string, warningDays: number) =>
+  computeEligibility([v.insuranceExpiry, v.registrationExpiry, v.annualInspectionExpiry], today, warningDays)
+
+/** A vehicle can only be given drivers while its annual inspection is valid (a missing one counts as not valid). */
+function assertAnnualInspectionValid(v: VehicleDates, today: string, warningDays: number): void {
+  if (!annualInspectionOk(annualInspectionState(v.annualInspectionExpiry, today, warningDays))) {
+    throw fail('failed-precondition', 'annual-inspection-invalid', 'The vehicle needs a valid annual inspection before drivers can be assigned')
+  }
+}
 
 const plateTaken = () => fail('already-exists', 'plate-exists', 'A vehicle with this plate already exists')
 
@@ -129,6 +138,7 @@ export async function createVehicle(
   const assignedDriverIds = await assertDriversAssignable(deps, caller.tenantId, contractorId, input.driverIds ?? [])
   const ctx = await eligibilityContext(deps, caller.tenantId)
   assertKnownType(effectiveVehicleTypes(ctx.tenant?.vehicleTypes), input.type)
+  if (assignedDriverIds.length > 0) assertAnnualInspectionValid(input, ctx.today, ctx.warningDays)
 
   try {
     const vehicleId = await createVehicleOnce(
@@ -144,6 +154,7 @@ export async function createVehicle(
         assignedDriverIds,
         ...(input.insuranceExpiry ? { insuranceExpiry: input.insuranceExpiry } : {}),
         ...(input.registrationExpiry ? { registrationExpiry: input.registrationExpiry } : {}),
+        ...(input.annualInspectionExpiry ? { annualInspectionExpiry: input.annualInspectionExpiry } : {}),
         eligibilityStatus: eligibilityOf(input, ctx.today, ctx.warningDays),
       },
       'manual',
@@ -182,15 +193,15 @@ export async function updateVehicle(deps: Deps, caller: Caller, raw: unknown): P
     patch.type = input.type
     meta.type = true
   }
-  const dates = { insuranceExpiry: vehicle.insuranceExpiry ?? null, registrationExpiry: vehicle.registrationExpiry ?? null }
-  for (const key of ['insuranceExpiry', 'registrationExpiry'] as const) {
+  const dates = { insuranceExpiry: vehicle.insuranceExpiry ?? null, registrationExpiry: vehicle.registrationExpiry ?? null, annualInspectionExpiry: vehicle.annualInspectionExpiry ?? null }
+  for (const key of ['insuranceExpiry', 'registrationExpiry', 'annualInspectionExpiry'] as const) {
     if (input[key] !== undefined && input[key] !== dates[key]) {
       patch[key] = input[key]
       dates[key] = input[key]
       meta[key] = true
     }
   }
-  if (meta.insuranceExpiry || meta.registrationExpiry) {
+  if (meta.insuranceExpiry || meta.registrationExpiry || meta.annualInspectionExpiry) {
     const c = await context()
     patch.eligibilityStatus = eligibilityOf(dates, c.today, c.warningDays)
   }
@@ -247,6 +258,8 @@ export async function setVehicleDrivers(deps: Deps, caller: Caller, raw: unknown
   // A driver under an active penalty cannot be newly assigned (the screen disables them too). Keeping or removing one is fine.
   const added = assignedDriverIds.filter((id) => !vehicle.assignedDriverIds.includes(id))
   if (added.length > 0) {
+    const ctx = await eligibilityContext(deps, vehicle.tenantId)
+    assertAnnualInspectionValid(vehicle, ctx.today, ctx.warningDays)
     const nowMs = deps.now() * 1000
     const perDriver = await Promise.all(added.map((driverId) => deps.data.listActivePenalties({ tenantId: vehicle.tenantId, driverId })))
     if (perDriver.some((active, i) => blockingPenalties(active, { driverId: added[i] as string }, nowMs).length > 0)) {

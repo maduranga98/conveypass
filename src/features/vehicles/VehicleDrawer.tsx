@@ -115,6 +115,7 @@ function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'veh
         <dl className="space-y-1.5 text-sm">
           <ExpiryRow label={strings.eligibility.insurance} date={vehicle.insuranceExpiry} />
           <ExpiryRow label={strings.eligibility.registration} date={vehicle.registrationExpiry} />
+          <ExpiryRow label={strings.eligibility.annualInspection} date={vehicle.annualInspectionExpiry} />
         </dl>
       </section>
 

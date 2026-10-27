@@ -177,7 +177,7 @@ describe('recomputeEligibility', () => {
   it('passes the dates it computed from, so a concurrent edit is not overwritten', async () => {
     const port = fakePort([{ id: 'T1', data: {} }], [veh('v1', 'T1', { insuranceExpiry: '2023-11-01' })], [])
     await recomputeEligibility(port, now)
-    expect(port.writes[0]?.dates).toEqual({ insuranceExpiry: '2023-11-01', registrationExpiry: null })
+    expect(port.writes[0]?.dates).toEqual({ insuranceExpiry: '2023-11-01', registrationExpiry: null, annualInspectionExpiry: null })
   })
 
   it("uses each tenant's own timezone and warning window", async () => {

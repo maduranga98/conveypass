@@ -5,6 +5,7 @@ import { assertPepper, pinKey } from './pin.js'
 import { isPinRole, sessionExpired } from './session.js'
 import type { InvalidationReason } from './inspectionLogic.js'
 import type { SlaSettings } from './defaultSla.js'
+import type { QualificationTypeDef } from './requirementLogic.js'
 import type { ReportEvent, ReportPass } from './reports/types.js'
 import { sanitiseMeta } from './auditMeta.js'
 import { dateKey, DEFAULT_TIMEZONE } from './dates.js'
@@ -230,6 +231,7 @@ export interface DataPort {
       expiryWarningDays?: number
       dwellLimitHours?: number
       autoIssueGatePasses?: boolean
+      qualificationTypes?: QualificationTypeDef[]
     },
     audit: AuditEntry,
   ): Promise<void>

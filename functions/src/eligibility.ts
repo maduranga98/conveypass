@@ -6,7 +6,7 @@ import type { DriverData, TenantData, VehicleData } from './types.js'
 /** Documents read per page and written per transaction. */
 export const ELIGIBILITY_PAGE_SIZE = 400
 
-export type DatedField = 'insuranceExpiry' | 'registrationExpiry' | 'licenseExpiry'
+export type DatedField = 'insuranceExpiry' | 'registrationExpiry' | 'annualInspectionExpiry' | 'licenseExpiry'
 
 /** A status to write, with the dates it was computed from: the port refuses it when a callable changed them meanwhile. */
 export interface StatusUpdate {
@@ -34,9 +34,9 @@ export interface EligibilitySummary {
 }
 
 const vehicleUpdate = (id: string, v: VehicleData, today: string, warningDays: number): StatusUpdate | null => {
-  const status = computeEligibility([v.insuranceExpiry, v.registrationExpiry], today, warningDays)
+  const status = computeEligibility([v.insuranceExpiry, v.registrationExpiry, v.annualInspectionExpiry], today, warningDays)
   if (v.eligibilityStatus === status) return null
-  return { id, status, dates: { insuranceExpiry: v.insuranceExpiry ?? null, registrationExpiry: v.registrationExpiry ?? null } }
+  return { id, status, dates: { insuranceExpiry: v.insuranceExpiry ?? null, registrationExpiry: v.registrationExpiry ?? null, annualInspectionExpiry: v.annualInspectionExpiry ?? null } }
 }
 
 const driverUpdate = (id: string, d: DriverData, today: string, warningDays: number): StatusUpdate | null => {

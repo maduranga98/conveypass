@@ -47,6 +47,21 @@ Matrix keys: `vehicle.view`, `vehicle.manage`, `driver.view`, `vehicleType.manag
 
 Document status (`eligibilityStatus`: `valid`, `expiringSoon`, `expired`) is derived from the expiry dates, today in the company's timezone and the warning window (default 14 days, set in Settings). It is written by the callables when a date changes and refreshed every night at 00:10 (Colombo) by `recomputeEligibility`. A record with no dates counts as valid. Other modules combine it with their own checks; this module does not block passes on it.
 
+## Driver qualifications, annual inspection and permits
+
+Three more requirements sit beside the document dates. Logic: `functions/src/requirementLogic.ts` (mirrored in `src/lib/requirementLogic.ts`, a test compares them); the live check is still the one `evaluateEligibility`.
+
+| Action | Super admin | Admin | Officer | Supervisor | Safety | Security | Driver |
+|---|---|---|---|---|---|---|---|
+| `qualification.record` (record a completion date; the server adds one year) | no | yes | yes | no | no | no | no |
+| Edit the list of required qualifications (`settings.manage`, `updateTenantSettings.qualificationTypes`) | no | yes | no | no | no | no | no |
+| `permit.set` (own permit numbers, 0-2) | no | no | no | no | no | no | yes |
+| Set a vehicle's annual inspection date (`createVehicle` / `updateVehicle`, `vehicle.manage`) | no | yes | no | own contractor | no | no | no |
+
+- **Qualifications**: `tenants.qualificationTypes` (`[{ id, name }]`, 0-12, defaults Safety induction, Defensive driving (DD), Work instruction when never saved; an empty saved list requires nothing). Records are `drivers/{uid}.qualifications[typeId]` `{ completedOn, expiresOn, recordedBy… }`, written only by `recordQualification`; valid one year, through the end of the expiry day. A missing or expired required one makes the driver **not eligible** (no monthly pass on the month-end list, check-in refused). Removing a type stops requiring it; records are kept.
+- **Annual inspection**: `vehicles.annualInspectionExpiry` (a validity date only). Required on the add and edit forms, optional on the server (legacy rows and CSV import have none). Without a valid one the vehicle cannot be given drivers (`annual-inspection-invalid`, `createVehicle` with drivers and `setVehicleDrivers`), is not eligible, and gets no monthly pass. It is also one of the dates behind the vehicle's `eligibilityStatus`, so expiring flows through the existing triggers. It is separate from the Safety Officer's clearance.
+- **Permits**: `drivers/{uid}.permits` `[{ number, enteredOn, expiresOn }]`, 1-2 numbers entered by the driver on `/driver`, valid three months. **Information only**: shown in the driver drawer, never blocks anything.
+
 ## Penalties and suspensions
 
 | Action | Super admin | Admin | Officer | Supervisor | Safety | Security | Driver |

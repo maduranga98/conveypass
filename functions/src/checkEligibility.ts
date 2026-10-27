@@ -7,6 +7,7 @@ import { fail } from './errors.js'
 import { computeEligibility, type EligibilityStatus } from './expiry.js'
 import { clearanceOf, type ClearanceStatus, type InvalidationReason } from './inspectionLogic.js'
 import { can } from './permissions.js'
+import { annualInspectionOk, annualInspectionState, effectiveQualificationTypes, qualificationStanding, type AnnualInspectionState, type QualificationStanding } from './requirementLogic.js'
 import { blockingPenalties, combineStatus, type CombinedStatus } from './penaltyLogic.js'
 import { checkEligibilitySchema } from './schemas.js'
 import type { Caller } from './types.js'
@@ -26,6 +27,10 @@ export interface SubjectEligibility {
   documentStatus: EligibilityStatus
   blocked: boolean
   penalties: BlockingPenaltyInfo[]
+  /** Vehicles only: the annual inspection (`missing` = never recorded). Only a valid one lets the vehicle be assigned, issued a pass or checked in. */
+  annualInspection?: AnnualInspectionState
+  /** Drivers only: required qualifications that are missing or expired (names). */
+  qualifications?: QualificationStanding
 }
 
 /** The vehicle's inspection clearance (third layer). Status and reason only: never the officer, the notes or the dates of other records. */
@@ -49,7 +54,7 @@ export interface EligibilityResult {
   inspection: InspectionClearance | null
   /**
    * The combined answer the gate will use: documents not expired AND no active penalty AND (when a vehicle is asked about)
-   * an active approved inspection. A driver-only call has no inspection to check.
+   * an active approved inspection and a valid annual inspection AND (when a driver is asked about) every required qualification.
    */
   eligible: boolean
   /** Milliseconds, server time. */
@@ -61,6 +66,7 @@ export interface DriverRef {
   name: string
   contractorId: string
   licenseExpiry?: string | null | undefined
+  qualifications?: import('./requirementLogic.js').QualificationRecords | undefined
 }
 
 /**
@@ -121,8 +127,20 @@ export async function evaluateEligibility(
     }
   }
   // A penalty on "both" appears on each side, but a penalty that names only the vehicle never blocks an unrelated driver.
-  const v = vehicle && ref.vehicleId ? subject(ref.vehicleId, { vehicleId: ref.vehicleId }, [vehicle.insuranceExpiry, vehicle.registrationExpiry]) : null
-  const d = driver && ref.driverId ? subject(ref.driverId, { driverId: ref.driverId }, [driver.licenseExpiry]) : null
+  const v =
+    vehicle && ref.vehicleId
+      ? {
+          ...subject(ref.vehicleId, { vehicleId: ref.vehicleId }, [vehicle.insuranceExpiry, vehicle.registrationExpiry, vehicle.annualInspectionExpiry]),
+          annualInspection: annualInspectionState(vehicle.annualInspectionExpiry, ctx.today, ctx.warningDays),
+        }
+      : null
+  const d =
+    driver && ref.driverId
+      ? {
+          ...subject(ref.driverId, { driverId: ref.driverId }, [driver.licenseExpiry]),
+          qualifications: qualificationStanding(effectiveQualificationTypes(ctx.tenant?.qualificationTypes), driver.qualifications, ctx.today, ctx.warningDays),
+        }
+      : null
   const blocked = (v?.blocked ?? false) || (d?.blocked ?? false)
   const status = combineStatus(blocked, [v?.documentStatus, d?.documentStatus])
   const inspection = vehicle && ref.vehicleId ? await inspectionClearance(deps, vehicle) : null
@@ -132,7 +150,12 @@ export async function evaluateEligibility(
     vehicle: v,
     driver: d,
     inspection,
-    eligible: status !== 'blocked' && status !== 'expired' && (inspection === null || inspection.cleared),
+    eligible:
+      status !== 'blocked' &&
+      status !== 'expired' &&
+      (inspection === null || inspection.cleared) &&
+      (v === null || annualInspectionOk(v.annualInspection)) &&
+      (d === null || d.qualifications.ok),
     checkedAt: nowMs,
   }
 }

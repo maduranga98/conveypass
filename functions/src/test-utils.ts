@@ -46,6 +46,16 @@ export const driverDoc = (over: Partial<DriverData> = {}): DriverData => ({
   ...over,
 })
 
+/**
+ * Vehicles in the shared fixture hold a valid annual inspection unless a test says otherwise (`annualInspectionExpiry: undefined`
+ * = never inspected), so the tests written before that rule keep describing their own subject.
+ */
+class VehicleMap extends Map<string, VehicleData> {
+  override set(key: string, value: VehicleData): this {
+    return super.set(key, 'annualInspectionExpiry' in value ? value : { ...value, annualInspectionExpiry: '2099-12-31' })
+  }
+}
+
 export interface World {
   deps: Deps
   users: Map<string, UserData>
@@ -84,7 +94,7 @@ export function makeWorld(): World {
     users: new Map(),
     drivers: new Map(),
     contractors: new Map(),
-    vehicles: new Map(),
+    vehicles: new VehicleMap(),
     plates: new Map(),
     authUsers: new Map(),
     pins: new Map(),
@@ -190,7 +200,7 @@ export function makeWorld(): World {
       updateVehicleTx: async ({ vehicleId, patch, plate, audit }) => {
         const current = w.vehicles.get(vehicleId) as VehicleData
         const next: VehicleData = { ...current }
-        const { makeModel, insuranceExpiry, registrationExpiry, ...rest } = patch
+        const { makeModel, insuranceExpiry, registrationExpiry, annualInspectionExpiry, ...rest } = patch
         Object.assign(next, rest)
         if (makeModel === null) delete next.makeModel
         else if (makeModel !== undefined) next.makeModel = makeModel
@@ -198,6 +208,8 @@ export function makeWorld(): World {
         else if (insuranceExpiry !== undefined) next.insuranceExpiry = insuranceExpiry
         if (registrationExpiry === null) delete next.registrationExpiry
         else if (registrationExpiry !== undefined) next.registrationExpiry = registrationExpiry
+        if (annualInspectionExpiry === null) delete next.annualInspectionExpiry
+        else if (annualInspectionExpiry !== undefined) next.annualInspectionExpiry = annualInspectionExpiry
         if (plate && plate.plateKey !== current.plateKey) {
           const guard = `${current.tenantId}_${plate.plateKey}`
           const owner = w.plates.get(guard)
@@ -415,7 +427,8 @@ export function makeWorld(): World {
         [...w.users].filter(([, u]) => u.tenantId === tenantId && u.contractorId === contractorId).map(([uid]) => uid),
     },
   }
-  w.tenants.set('T1', { timezone: 'Asia/Colombo' })
+  // No qualification is required in the shared fixture; the tests of that rule opt in with `qualificationTypes`.
+  w.tenants.set('T1', { timezone: 'Asia/Colombo', qualificationTypes: [] })
   w.tenants.set('T2', {})
   w.contractors.set('C1', { tenantId: 'T1', status: 'active' })
   w.contractors.set('C2', { tenantId: 'T1', status: 'active' })

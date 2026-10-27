@@ -6,6 +6,7 @@ import type { GateDef } from '@/lib/gates'
 import type { SlaSettings } from '@/lib/defaultSla'
 import type { EligibilityStatus } from '@/lib/expiry'
 import type { VehicleClearance } from './inspections'
+import type { PermitRecord, QualificationRecords, QualificationTypeDef } from '@/lib/requirementLogic'
 
 export type UserStatus = 'active' | 'disabled'
 export type ContractorStatus = 'active' | 'suspended'
@@ -35,6 +36,8 @@ export interface Tenant {
   dwellLimitHours?: number
   /** Gate passes: issue every qualified pairing's pass at month rollover. Absent or false = the admin chooses from the month-end list. */
   autoIssueGatePasses?: boolean
+  /** Qualifications every driver must hold (valid one year each). Falls back to the defaults when absent. */
+  qualificationTypes?: QualificationTypeDef[]
 }
 
 export interface UserDoc {
@@ -88,6 +91,8 @@ export interface Vehicle {
   /** `YYYY-MM-DD`. Absent = not tracked. */
   insuranceExpiry?: string
   registrationExpiry?: string
+  /** The annual inspection is valid through this day. Required for assignment, gate passes and check-in; absent = never inspected. */
+  annualInspectionExpiry?: string
   /** Denormalised by the callables and the daily job; absent on records that predate expiry tracking. */
   eligibilityStatus?: EligibilityStatus
   /** Copy of the current inspection, written with it by the inspection functions. Absent = never inspected. */
@@ -109,6 +114,10 @@ export interface Driver {
   licenseExpiry?: string | null
   eligibilityStatus?: EligibilityStatus
   photoPath?: string | null
+  /** Recorded by the Admin or Officer, by qualification type id (function-written). */
+  qualifications?: QualificationRecords
+  /** The driver's own permit numbers, 0-2 (function-written). Information only. */
+  permits?: PermitRecord[]
   status: UserStatus
   /** True while the driver is on a visit (check-in to check-out). Written only by the visit functions. */
   driverOnDutyLock?: boolean
