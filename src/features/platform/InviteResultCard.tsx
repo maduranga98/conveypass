@@ -15,7 +15,7 @@ export interface InviteResult {
 }
 
 const linkClass =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-surface px-4 text-sm font-medium text-brand hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus'
+  'inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-surface px-4 text-sm font-medium text-ink hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus'
 
 /**
  * The one place an invite link is ever shown. It lives in this component's props only (the parent drops it on close or
@@ -53,7 +53,7 @@ export function InviteResultCard({ result, onClose }: { result: InviteResult; on
           readOnly
           value={invite.link}
           onFocus={(e) => e.currentTarget.select()}
-          className="block h-11 w-full rounded-lg border border-slate-300 bg-surface px-3 font-mono text-sm text-brand focus-visible:outline-2 focus-visible:outline-focus"
+          className="block h-11 w-full rounded-lg border border-slate-300 bg-surface px-3 font-mono text-sm text-ink focus-visible:outline-2 focus-visible:outline-focus"
         />
         <p className="text-xs text-slate-600">
           {t.expiresOn(formatExpiry(invite.expiresAt))}

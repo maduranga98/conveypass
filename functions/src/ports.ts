@@ -17,7 +17,7 @@ import {
   type StoragePort,
 } from './core.js'
 import { planSubmit } from './passRules.js'
-import type { ReportEvent, ReportPass } from './reports/types.js'
+import type { ReportEvent, ReportPass, ReportVisit } from './reports/types.js'
 import { clearanceOf } from './inspectionLogic.js'
 import type { ContractorData, DriverData, GateEventData, InspectionData, PassData, PenaltyData, PenaltyTypeData, TenantData, UserData, VehicleClearance, VehicleData } from './types.js'
 
@@ -148,6 +148,9 @@ function passQuery(db: FirebaseFirestore.Firestore, q: PassQuery): Q {
   return query
 }
 
+const visitReportQuery = (db: FirebaseFirestore.Firestore, q: { tenantId: string; fromKey: string; toKey: string }): Q =>
+  db.collection('visits').where('tenantId', '==', q.tenantId).where('checkIn.dateKey', '>=', q.fromKey).where('checkIn.dateKey', '<=', q.toKey)
+
 const eventQuery = (db: FirebaseFirestore.Firestore, q: GateEventQuery): Q =>
   db.collection('gateEvents').where('tenantId', '==', q.tenantId).where('at', '>=', ts(q.startMs)).where('at', '<', ts(q.endMs))
 
@@ -245,6 +248,17 @@ export const dataPort = (): DataPort => {
       const snap = await db.doc(`vehicles/${id}`).get()
       return snap.exists ? (snap.data() as VehicleData) : null
     },
+    findDriverAssignments: async ({ tenantId, driverIds, exceptVehicleId }) => {
+      const out = new Map<string, { vehicleId: string; plateNo: string }>()
+      await Promise.all(
+        driverIds.map(async (driverId) => {
+          const snap = await db.collection('vehicles').where('tenantId', '==', tenantId).where('assignedDriverIds', 'array-contains', driverId).limit(2).get()
+          const other = snap.docs.find((d) => d.id !== exceptVehicleId)
+          if (other) out.set(driverId, { vehicleId: other.id, plateNo: (other.data() as VehicleData).plateNo })
+        }),
+      )
+      return out
+    },
     createUserWithAudit: async (uid, data, actorUid, audit, driver, pin) => {
       const write = (w: { create: (ref: FirebaseFirestore.DocumentReference, d: FirebaseFirestore.DocumentData) => unknown }) => {
         w.create(db.doc(`users/${uid}`), {
@@ -273,16 +287,22 @@ export const dataPort = (): DataPort => {
       await db.runTransaction(async (tx) => {
         if ((await tx.get(pinRef)).exists) throw new PinTakenError()
         tx.create(pinRef, { ...pin.entry, createdAt: FieldValue.serverTimestamp() })
+        tx.create(db.doc(`pinVault/${uid}`), { tenantId: data.tenantId, sealed: pin.sealed, pinVersion: data.pinVersion ?? 1, createdAt: FieldValue.serverTimestamp() })
         write(tx)
       })
     },
-    reissuePinTx: async ({ uid, key, entry, patch, audit }) => {
+    getPinVault: async (uid) => {
+      const snap = await db.doc(`pinVault/${uid}`).get()
+      return snap.exists ? (snap.data() as { tenantId: string; sealed: string; pinVersion: number }) : null
+    },
+    reissuePinTx: async ({ uid, key, entry, sealed, pinVersion, patch, audit }) => {
       const pinRef = db.doc(`pinIndex/${key}`)
       await db.runTransaction(async (tx) => {
         const [taken, old] = await Promise.all([tx.get(pinRef), tx.get(db.collection('pinIndex').where('uid', '==', uid))])
         if (taken.exists) throw new PinTakenError()
         for (const d of old.docs) tx.delete(d.ref)
         tx.create(pinRef, { ...entry, createdAt: FieldValue.serverTimestamp() })
+        tx.set(db.doc(`pinVault/${uid}`), { tenantId: entry.tenantId, sealed, pinVersion, createdAt: FieldValue.serverTimestamp() })
         tx.update(db.doc(`users/${uid}`), { ...patch, knownDevices: FieldValue.delete(), updatedAt: FieldValue.serverTimestamp() })
         tx.create(db.collection('auditLog').doc(), { ...audit, createdAt: FieldValue.serverTimestamp() })
       })
@@ -428,12 +448,23 @@ export const dataPort = (): DataPort => {
         const { ctx, history } = await readDecisionContext(db, tx, ref)
         const decision = plan(ctx)
         if (decision.kind === 'replay') return decision
+        const v = decision.visit.data
+        const driverRef = db.doc(`drivers/${v.driverId}`)
+        const driverSnap = await tx.get(driverRef)
         tx.update(ref, {
           status: 'checked_in',
           updatedAt: FieldValue.serverTimestamp(),
           checkIn: { ...decision.checkIn, at: ts(decision.checkIn.at) },
           history: [...history, { ...decision.entry, at: ts(decision.entry.at) }],
         })
+        // The first entry of the day opens the day's first gate visit (same transaction); later entries use `checkInVisit`.
+        tx.create(db.doc(`visits/${decision.visit.id}`), {
+          ...v,
+          checkIn: { ...v.checkIn, timestamp: ts(v.checkIn.timestamp) },
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        })
+        if (driverSnap.exists) tx.update(driverRef, { driverOnDutyLock: true, activeVisitId: decision.visit.id, updatedAt: FieldValue.serverTimestamp() })
         tx.create(db.collection('auditLog').doc(), { ...decision.audit, createdAt: FieldValue.serverTimestamp() })
         return decision
       })
@@ -609,6 +640,21 @@ export const dataPort = (): DataPort => {
     listGateEvents: async (q, limit) => {
       const snap = await eventQuery(db, q).orderBy('at').limit(limit).get()
       return snap.docs.map((d): ReportEvent => ({ ...toGateEvent(d.data() as Record<string, unknown>), id: d.id }))
+    },
+    countVisits: async (q) => (await visitReportQuery(db, q).count().get()).data().count,
+    listVisits: async (q, limit) => {
+      const snap = await visitReportQuery(db, q).orderBy('checkIn.dateKey').limit(limit).get()
+      return snap.docs.map((d): ReportVisit => {
+        const v = d.data() as { passId?: string; vehicleId: string; checkIn: { timestamp: Timestamp; dateKey: string }; checkOut?: { timestamp: Timestamp } | null }
+        return {
+          id: d.id,
+          ...(v.passId ? { passId: v.passId } : {}),
+          vehicleId: v.vehicleId,
+          dateKey: v.checkIn.dateKey,
+          checkInAt: v.checkIn.timestamp.toMillis(),
+          checkOutAt: v.checkOut ? v.checkOut.timestamp.toMillis() : null,
+        }
+      })
     },
     listContractorNames: async (tenantId) => {
       const snap = await db.collection('contractors').where('tenantId', '==', tenantId).select('name').get()

@@ -66,7 +66,7 @@ export default function QualificationsPage() {
                 <li key={driver.id} className="space-y-3 rounded-xl border border-slate-200 bg-surface p-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-brand">{driver.name}</p>
+                      <p className="truncate font-medium text-ink">{driver.name}</p>
                       <p className="truncate text-xs text-slate-500">{contractorNames.get(driver.contractorId) ?? strings.common.none}</p>
                     </div>
                     <p className="text-sm text-slate-600">{problems === 0 ? t.ready : t.notReady(problems)}</p>

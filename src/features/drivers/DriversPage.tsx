@@ -1,4 +1,4 @@
-import { Eye, KeyRound, Pause, Pencil, Play, Plus, Users } from 'lucide-react'
+import { Eye, KeyRound, LockKeyholeOpen, Pause, Pencil, Play, Plus, Users } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -20,6 +20,7 @@ import { ELIGIBILITY_STATUSES } from '@/lib/expiry'
 import { strings } from '@/lib/strings'
 import { eligibilityOf } from '@/features/shared/documents'
 import { ReissuePinDialog, type ReissueTarget } from '@/features/admin/ReissuePinDialog'
+import { useShowPin } from '@/features/admin/ShowPinDialog'
 import { LastSignIn } from '@/features/admin/LastSignIn'
 import { useBlocked } from '@/features/penalties/feed'
 import { BlockedBadge } from '@/features/penalties/PenaltyBadges'
@@ -53,6 +54,7 @@ export default function DriversPage({ scope }: { scope: Scope }) {
   const [contractorId, setContractorId] = useState(isAdmin ? (params.get('contractor') ?? '') : '')
   const [formFor, setFormFor] = useState<WithId<Driver> | 'new' | null>(params.get('new') ? 'new' : null)
   const [reissuing, setReissuing] = useState<ReissueTarget | null>(null)
+  const [showPin, showPinModal] = useShowPin()
   const [toggling, setToggling] = useState<WithId<Driver> | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -120,7 +122,7 @@ export default function DriversPage({ scope }: { scope: Scope }) {
         <span className="flex items-center gap-3">
           <DriverAvatar driver={d} />
           <span className="min-w-0">
-            <span className="block truncate font-medium text-brand">{d.name}</span>
+            <span className="block truncate font-medium text-ink">{d.name}</span>
             {isAdmin && <span className="block truncate text-xs text-slate-500">{contractorNames.get(d.contractorId) ?? strings.common.none}</span>}
           </span>
         </span>
@@ -178,6 +180,15 @@ export default function DriversPage({ scope }: { scope: Scope }) {
         </Button>
         <Button variant="ghost" size="icon" title={strings.common.edit} aria-label={`${strings.common.edit}: ${d.name}`} onClick={() => setFormFor(d)}>
           <Pencil aria-hidden className="size-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          title={strings.reissue.show}
+          aria-label={`${strings.reissue.show}: ${d.name}`}
+          onClick={() => void showPin({ id: d.id, name: d.name, role: 'driver', company: contractorNames.get(d.contractorId) ?? '' })}
+        >
+          <LockKeyholeOpen aria-hidden className="size-4" />
         </Button>
         <Button
           variant="ghost"
@@ -258,6 +269,7 @@ export default function DriversPage({ scope }: { scope: Scope }) {
       <DriverDrawer scope={scope} driver={items.find((d) => d.id === detailId) ?? null} contractorName={contractorNames.get(items.find((d) => d.id === detailId)?.contractorId ?? '')} onClose={() => setDetailId(null)} />
       <DriverFormModal scope={scope} target={formFor} onClose={closeForm} />
       <ReissuePinDialog target={reissuing} onClose={() => setReissuing(null)} />
+      {showPinModal}
       <ConfirmDialog
         open={toggling !== null}
         title={toggling?.status === 'active' ? t.disableTitle : t.enableTitle}

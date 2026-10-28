@@ -24,6 +24,15 @@ describe('visit logic', () => {
     }
   })
 
+  it('gate time runs from the first check-in and is identical in both copies', () => {
+    for (const now of [0, 15 * HOUR, 16 * HOUR - 1, 16 * HOUR, 40 * HOUR]) {
+      expect(web.withinGateTime(0, now, 16)).toBe(fn.withinGateTime(0, now, 16))
+    }
+    expect(web.withinGateTime(0, 16 * HOUR - 1, 16)).toBe(true)
+    expect(web.withinGateTime(0, 16 * HOUR, 16)).toBe(false)
+    expect(web.gateTimeEndsAt(5 * HOUR, 16)).toBe(21 * HOUR)
+  })
+
   it('the dwell limit is a company setting that defaults to 16 hours', () => {
     expect(web.dwellLimitHoursOf(null)).toBe(16)
     expect(web.dwellLimitHoursOf({})).toBe(16)

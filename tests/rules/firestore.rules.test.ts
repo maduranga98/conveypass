@@ -871,6 +871,20 @@ describe('pinIndex and pinAttempts (Module 12)', () => {
   })
 })
 
+describe('pinVault ("Show PIN": sealed copies of PINs)', () => {
+  it('is unreadable and unwritable by every role, admin and supervisor included, and by visitors', async () => {
+    const everyone = [adminA(), officerA(), supA1(), drvA1(), securityA(), as('adminB', { role: 'admin', tenantId: B }), as('op1', { role: 'platform', platformAdmin: true, email_verified: true }), env.unauthenticatedContext().firestore()]
+    for (const db of everyone) {
+      await assertFails(getDoc(doc(db, 'pinVault', 'drvA1')))
+      await assertFails(getDocs(collection(db, 'pinVault')))
+      await assertFails(getDocs(query(collection(db, 'pinVault'), where('tenantId', '==', A))))
+      await assertFails(setDoc(doc(db, 'pinVault', 'drvA1'), { tenantId: A, sealed: 'x', pinVersion: 1 }))
+      await assertFails(updateDoc(doc(db, 'pinVault', 'drvA1'), { sealed: 'y' }))
+      await assertFails(deleteDoc(doc(db, 'pinVault', 'drvA1')))
+    }
+  })
+})
+
 describe('auditLog (Module 7 viewer queries)', () => {
   const audit = (db: ReturnType<typeof adminA>, ...extra: Parameters<typeof where>[]) =>
     getDocs(query(collection(db, 'auditLog'), where('tenantId', '==', A), ...extra.map((e) => where(...e)), orderBy('createdAt', 'desc'), limit(26)))

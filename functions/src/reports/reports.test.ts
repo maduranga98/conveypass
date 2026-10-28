@@ -230,3 +230,49 @@ describe('history and gate log', () => {
     expect(r.summary.tiles.map((t) => t.value)).toEqual([1, 1, 2])
   })
 })
+
+describe('gate_passes (gate pass details of a day)', () => {
+  const day = (over: Partial<ReportPass> = {}) =>
+    makePass({
+      status: 'checked_in',
+      supervisor: { uid: 's', name: 'Sue', at: T0 + 10 * MIN },
+      officer: { uid: 'o', name: 'Olga', at: T0 + 20 * MIN },
+      checkIn: { uid: 'g', name: 'Gus', at: T0 + 30 * MIN, gateId: 'main', gateName: 'Main Gate', requestId: 'r' },
+      ...over,
+    })
+  const visit = (id: string, inMin: number, outMin: number | null) => ({
+    id,
+    passId: 'veh_aaaaaaaaaa_20260310',
+    vehicleId: 'veh_aaaaaaaaaa',
+    dateKey: '20260310',
+    checkInAt: T0 + inMin * MIN,
+    checkOutAt: outMin === null ? null : T0 + outMin * MIN,
+  })
+
+  it('shows approvals, the first entry, the end of the gate time, every entry and the time inside', () => {
+    const r = buildReport(
+      makeInput({
+        type: 'gate_passes',
+        generatedAt: T0 + 300 * MIN,
+        passes: [day()],
+        visits: [visit('a', 30, 90), visit('b', 120, 180), visit('c', 240, null)],
+      }),
+    )
+    expect(r.rows).toHaveLength(1)
+    expect(r.rows[0]).toMatchObject({
+      date: '2026-03-10', plate: 'WP CAB 1234', contractor: 'Alpha', status: 'Checked in', supervisor: 'Sue', officer: 'Olga',
+      firstIn: T0 + 30 * MIN, endsAt: T0 + 30 * MIN + 16 * 60 * MIN, entries: 3, lastOut: T0 + 180 * MIN,
+      onSiteMinutes: 60 + 60 + 60, gate: 'Inside',
+    })
+    expect(r.summary.tiles.map((t) => [t.key, t.value])).toEqual([['passes', 1], ['approved', 1], ['entered', 1], ['entries', 3], ['inside', 1], ['rejected', 0]])
+  })
+
+  it('a pass that never came in has no entry columns; the company gate time sets the end', () => {
+    const r = buildReport(
+      makeInput({ type: 'gate_passes', gateTimeHours: 10, passes: [makePass({ status: 'officer_approved' }), day({ id: 'veh_bbbbbbbbbb_20260310', vehicleId: 'veh_bbbbbbbbbb', plateNo: 'AA 1' })], visits: [] }),
+    )
+    expect(col(r.rows, 'plate')).toEqual(['AA 1', 'WP CAB 1234'])
+    expect(r.rows[1]).toMatchObject({ gate: 'Not entered', firstIn: null, endsAt: null, entries: 0, onSiteMinutes: null })
+    expect(r.rows[0]?.endsAt).toBe(T0 + 30 * MIN + 10 * 60 * MIN)
+  })
+})

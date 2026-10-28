@@ -1,6 +1,6 @@
 // Mirrors functions/src/reports/types.ts and functions/src/reportsApi.ts (the callables' responses).
 
-export const REPORT_TYPES = ['gate_log', 'contractor_activity', 'turnaround', 'rejections', 'vehicle_history', 'driver_history'] as const
+export const REPORT_TYPES = ['gate_log', 'contractor_activity', 'turnaround', 'rejections', 'vehicle_history', 'driver_history', 'gate_passes'] as const
 export type ReportType = (typeof REPORT_TYPES)[number]
 
 export const isReportType = (v: unknown): v is ReportType => typeof v === 'string' && (REPORT_TYPES as readonly string[]).includes(v)

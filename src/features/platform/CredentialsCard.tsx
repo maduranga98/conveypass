@@ -16,7 +16,7 @@ export interface CredentialsView {
 }
 
 const linkClass =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-surface px-4 text-sm font-medium text-brand hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus'
+  'inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-surface px-4 text-sm font-medium text-ink hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus'
 
 function Row({ id, label, value, masked, onCopy, copied }: { id: string; label: string; value: string; masked?: boolean; onCopy: () => void; copied: boolean }) {
   const [shown, setShown] = useState(false)
@@ -31,7 +31,7 @@ function Row({ id, label, value, masked, onCopy, copied }: { id: string; label: 
           value={value}
           autoComplete="off"
           onFocus={(e) => e.currentTarget.select()}
-          className="block h-11 min-w-0 flex-1 rounded-lg border border-slate-300 bg-surface px-3 font-mono text-sm text-brand focus-visible:outline-2 focus-visible:outline-focus"
+          className="block h-11 min-w-0 flex-1 rounded-lg border border-slate-300 bg-surface px-3 font-mono text-sm text-ink focus-visible:outline-2 focus-visible:outline-focus"
         />
         {masked && (
           <Button variant="secondary" aria-label={`${shown ? t.hide : t.show}: ${label}`} onClick={() => setShown((v) => !v)} icon={shown ? <EyeOff aria-hidden className="size-4" /> : <Eye aria-hidden className="size-4" />}>

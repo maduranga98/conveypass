@@ -80,7 +80,7 @@ export function RejectSheet({ open, mode = 'reject', reasons, loading = false, e
         <p className="text-sm text-slate-700">{revoke ? t.revokeIntro : t.rejectIntro}</p>
 
         <fieldset disabled={loading} className="space-y-2">
-          <legend className="text-sm font-semibold text-brand">{t.reasonLegend}</legend>
+          <legend className="text-sm font-semibold text-ink">{t.reasonLegend}</legend>
           <div role="radiogroup" aria-labelledby={groupId} className="flex flex-wrap gap-2">
             <span id={groupId} className="sr-only">{t.reasonLegend}</span>
             {reasons.map((r) => (
@@ -101,7 +101,7 @@ export function RejectSheet({ open, mode = 'reject', reasons, loading = false, e
 
         {code && (
           <div className="space-y-1.5">
-            <label htmlFor={noteId} className="text-sm font-semibold text-brand">
+            <label htmlFor={noteId} className="text-sm font-semibold text-ink">
               {noteRequired ? t.noteRequired : t.noteOptional}
             </label>
             <textarea

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { changeOwnPassword, createUser, reissuePin, resetCredential, updateUser } from './core.js'
-import { isTrivialPin, pinKey } from './pin.js'
+import { changeOwnPassword, createUser, reissuePin, resetCredential, revealPin, updateUser } from './core.js'
+import { isTrivialPin, openPin, pinKey, sealPin } from './pin.js'
 import { admin, caller, makeWorld, NOW, rejects, sup1, TEST_PEPPER, userDoc, type World } from './test-utils.js'
 
 const staffInput = { role: 'officer', name: 'Off', email: 'new@x.com', password: 'longenough1' }
@@ -359,6 +359,55 @@ describe('reissuePin', () => {
     expect(w.authUsers.get('sec')).toEqual({ disabled: false, displayName: 'Name' })
     expect(w.claims.get('sec')).toEqual({ role: 'security', tenantId: 'T1' })
     expect(w.users.get('sec')?.loginType).toBe('pin')
+  })
+})
+
+describe('revealPin', () => {
+  const pinUser = async (): Promise<{ uid: string; pin: string }> => {
+    const r = await createUser(w.deps, admin(), driverInput)
+    return { uid: r.uid, pin: r.pin as string }
+  }
+
+  it('shows the PIN issued at creation, and audits the view without the PIN', async () => {
+    const { uid, pin } = await pinUser()
+    expect((await revealPin(w.deps, admin(), { uid })).pin).toBe(pin)
+    expect(w.audits.at(-1)).toMatchObject({ action: 'user.revealPin', targetId: uid })
+    expect(JSON.stringify(w.audits)).not.toContain(pin)
+    expect(JSON.stringify([...w.vaults.values()])).not.toContain(pin)
+  })
+
+  it('shows the new PIN after a reissue, never the old one', async () => {
+    const { uid, pin: old } = await pinUser()
+    const { pin } = await reissuePin(w.deps, admin(), { uid })
+    const shown = (await revealPin(w.deps, admin(), { uid })).pin
+    expect(shown).toBe(pin)
+    expect(shown).not.toBe(old)
+  })
+
+  it('a supervisor sees only the PINs of drivers of their own contractor', async () => {
+    const { uid } = await pinUser()
+    await revealPin(w.deps, sup1(), { uid })
+    await rejects(revealPin(w.deps, sup1(), { uid: 'sec' }), 'permission-denied', 'forbidden')
+    await rejects(revealPin(w.deps, caller('officer', 'officer'), { uid }), 'permission-denied', 'forbidden')
+    await rejects(revealPin(w.deps, caller('drv1', 'driver', 'C1'), { uid }), 'permission-denied', 'forbidden')
+  })
+
+  it('an account issued before viewing existed has no stored PIN: reissue', async () => {
+    await rejects(revealPin(w.deps, admin(), { uid: 'drv1' }), 'failed-precondition', 'pin-not-stored')
+  })
+
+  it('refuses office staff and other tenants', async () => {
+    await rejects(revealPin(w.deps, admin(), { uid: 'officer' }), 'failed-precondition', 'not-pin-user')
+    await rejects(revealPin(w.deps, admin(), { uid: 'foreign' }), 'permission-denied', 'tenant-mismatch')
+  })
+
+  it('a sealed value does not open for another uid, version or pepper', () => {
+    const sealed = sealPin('48201357', 'u1', 2, TEST_PEPPER)
+    expect(openPin(sealed, 'u1', 2, TEST_PEPPER)).toBe('48201357')
+    expect(openPin(sealed, 'u2', 2, TEST_PEPPER)).toBeNull()
+    expect(openPin(sealed, 'u1', 3, TEST_PEPPER)).toBeNull()
+    expect(openPin(sealed, 'u1', 2, `${TEST_PEPPER}-other`)).toBeNull()
+    expect(openPin('not base64 !!', 'u1', 2, TEST_PEPPER)).toBeNull()
   })
 })
 

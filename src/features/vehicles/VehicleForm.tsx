@@ -19,6 +19,7 @@ import type { Vehicle, WithId } from '@/types'
 import { assignableDrivers } from './assignable'
 import { useBlocked } from '@/features/penalties/feed'
 import { DriverPicker } from './DriverPicker'
+import { useDriverAssignments } from './useDriverAssignments'
 import { vehicleFieldsSchemaFor } from './schemas'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
@@ -59,6 +60,7 @@ function VehicleForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'
   const contractors = useContractorList(scope)
   const drivers = useDrivers(scope)
   const blocked = useBlocked(scope)
+  const takenBy = useDriverAssignments(scope, target === 'new' ? undefined : target.id)
   const blockedDrivers = useMemo(() => new Set(blocked.drivers.keys()), [blocked.drivers])
   const { vehicleTypes } = useTenantDocuments()
   const existing = target === 'new' ? null : target
@@ -216,7 +218,7 @@ function VehicleForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'
         control={control}
         name="driverIds"
         render={({ field }) => (
-          <DriverPicker drivers={allDrivers} contractorId={effectiveContractor} value={field.value} onChange={field.onChange} disabled={drivers.isPending} blockedIds={blockedDrivers} />
+          <DriverPicker drivers={allDrivers} contractorId={effectiveContractor} value={field.value} onChange={field.onChange} disabled={drivers.isPending} blockedIds={blockedDrivers} takenBy={takenBy} />
         )}
       />
 

@@ -39,7 +39,7 @@ import * as vehicles from './vehicles.js'
 import * as gatePasses from './gatePasses.js'
 import { gatePassPort } from './gatePassPort.js'
 import * as visits from './visits.js'
-import { pinThrottle, visitPort } from './visitsPort.js'
+import { visitPort } from './visitsPort.js'
 
 initializeApp()
 // `enforceAppCheck` applies to callables only (ENFORCE_APP_CHECK=true in functions/.env.<alias>, never in the emulator).
@@ -49,6 +49,7 @@ setGlobalOptions({ region: REGION, maxInstances: 10, enforceAppCheck: ENFORCE_AP
 // Drivers and security get a server-generated PIN (Module 12): the PIN functions bind the PIN_PEPPER secret.
 export const createUser = callable('createUser', core.createUser, { rateLimit: true, secrets: [PIN_PEPPER] })
 export const reissuePin = callable('reissuePin', core.reissuePin, { rateLimit: true, secrets: [PIN_PEPPER] })
+export const revealPin = callable('revealPin', core.revealPin, { rateLimit: true, secrets: [PIN_PEPPER] })
 // Module 12: PIN sign-in. Unauthenticated: throttled per hashed IP and device, one uniform failure, App Check through the
 // global flag. Returns a custom token; the client calls signInWithCustomToken.
 const pinLoginDeps = (): pinLogin.PinLoginDeps => ({
@@ -120,7 +121,7 @@ export { invalidateInspectionOnPenalty, invalidateInspectionOnVehicleExpiry, inv
 
 // Visit lifecycle (check-in, unloading check, check-out). Clients only read `visits`. Check-in resolves the driver by PIN,
 // so it binds PIN_PEPPER and keeps the gate's cold-start setting; failed PINs are throttled per guard.
-export const checkInVisit = callable('checkInVisit', (d, c, data) => visits.checkInVisit(d, visitPort(), pinThrottle(), c, data), { warm: true, rateLimit: true, secrets: [PIN_PEPPER] })
+export const checkInVisit = callable('checkInVisit', (d, c, data) => visits.checkInVisit(d, visitPort(), c, data), { warm: true, rateLimit: true })
 export const checkOutVisit = callable('checkOutVisit', (d, c, data) => visits.checkOutVisit(d, visitPort(), c, data), { warm: true })
 export const logUnloadingCheck = callable('logUnloadingCheck', (d, c, data) => visits.logUnloadingCheck(d, visitPort(), c, data))
 export const getDailySummary = callable('getDailySummary', (d, c) => visits.getDailySummary(d, visitPort(), c))

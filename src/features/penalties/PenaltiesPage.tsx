@@ -54,7 +54,7 @@ export default function PenaltiesPage({ viewer, issuePath }: Props) {
         const kind = scopeOf(p)
         return (
           <span className="block min-w-0">
-            <span className="block truncate font-medium text-brand">{targetText(p)}</span>
+            <span className="block truncate font-medium text-ink">{targetText(p)}</span>
             <span className="text-xs text-slate-600">{kind === 'both' ? t.scopeBoth : kind === 'vehicle' ? t.scopeVehicle : t.scopeDriver}</span>
           </span>
         )

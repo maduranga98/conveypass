@@ -53,7 +53,7 @@ export function CheckInSuccess({ info, next, onNext }: { info: SuccessInfo; next
         <p className="text-xl font-semibold">{t.successBy(info.guardName)}</p>
         <p className="text-xl font-semibold">{t.successGate(info.gateName)}</p>
         {info.offline && (
-          <p className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-lg font-extrabold text-brand">
+          <p className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-lg font-extrabold text-ink">
             <CloudUpload aria-hidden className="size-6" />
             {t.savedOffline}
           </p>

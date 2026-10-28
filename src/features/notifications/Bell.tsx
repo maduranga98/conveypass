@@ -14,7 +14,7 @@ const t = strings.notifications
 interface Props {
   /** Which edge of the button the panel lines up with on wide screens. Narrow screens use the full width. */
   align?: 'left' | 'right'
-  /** `dark` sits on a brand navy bar (supervisor layout). */
+  /** `dark` sits on a brand red bar (supervisor layout). */
   tone?: 'light' | 'dark'
   className?: string
 }
@@ -122,7 +122,7 @@ export function Bell({ align = 'right', tone = 'light', className }: Props) {
             )}
           </div>
           <div className="flex items-center justify-between border-t border-slate-100 px-4 py-2 text-sm">
-            <Link to="/notifications" className="inline-flex min-h-11 items-center font-medium text-brand underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-focus">
+            <Link to="/notifications" className="inline-flex min-h-11 items-center font-medium text-ink underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-focus">
               {t.seeAll}
             </Link>
             <Link to="/settings" className="inline-flex min-h-11 items-center text-slate-700 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-focus">

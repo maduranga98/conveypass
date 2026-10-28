@@ -25,7 +25,7 @@ export function NotificationItem({ item, onOpen, now }: Props) {
         />
         <span className="min-w-0 flex-1">
           {unread && <span className="sr-only">{strings.notifications.unread}: </span>}
-          <span className={cn('block text-sm text-brand', unread ? 'font-semibold' : 'font-medium')}>{item.title}</span>
+          <span className={cn('block text-sm text-ink', unread ? 'font-semibold' : 'font-medium')}>{item.title}</span>
           <span className="block text-sm text-slate-700">{item.body}</span>
           <time dateTime={item.createdAt.toISOString()} className="block pt-0.5 text-xs text-slate-600">
             {relativeTime(item.createdAt, now, strings.notifications.justNow)}

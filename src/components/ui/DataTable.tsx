@@ -61,7 +61,7 @@ export function DataTable<T>({ columns, rows, rowKey, actions, caption }: DataTa
       <ul className="space-y-3 md:hidden">
         {rows.map((row) => (
           <li key={rowKey(row)} className="space-y-3 rounded-xl border border-slate-200 bg-surface p-4">
-            <div className="font-medium text-brand">{primary?.cell(row)}</div>
+            <div className="font-medium text-ink">{primary?.cell(row)}</div>
             <dl className="space-y-1.5 text-sm">
               {secondary.map((c) => (
                 <div key={c.key} className="flex items-center justify-between gap-4">

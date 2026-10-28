@@ -236,6 +236,25 @@ describe('annual inspection', () => {
   })
 })
 
+describe('one vehicle per driver', () => {
+  it('refuses a driver who is already on another vehicle, on create and on assign', async () => {
+    await create(admin(), { driverIds: ['drv1'] })
+    await rejects(create(admin(), { plateNo: 'WP CC-1111', driverIds: ['drv1'] }), 'failed-precondition', 'driver-assigned')
+    const { vehicleId } = await create(admin(), { plateNo: 'WP CC-2222' })
+    await rejects(setVehicleDrivers(w.deps, admin(), { vehicleId, driverIds: ['drv1'] }), 'failed-precondition', 'driver-assigned')
+    expect(w.vehicles.get(vehicleId)?.assignedDriverIds).toEqual([])
+  })
+
+  it('keeps a driver on their own vehicle, and frees them once removed', async () => {
+    const { vehicleId } = await create(admin(), { driverIds: ['drv1'] })
+    await setVehicleDrivers(w.deps, admin(), { vehicleId, driverIds: ['drv1', 'drv1b'] })
+    await setVehicleDrivers(w.deps, admin(), { vehicleId, driverIds: ['drv1b'] })
+    const other = await create(admin(), { plateNo: 'WP CC-3333' })
+    await setVehicleDrivers(w.deps, admin(), { vehicleId: other.vehicleId, driverIds: ['drv1'] })
+    expect(w.vehicles.get(other.vehicleId)?.assignedDriverIds).toEqual(['drv1'])
+  })
+})
+
 describe('setVehicleDrivers', () => {
   let id: string
   beforeEach(async () => {

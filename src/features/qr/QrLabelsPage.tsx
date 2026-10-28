@@ -82,7 +82,7 @@ export default function QrLabelsPage({ scope }: { scope: Scope }) {
                           key={m.value}
                           className={cn(
                             'inline-flex h-10 cursor-pointer items-center rounded-lg border px-3 text-sm font-medium has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus',
-                            mode === m.value ? 'border-brand bg-accent-soft text-brand' : 'border-slate-300 text-slate-700 hover:bg-slate-50',
+                            mode === m.value ? 'border-brand bg-accent-soft text-ink' : 'border-slate-300 text-slate-700 hover:bg-slate-50',
                           )}
                         >
                           <input type="radio" name="mode" className="sr-only" checked={mode === m.value} onChange={() => setMode(m.value)} />
@@ -141,7 +141,7 @@ export default function QrLabelsPage({ scope }: { scope: Scope }) {
                         key={value}
                         className={cn(
                           'inline-flex h-10 cursor-pointer items-center rounded-lg border px-3 text-sm font-medium has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus',
-                          size === value ? 'border-brand bg-accent-soft text-brand' : 'border-slate-300 text-slate-700 hover:bg-slate-50',
+                          size === value ? 'border-brand bg-accent-soft text-ink' : 'border-slate-300 text-slate-700 hover:bg-slate-50',
                         )}
                       >
                         <input type="radio" name="size" className="sr-only" checked={size === value} onChange={() => setSize(value)} />

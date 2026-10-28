@@ -141,14 +141,14 @@ export function PassTable({ rows, now, today, contractorName, openId, onOpen, hr
                     </td>
                   )}
                   <td className={cn('py-2.5 pr-3', selectable ? 'pl-2' : cn('border-l-4 pl-3', isOpen ? 'border-accent' : 'border-transparent'))}>
-                    <p className="whitespace-nowrap text-base font-bold tracking-tight text-brand">{p.plateNo}</p>
+                    <p className="whitespace-nowrap text-base font-bold tracking-tight text-ink">{p.plateNo}</p>
                     <p className="text-xs text-slate-600">{p.vehicleType}{p.attempt > 1 ? ` · ${c.card.attempt(p.attempt)}` : ''}</p>
                   </td>
                   <td className="px-3 py-2.5 font-medium text-slate-800">{contractorName(p.contractorId)}</td>
                   <td className="px-3 py-2.5 text-slate-800">{p.driverName}</td>
                   <td className="whitespace-nowrap px-3 py-2.5" title={formatTime(since)}>
                     {overdue ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-brand">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-ink">
                         <Clock aria-hidden className="size-3.5" />
                         <span className="sr-only">{c.card.overdue}: </span>
                         {timeAgo(since, now)}

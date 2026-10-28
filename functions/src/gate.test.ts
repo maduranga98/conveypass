@@ -76,6 +76,18 @@ describe('checkIn: success', () => {
       meta: { gateId: 'north', requestId: R1, offline: false, attempt: 1 },
     })
   })
+  it('opens the day’s first gate visit with the pass check-in (an id derived from the request, so a replay finds it)', async () => {
+    seed('officer_approved')
+    await doCheckIn()
+    const [id, visit] = [...w.openedVisits][0] as [string, import('./types.js').VisitData]
+    expect(id).toBe('vis_1111111111')
+    expect(visit).toMatchObject({
+      tenantId: 'T1', vehicleId: VID, passId: pid(), driverId: 'drv1', driverName: 'Dan Driver', plateNo: 'WP LJ-4821', status: 'checked_in',
+      driverOnDutyLock: true, checkOut: null, checkIn: { timestamp: NOW_MS, dateKey: DAY, securityUserId: 'sec', gateId: 'main', requestId: R1 },
+    })
+    await doCheckIn() // the same request again: nothing new is opened
+    expect(w.openedVisits.size).toBe(1)
+  })
   it('uses the default Main Gate when the tenant has no gates configured', async () => {
     w.tenants.set('T1', { timezone: 'Asia/Colombo' })
     seed('officer_approved')

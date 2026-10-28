@@ -67,6 +67,7 @@ const call = <Req, Res>(name: string, timeout?: number) => {
 /** `pin` is set for drivers and security (Module 12) and appears in this one response only: show it once, never store it. */
 export const createUser = call<CreateUserPayload, { uid: string; pin?: string }>('createUser')
 export const reissuePin = call<{ uid: string }, { pin: string }>('reissuePin', 30_000)
+export const revealPin = call<{ uid: string }, { pin: string }>('revealPin', 30_000)
 /** Unauthenticated. Every failure is one error (`pin-invalid`), with `retryAfterSeconds` while this IP or device is locked. */
 export const loginWithPin = call<{ pin: string; deviceId: string }, { token: string }>('loginWithPin', 30_000)
 export const updateUser = call<UpdateUserPayload, { ok: true }>('updateUser')

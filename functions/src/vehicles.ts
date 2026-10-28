@@ -8,7 +8,7 @@ import {
   VehicleIdTakenError,
   type Deps,
 } from './core.js'
-import { fail } from './errors.js'
+import { fail, failWith } from './errors.js'
 import { normalisePlate } from './plate.js'
 import {
   createVehicleSchema,
@@ -69,6 +69,15 @@ async function assertDriversAssignable(
     }
   }
   return unique
+}
+
+/** A driver drives one vehicle: anyone in `driverIds` who is not already on `current` must not be assigned to another vehicle. */
+async function assertDriversFree(deps: Deps, tenantId: string, driverIds: string[], currentVehicleId?: string, current: readonly string[] = []): Promise<void> {
+  const added = driverIds.filter((id) => !current.includes(id))
+  if (added.length === 0) return
+  const taken = await deps.data.findDriverAssignments({ tenantId, driverIds: added, exceptVehicleId: currentVehicleId })
+  const first = added.map((id) => taken.get(id)).find((t) => t !== undefined)
+  if (first) throw failWith('failed-precondition', 'driver-assigned', 'This driver is already assigned to another vehicle', { plateNo: first.plateNo })
 }
 
 function assertKnownType(allowed: readonly string[], type: string): void {
@@ -136,6 +145,7 @@ export async function createVehicle(
   const plate = normalisePlate(input.plateNo)
   if (!plate) throw fail('invalid-argument', 'invalid-input', 'Invalid plate number')
   const assignedDriverIds = await assertDriversAssignable(deps, caller.tenantId, contractorId, input.driverIds ?? [])
+  await assertDriversFree(deps, caller.tenantId, assignedDriverIds)
   const ctx = await eligibilityContext(deps, caller.tenantId)
   assertKnownType(effectiveVehicleTypes(ctx.tenant?.vehicleTypes), input.type)
   if (assignedDriverIds.length > 0) assertAnnualInspectionValid(input, ctx.today, ctx.warningDays)
@@ -257,6 +267,7 @@ export async function setVehicleDrivers(deps: Deps, caller: Caller, raw: unknown
 
   // A driver under an active penalty cannot be newly assigned (the screen disables them too). Keeping or removing one is fine.
   const added = assignedDriverIds.filter((id) => !vehicle.assignedDriverIds.includes(id))
+  await assertDriversFree(deps, vehicle.tenantId, assignedDriverIds, input.vehicleId, vehicle.assignedDriverIds)
   if (added.length > 0) {
     const ctx = await eligibilityContext(deps, vehicle.tenantId)
     assertAnnualInspectionValid(vehicle, ctx.today, ctx.warningDays)

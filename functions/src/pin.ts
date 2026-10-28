@@ -1,7 +1,7 @@
 // PIN sign-in for drivers and security (Module 12). Pure (node:crypto only, no firebase imports): the operator scripts
-// import it too. A PIN is NEVER stored, logged or returned except in the one response of the function that issued it;
-// what is stored is `pinIndex/{pinKey(pin, pepper)}`, an HMAC-SHA256 under the PIN_PEPPER secret.
-import { createHmac, randomInt } from 'node:crypto'
+// import it too. A PIN is NEVER logged and never stored in the clear: `pinIndex/{pinKey(pin, pepper)}` is an HMAC-SHA256 under the
+// PIN_PEPPER secret, and a sealed (encrypted) copy in `pinVault/{uid}` is opened only by `revealPin` (end of this file).
+import { createCipheriv, createDecipheriv, createHmac, hkdfSync, randomBytes, randomInt } from 'node:crypto'
 
 export const PIN_LENGTH = 8
 
@@ -80,3 +80,35 @@ export const pinKey = (pin: string, pepper: string): string => createHmac('sha25
  */
 export const identifierKey = (kind: 'ip' | 'dev', value: string, pepper: string): string =>
   createHmac('sha256', assertPepper(pepper)).update(`${kind}:${value}`, 'utf8').digest('hex').slice(0, 32)
+
+// ---- Viewable PIN (admin/supervisor "Show PIN") -------------------------------------------------------------------
+// A copy of each issued PIN is kept ONLY sealed (AES-256-GCM) in `pinVault/{uid}`: no client can read that collection, the
+// key is derived from PIN_PEPPER (a different HKDF label from the HMACs above), and the uid and PIN version are bound as
+// authenticated data so a sealed value cannot be moved to another account or survive a reissue. Opened only by `revealPin`.
+
+const vaultKey = (pepper: string): Buffer => Buffer.from(hkdfSync('sha256', assertPepper(pepper), 'convoypass', 'pin-vault-v1', 32))
+const vaultAad = (uid: string, version: number): Buffer => Buffer.from(`pinVault:${uid}:${version}`, 'utf8')
+
+/** base64(iv | tag | ciphertext). */
+export function sealPin(pin: string, uid: string, version: number, pepper: string): string {
+  const iv = randomBytes(12)
+  const cipher = createCipheriv('aes-256-gcm', vaultKey(pepper), iv)
+  cipher.setAAD(vaultAad(uid, version))
+  const ct = Buffer.concat([cipher.update(pin, 'utf8'), cipher.final()])
+  return Buffer.concat([iv, cipher.getAuthTag(), ct]).toString('base64')
+}
+
+/** The PIN, or null when the value was sealed for another account/version, under another pepper, or was altered. */
+export function openPin(sealed: string, uid: string, version: number, pepper: string): string | null {
+  try {
+    const raw = Buffer.from(sealed, 'base64')
+    if (raw.length < 12 + 16 + 1) return null
+    const decipher = createDecipheriv('aes-256-gcm', vaultKey(pepper), raw.subarray(0, 12))
+    decipher.setAAD(vaultAad(uid, version))
+    decipher.setAuthTag(raw.subarray(12, 28))
+    const pin = Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]).toString('utf8')
+    return normalisePin(pin)
+  } catch {
+    return null
+  }
+}

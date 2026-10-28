@@ -54,7 +54,7 @@ export function GatePassSection({ scope, field, id, overviewPath }: Props) {
         </ul>
       )}
       {overviewPath && (
-        <Link to={overviewPath} className="text-sm font-medium text-brand underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
+        <Link to={overviewPath} className="text-sm font-medium text-ink underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
           {t.nav}
         </Link>
       )}

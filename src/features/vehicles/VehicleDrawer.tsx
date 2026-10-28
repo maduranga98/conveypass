@@ -26,6 +26,7 @@ import type { Scope } from '@/features/shared/scope'
 import type { Vehicle, WithId } from '@/types'
 import { assignableDrivers } from './assignable'
 import { DriverPicker } from './DriverPicker'
+import { useDriverAssignments } from './useDriverAssignments'
 
 const t = strings.vehicles.drawer
 
@@ -50,6 +51,7 @@ function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'veh
   const queryClient = useQueryClient()
   const drivers = useDrivers(scope)
   const blocked = useBlocked(scope)
+  const takenBy = useDriverAssignments(scope, vehicle.id)
   const blockedDrivers = useMemo(() => new Set(blocked.drivers.keys()), [blocked.drivers])
   const all = useMemo(() => drivers.data?.items ?? [], [drivers.data])
   const names = useMemo(() => new Map(all.map((d) => [d.id, d])), [all])
@@ -144,7 +146,7 @@ function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'veh
         </div>
         {editing ? (
           <div className="space-y-3">
-            <DriverPicker drivers={all} contractorId={vehicle.contractorId} value={picked} onChange={setPicked} disabled={saving} blockedIds={blockedDrivers} />
+            <DriverPicker drivers={all} contractorId={vehicle.contractorId} value={picked} onChange={setPicked} disabled={saving} blockedIds={blockedDrivers} takenBy={takenBy} />
             <div className="flex justify-end gap-2">
               <Button variant="secondary" size="sm" onClick={() => setEditing(false)} disabled={saving}>
                 {strings.common.cancel}

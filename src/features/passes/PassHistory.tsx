@@ -33,7 +33,7 @@ export function PassHistory({ pass }: { pass: Pick<PassDoc, 'history' | 'rejecti
         <ol className="space-y-2 border-l-2 border-slate-200 pl-4">
           {history.map((h, i) => (
             <li key={i} className="text-sm">
-              <p className="font-medium text-brand">
+              <p className="font-medium text-ink">
                 {t.info.stage[h.stage]}: {VERB[h.action]} · {strings.admin.passes.attemptN(h.attempt)}
               </p>
               <p className="text-slate-600">{h.byName} ({strings.roles[h.byRole as keyof typeof strings.roles] ?? h.byRole}) · {formatDateTime(toMs(h.at))}</p>

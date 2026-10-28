@@ -41,13 +41,13 @@ export function PassTimeline({ status, tone = 'neutral', pass }: { status: PassS
                 complete
                   ? tone === 'success' ? 'border-on-solid bg-surface text-success-strong' : 'border-success bg-success text-on-solid'
                   : current
-                    ? tone === 'success' ? 'border-on-solid bg-transparent text-on-solid' : 'border-brand bg-surface text-brand'
+                    ? tone === 'success' ? 'border-on-solid bg-transparent text-on-solid' : 'border-brand bg-surface text-ink'
                     : tone === 'success' ? 'border-on-solid/70 text-on-solid' : 'border-slate-500 bg-surface text-slate-700',
               )}
             >
               {complete ? <Check aria-hidden className="size-4" /> : i + 1}
             </span>
-            <span className={cn('text-xs font-semibold', tone === 'success' ? 'text-on-solid' : complete ? 'text-brand' : 'text-slate-500')}>
+            <span className={cn('text-xs font-semibold', tone === 'success' ? 'text-on-solid' : complete ? 'text-ink' : 'text-slate-500')}>
               {label}
               <span className="sr-only">{complete ? ' (done)' : current ? ' (waiting)' : ''}</span>
             </span>

@@ -32,7 +32,7 @@ export default function VisitDetailPage({ scope }: { scope: Scope }) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
-      <Link to={back} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-slate-700 hover:text-brand">
+      <Link to={back} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-slate-700 hover:text-ink">
         <ArrowLeft aria-hidden className="size-4" />
         {t.back}
       </Link>
@@ -51,7 +51,7 @@ export default function VisitDetailPage({ scope }: { scope: Scope }) {
       ) : (
         <>
           <header className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-brand">{v.plateNo}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-ink">{v.plateNo}</h1>
             <p className="text-sm text-slate-700">{t.title} · {dateTime(v.checkIn.timestamp.toMillis())}</p>
           </header>
 
@@ -62,19 +62,19 @@ export default function VisitDetailPage({ scope }: { scope: Scope }) {
           <dl className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-surface p-4 text-sm">
             <div>
               <dt className="text-slate-600">{t.vehicle}</dt>
-              <dd className="font-semibold text-brand">
+              <dd className="font-semibold text-ink">
                 <Link to={`/${scope}/vehicles`} className="underline-offset-2 hover:underline">{v.plateNo}</Link>
               </dd>
             </div>
             <div>
               <dt className="text-slate-600">{t.driver}</dt>
-              <dd className="font-semibold text-brand">
+              <dd className="font-semibold text-ink">
                 <Link to={`/${scope}/drivers`} className="underline-offset-2 hover:underline">{v.driverName}</Link>
               </dd>
             </div>
             <div>
               <dt className="text-slate-600">{t.duration}</dt>
-              <dd className="font-semibold text-brand">{spent ? strings.visits.onSiteFor(spent.hours, spent.minutes) : strings.common.none}</dd>
+              <dd className="font-semibold text-ink">{spent ? strings.visits.onSiteFor(spent.hours, spent.minutes) : strings.common.none}</dd>
             </div>
             <div>
               <dt className="text-slate-600">{t.unloading}</dt>
@@ -83,7 +83,7 @@ export default function VisitDetailPage({ scope }: { scope: Scope }) {
           </dl>
 
           <section className="rounded-xl border border-slate-200 bg-surface p-4">
-            <h2 className="mb-4 text-base font-semibold text-brand">{t.timeline}</h2>
+            <h2 className="mb-4 text-base font-semibold text-ink">{t.timeline}</h2>
             <VisitTimeline visit={v} />
           </section>
         </>

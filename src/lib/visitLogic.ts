@@ -51,3 +51,11 @@ export const SUMMARY_BY_ROLE: Record<string, readonly SummaryMetric[]> = {
 }
 
 export const summaryMetricsFor = (role: string): readonly SummaryMetric[] => SUMMARY_BY_ROLE[role] ?? []
+
+/**
+ * Gate time: a vehicle may enter and leave as often as it likes until `hours` have passed since its FIRST check-in of the
+ * day (the pass check-in). After that no new entry is accepted; a check-out is always accepted. `hours` is the company's
+ * dwell limit (`dwellLimitHoursOf`, default 16).
+ */
+export const gateTimeEndsAt = (firstCheckInMs: number, hours: number): number => dwellDueAt(firstCheckInMs, hours)
+export const withinGateTime = (firstCheckInMs: number, nowMs: number, hours: number): boolean => nowMs < gateTimeEndsAt(firstCheckInMs, hours)

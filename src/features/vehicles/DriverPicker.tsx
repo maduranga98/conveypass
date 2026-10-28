@@ -13,17 +13,21 @@ interface Props {
   disabled?: boolean
   /** Drivers an active penalty blocks right now: they cannot be newly picked (one already picked can still be cleared). */
   blockedIds?: ReadonlySet<string>
+  /** driverId -> plate of the vehicle they already drive. Such a driver cannot be picked here until removed from that vehicle. */
+  takenBy?: ReadonlyMap<string, string>
 }
 
-export function DriverPicker({ drivers, contractorId, value, onChange, disabled, blockedIds }: Props) {
+export function DriverPicker({ drivers, contractorId, value, onChange, disabled, blockedIds, takenBy }: Props) {
   const options = assignableDrivers(drivers, contractorId)
   return (
     <CheckList
       legend={strings.vehicles.form.drivers}
       options={options.map((d) => {
         const blocked = blockedIds?.has(d.id) === true
-        const hint = blocked ? strings.penalties.blockedByPenalty : d.phone ? formatPhone(d.phone) : undefined
-        return { id: d.id, label: d.name, ...(hint ? { hint } : {}), ...(blocked && !value.includes(d.id) ? { disabled: true } : {}) }
+        const taken = takenBy?.get(d.id)
+        const hint = blocked ? strings.penalties.blockedByPenalty : taken ? strings.vehicles.form.driverTaken(taken) : d.phone ? formatPhone(d.phone) : undefined
+        const locked = (blocked || taken !== undefined) && !value.includes(d.id)
+        return { id: d.id, label: d.name, ...(hint ? { hint } : {}), ...(locked ? { disabled: true } : {}) }
       })}
       value={value}
       onChange={onChange}

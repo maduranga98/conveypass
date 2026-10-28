@@ -27,7 +27,7 @@ function Section({ title, to, count, children }: { title: string; to?: string; c
           {title} <span className="font-normal text-slate-600">{count}</span>
         </h2>
         {to && count > PREVIEW && (
-          <Link to={to} className="rounded text-sm text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
+          <Link to={to} className="rounded text-sm text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
             {t.viewAll}
           </Link>
         )}
@@ -52,7 +52,7 @@ export default function ContractorDetailPage() {
   const mySupervisors = useMemo(() => (supervisors.data ?? []).filter((u) => u.contractorId === contractorId), [supervisors.data, contractorId])
 
   const back = (
-    <Link to="/admin/contractors" className="inline-flex items-center gap-1.5 rounded text-sm text-slate-500 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
+    <Link to="/admin/contractors" className="inline-flex items-center gap-1.5 rounded text-sm text-slate-500 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
       <ArrowLeft aria-hidden className="size-4" />
       {t.back}
     </Link>
@@ -121,7 +121,7 @@ export default function ContractorDetailPage() {
           {rows.map(([label, value]) => (
             <div key={label} className="flex justify-between gap-6 px-4 py-3">
               <dt className="shrink-0 text-slate-500">{label}</dt>
-              <dd className="min-w-0 text-right text-brand">{value}</dd>
+              <dd className="min-w-0 text-right text-ink">{value}</dd>
             </div>
           ))}
         </dl>

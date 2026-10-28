@@ -43,7 +43,7 @@ function printCard(): void {
 export function PrintableCard({ issued }: { issued: IssuedPin }) {
   const url = appUrl()
   return createPortal(
-    <div id="pin-print" data-testid="pin-print" className="hidden text-brand">
+    <div id="pin-print" data-testid="pin-print" className="hidden text-ink">
       <p className="text-sm font-semibold uppercase tracking-wide">{issued.company}</p>
       <p className="mt-1 text-xs">{t.printHeading}</p>
       <p className="mt-4 text-2xl font-bold">{issued.name}</p>
@@ -66,7 +66,7 @@ export function PrintableCard({ issued }: { issued: IssuedPin }) {
  */
 export function PinCardModal({ issued, onDone }: { issued: IssuedPin | null; onDone: () => void }) {
   return (
-    <Modal open={issued !== null} onClose={onDone} dismissible={false} title={issued?.reissued ? t.reissuedTitle : t.title}>
+    <Modal open={issued !== null} onClose={onDone} dismissible={false} title={issued?.viewed ? t.viewedTitle : issued?.reissued ? t.reissuedTitle : t.title}>
       {issued && <PinCard issued={issued} onDone={onDone} />}
     </Modal>
   )
@@ -89,10 +89,10 @@ export function PinCard({ issued, onDone }: { issued: IssuedPin; onDone: () => v
 
   return (
     <div className="space-y-5">
-      <p className="rounded-lg bg-warning-soft px-3 py-2.5 text-sm text-warning-ink">{t.warning}</p>
+      <p className="rounded-lg bg-warning-soft px-3 py-2.5 text-sm text-warning-ink">{issued.viewed ? t.viewedWarning : t.warning}</p>
       <div className="rounded-xl border-2 border-brand p-4 text-center">
         <p className="text-sm font-medium text-slate-600">{t.pinLabel}</p>
-        <p data-testid="pin-value" className="font-mono text-5xl font-extrabold tracking-widest text-brand">
+        <p data-testid="pin-value" className="font-mono text-5xl font-extrabold tracking-widest text-ink">
           {formatPin(issued.pin)}
         </p>
       </div>
@@ -116,7 +116,7 @@ export function PinCard({ issued, onDone }: { issued: IssuedPin; onDone: () => v
           href={whatsAppShareLink(message)}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-surface px-4 text-sm font-medium text-brand transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-surface px-4 text-sm font-medium text-ink transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
           <MessageCircle aria-hidden className="size-4" />
           {t.whatsapp}
@@ -126,7 +126,7 @@ export function PinCard({ issued, onDone }: { issued: IssuedPin; onDone: () => v
         </Button>
       </div>
       <Button className="w-full" onClick={onDone}>
-        {t.confirm}
+        {issued.viewed ? strings.common.close : t.confirm}
       </Button>
       <PrintableCard issued={issued} />
     </div>

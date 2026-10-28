@@ -1,5 +1,6 @@
 import { buildContractorActivity } from './contractorActivity.js'
 import { buildGateLog } from './gateLog.js'
+import { buildGatePasses } from './gatePasses.js'
 import { buildHistory } from './history.js'
 import { buildRejections } from './rejections.js'
 import { buildTurnaround } from './turnaround.js'
@@ -15,6 +16,8 @@ export function buildReport(input: ReportInput): ReportResult {
     switch (input.type) {
       case 'gate_log':
         return buildGateLog(input)
+      case 'gate_passes':
+        return buildGatePasses(input)
       case 'contractor_activity':
         return buildContractorActivity(input)
       case 'turnaround':

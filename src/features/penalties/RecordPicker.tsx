@@ -58,7 +58,7 @@ export function RecordPicker({ legend, searchLabel, options, value, onChange, em
                   className="size-4 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium text-brand">{o.label}</span>
+                  <span className="block truncate font-medium text-ink">{o.label}</span>
                   {o.hint && <span className="block truncate text-xs text-slate-600">{o.hint}</span>}
                 </span>
                 {o.flag && <span className="shrink-0 text-xs font-medium text-danger-strong">{o.flag}</span>}

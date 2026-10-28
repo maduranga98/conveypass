@@ -44,7 +44,7 @@ export function PassRow({ pass, now, today, to, active = false, overdue = false,
       </div>
       <div className="min-w-0 flex-1">
         <p className="flex items-baseline gap-2">
-          <span className="truncate text-base font-bold tracking-tight text-brand">{pass.plateNo}</span>
+          <span className="truncate text-base font-bold tracking-tight text-ink">{pass.plateNo}</span>
           {pass.attempt > 1 && <span className="shrink-0 text-xs font-medium text-slate-600">{c.attempt(pass.attempt)}</span>}
         </p>
         <p className="truncate text-sm text-slate-600">{pass.vehicleType} · {pass.driverName}</p>
@@ -54,7 +54,7 @@ export function PassRow({ pass, now, today, to, active = false, overdue = false,
         {showStatus ? (
           <PassStatusBadge status={displayStatus(pass, today)} />
         ) : overdue ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-brand">
+          <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-ink">
             <Clock aria-hidden className="size-3.5" />
             <span className="sr-only">{c.overdue}: </span>
             {waited}

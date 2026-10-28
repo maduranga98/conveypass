@@ -226,6 +226,10 @@ service cloud.firestore {
     match /pinAttempts/{id} {
       allow read, write: if false;
     }
+    // Sealed (encrypted) copy of each current PIN for "Show PIN": opened only by the `revealPin` function.
+    match /pinVault/{id} {
+      allow read, write: if false;
+    }
 
     // Setup invites (Module 8): `setupInvites/{sha256hex(code)}`. Cloud Functions and operator scripts only; no client
     // can read, list, create, update or delete one (not even an admin), so a hash can never be probed from a browser.

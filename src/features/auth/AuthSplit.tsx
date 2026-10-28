@@ -11,7 +11,7 @@ const highlights = [
 ]
 
 /**
- * Shared frame for the two sign-in screens. Below `lg` it is a single, centred column; from `lg` up a navy brand panel
+ * Shared frame for the two sign-in screens. Below `lg` it is a single, centred column; from `lg` up a red brand panel
  * sits beside the form, so a laptop at the gate house or an office desk does not show a lonely card in a white void.
  */
 export function AuthSplit({ children, className }: { children: ReactNode; className?: string }) {
@@ -50,7 +50,7 @@ export function AuthHeading({ title, subtitle, compact }: { title: string; subti
   return (
     <header className={cn('flex flex-col items-center text-center lg:items-start lg:text-left', compact ? 'gap-1' : 'gap-2')}>
       <BrandMark className={cn('rounded-2xl lg:hidden', compact ? 'mb-1 size-12' : 'mb-2 size-16')} />
-      <h1 className={cn('font-extrabold tracking-tight text-brand', compact ? 'text-2xl sm:text-3xl' : 'text-3xl')}>{title}</h1>
+      <h1 className={cn('font-extrabold tracking-tight text-ink', compact ? 'text-2xl sm:text-3xl' : 'text-3xl')}>{title}</h1>
       {subtitle && <p className="text-base text-slate-600">{subtitle}</p>}
     </header>
   )

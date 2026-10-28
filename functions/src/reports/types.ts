@@ -7,6 +7,7 @@ export const REPORT_TYPES = [
   'rejections',
   'vehicle_history',
   'driver_history',
+  'gate_passes',
 ] as const
 export type ReportType = (typeof REPORT_TYPES)[number]
 
@@ -36,6 +37,18 @@ export interface ReportPass {
 }
 
 export type ReportEvent = GateEventData & { id: string }
+
+/** One gate visit (one in, and its out) as the gate pass report sees it. Times are milliseconds. */
+export interface ReportVisit {
+  id: string
+  /** The daily pass it belongs to; absent on visits that predate multiple entries per day. */
+  passId?: string
+  vehicleId: string
+  /** `YYYYMMDD` of the check-in. */
+  dateKey: string
+  checkInAt: number
+  checkOutAt: number | null
+}
 
 export type CellValue = string | number | boolean | null
 
@@ -97,6 +110,10 @@ export interface ReportInput {
   type: ReportType
   passes: readonly ReportPass[]
   events: readonly ReportEvent[]
+  /** Gate visits of the range (only the gate pass report reads them). */
+  visits: readonly ReportVisit[]
+  /** The gate time in hours (the company's dwell limit, default 16): a pass's entries end this long after its first check-in. */
+  gateTimeHours: number
   contractorNames: ReadonlyMap<string, string>
   /** Rejection reason code -> label (the tenant's list, or the defaults). */
   reasonLabels: ReadonlyMap<string, string>

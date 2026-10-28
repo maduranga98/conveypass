@@ -77,7 +77,7 @@ export default function CheckOutPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4 py-5">
-      <h1 className="text-3xl font-black tracking-tight text-brand">{t.title}</h1>
+      <h1 className="text-3xl font-black tracking-tight text-ink">{t.title}</h1>
 
       <button
         type="button"
@@ -134,7 +134,7 @@ export default function CheckOutPage() {
                   className="flex min-h-20 w-full items-center gap-3 rounded-2xl border-2 border-slate-200 bg-surface px-4 py-3 text-left hover:border-slate-400 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block text-2xl leading-tight font-black tracking-tight text-brand">{v.plateNo}</span>
+                    <span className="block text-2xl leading-tight font-black tracking-tight text-ink">{v.plateNo}</span>
                     <span className="block text-base font-semibold text-slate-700">{v.driverName}</span>
                     <span className="block text-sm text-slate-700">{strings.visits.onSiteFor(e.hours, e.minutes)} · {strings.visits.since(clock(v.checkIn.timestamp.toMillis()))}</span>
                   </span>
@@ -158,7 +158,7 @@ export default function CheckOutPage() {
         variant="sheet"
         footer={
           <div className="grid w-full grid-cols-2 gap-3">
-            <button type="button" disabled={busy} onClick={() => setPick(null)} className="h-16 rounded-2xl border-2 border-slate-300 text-xl font-bold text-brand focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:opacity-50">
+            <button type="button" disabled={busy} onClick={() => setPick(null)} className="h-16 rounded-2xl border-2 border-slate-300 text-xl font-bold text-ink focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:opacity-50">
               {t.cancel}
             </button>
             <button type="button" disabled={busy} onClick={() => void confirm()} className="h-16 rounded-2xl bg-brand text-xl font-black text-on-solid hover:bg-brand-hover focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:opacity-50">
@@ -169,7 +169,7 @@ export default function CheckOutPage() {
       >
         {pick && (
           <div className="space-y-3">
-            <p className="text-4xl leading-tight font-black tracking-tight text-brand">{pick.plateNo}</p>
+            <p className="text-4xl leading-tight font-black tracking-tight text-ink">{pick.plateNo}</p>
             <p className="text-xl font-semibold text-slate-800">{pick.driverName}</p>
             <UnloadChip visit={pick} />
             {pick.unloadingCheck === null && <NotificationBanner tone="warning" size="lg">{t.unloadingMissing}</NotificationBanner>}

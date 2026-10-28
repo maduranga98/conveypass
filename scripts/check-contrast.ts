@@ -34,8 +34,8 @@ const MIN: Record<Kind, number> = { text: 4.5, large: 3, ui: 3 }
 
 /** [foreground token, background token, what it is, kind] */
 const PAIRS: [string, string, string, Kind][] = [
-  ['brand', 'surface', 'Body text on white', 'text'],
-  ['brand', 'slate-50', 'Body text on the page background', 'text'],
+  ['ink', 'surface', 'Body text on white', 'text'],
+  ['ink', 'slate-50', 'Body text on the page background', 'text'],
   ['slate-700', 'surface', 'Secondary text', 'text'],
   ['slate-600', 'surface', 'Muted text', 'text'],
   ['slate-600', 'slate-50', 'Muted text on the page background', 'text'],
@@ -43,9 +43,9 @@ const PAIRS: [string, string, string, Kind][] = [
   ['slate-500', 'slate-50', 'Hint text on the page background', 'text'],
   ['on-solid', 'brand', 'Primary button', 'text'],
   ['on-solid', 'brand-hover', 'Primary button (hover)', 'text'],
-  ['brand', 'accent', 'Text on amber (gate "pending", counters)', 'text'],
-  ['brand', 'accent-hover', 'Text on amber (hover)', 'text'],
-  ['brand', 'accent-soft', 'Active navigation, selected card', 'text'],
+  ['ink', 'accent', 'Text on amber (gate "pending", counters)', 'text'],
+  ['ink', 'accent-hover', 'Text on amber (hover)', 'text'],
+  ['ink', 'accent-soft', 'Active navigation, selected card', 'text'],
   ['on-solid', 'success-strong', 'Approved / checked in (gate, driver, officer)', 'text'],
   ['on-solid', 'success-hover', 'Approve button (hover)', 'text'],
   ['success-strong', 'success-soft', 'Success badge and notice', 'text'],
@@ -61,7 +61,7 @@ const PAIRS: [string, string, string, Kind][] = [
   ['warning-strong', 'surface', 'Warning text on white', 'text'],
   ['warning-ink', 'warning-soft', 'Warning banner', 'text'],
   ['warning-ink', 'accent-soft', 'Warning banner (stronger fill)', 'text'],
-  ['brand', 'warning-soft', 'Gate notice', 'text'],
+  ['ink', 'warning-soft', 'Gate notice', 'text'],
   ['slate-300', 'brand', 'Supervisor sidebar and top bar: secondary text', 'text'],
   ['on-solid', 'brand-hover', 'Supervisor sidebar item (hover)', 'text'],
   // Non-text: icons, borders, rings and the thin parts of controls.
@@ -72,8 +72,8 @@ const PAIRS: [string, string, string, Kind][] = [
   ['warning', 'surface', 'Warning icon', 'ui'],
   ['slate-500', 'surface', 'Unchecked control border', 'ui'],
   ['brand', 'surface', 'Switch / checkbox on', 'ui'],
-  ['on-solid', 'brand', 'Focus ring on the navy bars', 'ui'],
-  ['accent', 'brand', 'Active item and badges on the navy sidebar', 'ui'],
+  ['on-solid', 'brand', 'Focus ring on the red bars', 'ui'],
+  ['accent', 'brand', 'Active item and badges on the red sidebar', 'ui'],
 ]
 
 let failed = 0

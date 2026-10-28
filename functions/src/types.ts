@@ -419,6 +419,8 @@ export interface InspectionData {
 export interface VisitData {
   tenantId: string
   vehicleId: string
+  /** The daily pass (`{vehicleId}_{dateKey}`) this movement belongs to. Absent on visits that predate multiple entries per day. */
+  passId?: string
   driverId: string
   contractorId: string
   plateNo: string

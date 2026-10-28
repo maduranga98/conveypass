@@ -235,7 +235,7 @@ function SettingsForm({ tenant, tenantId }: { tenant: Tenant | null; tenantId: s
                 tabIndex={active ? 0 : -1}
                 onClick={() => selectTab(id)}
                 onKeyDown={(e) => onTabKey(e, index)}
-                className={`-mb-px flex min-h-11 items-center gap-2 border-b-2 px-4 text-sm font-medium outline-offset-[-2px] focus-visible:outline-2 focus-visible:outline-focus ${active ? 'border-accent text-brand' : 'border-transparent text-slate-500 hover:text-brand'}`}
+                className={`-mb-px flex min-h-11 items-center gap-2 border-b-2 px-4 text-sm font-medium outline-offset-[-2px] focus-visible:outline-2 focus-visible:outline-focus ${active ? 'border-accent text-ink' : 'border-transparent text-slate-500 hover:text-ink'}`}
               >
                 {t.tabs[id]}
                 {touched && tabProblem[id] && (

@@ -23,7 +23,7 @@ const segment = (selected: boolean, tone: 'yes' | 'no') =>
       ? tone === 'yes'
         ? 'border-success-strong bg-success-strong text-on-solid'
         : 'border-danger-strong bg-danger-strong text-on-solid'
-      : 'border-slate-400 bg-surface text-brand hover:bg-slate-100',
+      : 'border-slate-400 bg-surface text-ink hover:bg-slate-100',
   )
 
 export function ChecklistBlock({ items, answers, onChange, onAllOk, disabled }: Props) {

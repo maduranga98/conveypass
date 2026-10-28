@@ -52,11 +52,11 @@ export default function VerificationQueuePage() {
             onClick={() => setTab(id)}
             className={cn(
               'h-9 rounded-md px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-focus pointer-coarse:h-11',
-              tab === id ? 'bg-surface text-brand shadow-sm' : 'text-slate-700',
+              tab === id ? 'bg-surface text-ink shadow-sm' : 'text-slate-700',
             )}
           >
             {t.review[id]}
-            {id === 'awaiting' && awaiting.waiting.length > 0 && <span className="ml-2 rounded-full bg-accent px-1.5 text-xs font-bold text-brand">{awaiting.waiting.length}</span>}
+            {id === 'awaiting' && awaiting.waiting.length > 0 && <span className="ml-2 rounded-full bg-accent px-1.5 text-xs font-bold text-ink">{awaiting.waiting.length}</span>}
           </button>
         ))}
       </div>
@@ -91,7 +91,7 @@ function Card({ penalty: p, tz, now, onOpen }: { penalty: PenaltyRow; tz: string
       {p.evidencePhotoPath && <PenaltyPhoto path={p.evidencePhotoPath} className="size-16 shrink-0" />}
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="truncate font-medium text-brand">{targetText(p)}</span>
+          <span className="truncate font-medium text-ink">{targetText(p)}</span>
           <PenaltyStatusBadge status={statusOf(p, now)} />
         </div>
         <p className="text-sm text-slate-700">

@@ -38,8 +38,8 @@ function StatusChip({ chip }: { chip: Chip }) {
       className={cn(
         'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-sm font-extrabold',
         chip === 'approved' && 'bg-success-strong text-on-solid',
-        chip === 'checked_in' && 'bg-slate-200 text-brand',
-        chip === 'pending' && 'bg-accent text-brand',
+        chip === 'checked_in' && 'bg-slate-200 text-ink',
+        chip === 'pending' && 'bg-accent text-ink',
         chip === 'none' && 'border-2 border-danger-strong text-danger-ink',
       )}
     >
@@ -58,7 +58,7 @@ function Card({ to, plateNo, sub, line, chip }: { to: string; plateNo: string; s
         className="flex min-h-16 items-center gap-3 rounded-2xl border-2 border-slate-200 bg-surface px-4 py-3 hover:border-slate-400 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
         <div className="min-w-0 flex-1">
-          <p className="text-2xl leading-tight font-black tracking-tight text-brand">{plateNo}</p>
+          <p className="text-2xl leading-tight font-black tracking-tight text-ink">{plateNo}</p>
           <p className="text-sm font-semibold text-slate-700">{sub}</p>
           {line && <p className="text-sm text-slate-700">{line}</p>}
         </div>
@@ -137,22 +137,18 @@ export default function GateHome() {
         </button>
 
         <nav aria-label={strings.visits.gate.menuHint} className="grid grid-cols-2 gap-3">
-          <Link to="/security/visit/check-in" className="flex h-20 items-center justify-center gap-2 rounded-2xl border-2 border-brand bg-surface px-2 text-lg font-black text-brand hover:bg-slate-100 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus">
-            <LogIn aria-hidden className="size-7 shrink-0" />
-            {strings.visits.gate.menuCheckIn}
-          </Link>
-          <Link to="/security/visit/check-out" className="flex h-20 items-center justify-center gap-2 rounded-2xl border-2 border-brand bg-surface px-2 text-lg font-black text-brand hover:bg-slate-100 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus">
+          <Link to="/security/visit/check-out" className="col-span-2 flex h-20 items-center justify-center gap-2 rounded-2xl border-2 border-brand bg-surface px-2 text-lg font-black text-ink hover:bg-slate-100 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus">
             <DoorOpen aria-hidden className="size-7 shrink-0" />
             {strings.visits.gate.menuCheckOut}
           </Link>
-          <Link to="/security/summary" className="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl text-base font-bold text-brand underline-offset-2 hover:underline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus">
+          <Link to="/security/summary" className="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl text-base font-bold text-ink underline-offset-2 hover:underline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus">
             <ChartNoAxesColumn aria-hidden className="size-5" />
             {strings.visits.gate.menuSummary}
           </Link>
         </nav>
 
         <section className="space-y-2">
-          <label htmlFor={searchId} className="text-base font-bold text-brand">{t.searchLabel}</label>
+          <label htmlFor={searchId} className="text-base font-bold text-ink">{t.searchLabel}</label>
           <div className="relative">
             <Search aria-hidden className="pointer-events-none absolute top-1/2 left-4 size-6 -translate-y-1/2 text-slate-500" />
             <input
@@ -201,11 +197,11 @@ export default function GateHome() {
                   onClick={() => setTab(id)}
                   className={cn(
                     'flex h-14 items-center justify-center gap-2 rounded-xl border-2 text-base font-extrabold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
-                    tab === id ? 'border-brand bg-brand text-on-solid' : 'border-slate-300 bg-surface text-brand',
+                    tab === id ? 'border-brand bg-brand text-on-solid' : 'border-slate-300 bg-surface text-ink',
                   )}
                 >
                   {t.tabs[id]}
-                  <span className={cn('rounded-full px-2 text-sm', tab === id ? 'bg-surface text-brand' : 'bg-slate-200')}>{count}</span>
+                  <span className={cn('rounded-full px-2 text-sm', tab === id ? 'bg-surface text-ink' : 'bg-slate-200')}>{count}</span>
                 </button>
               )
             })}

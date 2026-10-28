@@ -188,7 +188,7 @@ export function PinScreen({ notice, staffHref }: { notice: string | null; staffH
                 key={i}
                 data-filled={d !== undefined}
                 className={cn(
-                  'grid aspect-square min-w-0 flex-1 place-items-center rounded-xl border-2 text-xl font-extrabold text-brand transition-colors sm:text-2xl',
+                  'grid aspect-square min-w-0 flex-1 place-items-center rounded-xl border-2 text-xl font-extrabold text-ink transition-colors sm:text-2xl',
                   i === 4 && 'ml-2 sm:ml-4',
                   d !== undefined
                     ? 'border-brand bg-surface'
@@ -238,8 +238,8 @@ export function PinScreen({ notice, staffHref }: { notice: string | null; staffH
                 // Never below 56 px; grows on tall screens, shrinks on short phones so the keypad always fits.
                 'grid h-[clamp(3.5rem,9dvh,4.75rem)] place-items-center rounded-2xl text-3xl font-bold transition-transform select-none motion-safe:active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-40',
                 key === 'del'
-                  ? 'bg-slate-200 text-brand hover:bg-slate-300 active:bg-slate-300'
-                  : 'border border-slate-200 bg-surface text-brand shadow-sm hover:bg-slate-50 active:bg-slate-100',
+                  ? 'bg-slate-200 text-ink hover:bg-slate-300 active:bg-slate-300'
+                  : 'border border-slate-200 bg-surface text-ink shadow-sm hover:bg-slate-50 active:bg-slate-100',
               )}
             >
               {key === 'del' ? <Delete aria-hidden className="size-8" /> : key}
@@ -256,7 +256,7 @@ export function PinScreen({ notice, staffHref }: { notice: string | null; staffH
         </div>
         <Link
           to={staffHref}
-          className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-surface px-4 text-base font-semibold text-brand transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-surface px-4 text-base font-semibold text-ink transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
           <Mail aria-hidden className="size-5 text-slate-600" />
           {t.staffLink}

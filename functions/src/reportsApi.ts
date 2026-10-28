@@ -6,7 +6,8 @@ import { dateKey as computeDateKey, DEFAULT_TIMEZONE, isValidTimezone } from './
 import { DEFAULT_REJECTION_REASONS } from './defaultRejectionReasons.js'
 import { fail } from './errors.js'
 import { addDays, buildReport, checkRange, fromDateKey, rangeBounds, REPORT_TYPES, type ReportResult } from './reports/index.js'
-import type { ReportEvent, ReportPass } from './reports/types.js'
+import type { ReportEvent, ReportPass, ReportVisit } from './reports/types.js'
+import { dwellLimitHoursOf } from './visitLogic.js'
 import type { Caller, PassStatus, TenantData } from './types.js'
 
 /** Most passes (plus denials, for the gate log) one report may scan. Over it the report is refused, never truncated. */
@@ -132,6 +133,7 @@ export async function runReport(deps: Deps, caller: Caller, raw: unknown, scanCa
 
   let passes: ReportPass[]
   let events: ReportEvent[]
+  let visits: ReportVisit[] = []
   if (input.type === 'gate_log') {
     // Check-ins by `checkIn.at`, denials by `at`. Filters apply in memory so no extra indexes are needed.
     const passQuery: PassQuery = { kind: 'checkIn', tenantId, startMs: bounds.startMs, endMs: bounds.endMs }
@@ -161,6 +163,13 @@ export async function runReport(deps: Deps, caller: Caller, raw: unknown, scanCa
     passes = await deps.data.listPasses(query, scanCap + 1)
     if (passes.length > scanCap) throw tooLarge()
     events = []
+    if (input.type === 'gate_passes') {
+      // The in/out movements of the same days. Filters apply in memory (visits carry the vehicle id and the pass id).
+      const vq = { tenantId, fromKey: bounds.fromKey, toKey: bounds.toKey }
+      if ((await deps.data.countVisits(vq)) > scanCap) throw tooLarge()
+      const wanted = new Set(passes.map((p) => p.vehicleId))
+      visits = (await deps.data.listVisits(vq, scanCap + 1)).filter((v) => wanted.has(v.vehicleId))
+    }
   }
 
   const reasonLabels = new Map<string, string>(DEFAULT_REJECTION_REASONS.map((r) => [r.id, r.label]))
@@ -170,6 +179,8 @@ export async function runReport(deps: Deps, caller: Caller, raw: unknown, scanCa
     type: input.type,
     passes,
     events,
+    visits,
+    gateTimeHours: dwellLimitHoursOf(tenant),
     contractorNames: await deps.data.listContractorNames(tenantId),
     reasonLabels,
     timezone,

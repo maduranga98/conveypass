@@ -10,7 +10,7 @@ export function AuthShell({ title, intro, children }: { title: string; intro?: s
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center justify-center gap-2">
           <BrandMark className="size-10" />
-          <p className="text-base font-semibold tracking-tight text-brand">{strings.app.name}</p>
+          <p className="text-base font-semibold tracking-tight text-ink">{strings.app.name}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-surface p-6 shadow-sm">
           <h1 className="text-xl font-semibold tracking-tight">{title}</h1>

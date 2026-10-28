@@ -9,7 +9,6 @@ import type { DailySummary, Visit } from '@/types/visits'
 const ts = (ms: number) => ({ toMillis: () => ms }) as never
 const WHEN = Date.UTC(2026, 2, 10, 6, 0, 0)
 
-const checkInVisit = vi.fn()
 const checkOutVisit = vi.fn()
 const logUnloadingCheck = vi.fn()
 let active: WithId<Visit>[] = []
@@ -17,7 +16,6 @@ let summary: DailySummary | undefined
 let role = 'security'
 
 vi.mock('@/lib/api', () => ({
-  checkInVisit: (...a: unknown[]) => checkInVisit(...a),
   checkOutVisit: (...a: unknown[]) => checkOutVisit(...a),
   logUnloadingCheck: (...a: unknown[]) => logUnloadingCheck(...a),
 }))
@@ -60,86 +58,8 @@ beforeEach(() => {
   active = []
   summary = undefined
   role = 'security'
-  checkInVisit.mockReset()
   checkOutVisit.mockReset().mockResolvedValue({ visitId: 'vis_a', at: WHEN, unloadingMissing: false })
   logUnloadingCheck.mockReset().mockResolvedValue({ visitId: 'vis_a', at: WHEN })
-})
-
-/** A Cloud Functions error as the SDK delivers it: a FirebaseError with `details.reason`. */
-const apiError = async (code: string, reason: string) => {
-  const { FirebaseError } = await import('firebase/app')
-  return Object.assign(new FirebaseError(code, 'x'), { details: { reason } })
-}
-
-const typePin = async (user: ReturnType<typeof userEvent.setup>, pin: string) => {
-  for (const d of pin) await user.click(screen.getByRole('button', { name: d }))
-}
-
-describe('check-in (security)', () => {
-  const start = async () => {
-    const { default: CheckInPage } = await import('./CheckInPage')
-    const user = userEvent.setup()
-    render(wrap(<CheckInPage />))
-    await user.click(await screen.findByRole('button', { name: 'fake scan' }))
-    await screen.findByText('WP LJ-4821')
-    return user
-  }
-
-  it('scan, driver PIN, LET IN: sends the ids, the gate and the PIN once, and shows the driver', async () => {
-    checkInVisit.mockResolvedValue({ outcome: 'checked_in', visitId: 'vis_x', at: WHEN, driverName: 'Dan Driver', plateNo: 'WP LJ-4821' })
-    const user = await start()
-    await typePin(user, '48291736')
-    expect(await screen.findByText('LET IN')).toBeInTheDocument()
-    expect(screen.getByText('Driver: Dan Driver')).toBeInTheDocument()
-    expect(checkInVisit).toHaveBeenCalledTimes(1)
-    expect(checkInVisit).toHaveBeenCalledWith(expect.objectContaining({ vehicleId: 'veh_aaaaaaaaaa', pin: '48291736', gateId: 'main', visitId: expect.stringMatching(/^vis_[a-z0-9]{10}$/), requestId: expect.any(String) }))
-  })
-
-  it('never shows the PIN digits, only dots', async () => {
-    const user = await start()
-    await user.click(screen.getByRole('button', { name: '4' }))
-    await user.click(screen.getByRole('button', { name: '8' }))
-    const boxes = screen.getByRole('img', { name: /2 of 8/ })
-    expect(boxes.textContent).toBe('••')
-  })
-
-  it('shows every reason when entry is refused, taken from the eligibility output', async () => {
-    checkInVisit.mockResolvedValue({
-      outcome: 'blocked', driverName: 'Dan Driver', plateNo: 'WP LJ-4821',
-      eligibility: {
-        status: 'blocked', blocked: true, eligible: false, checkedAt: 1,
-        vehicle: { id: 'v', documentStatus: 'expired', blocked: false, penalties: [] },
-        driver: { id: 'd', documentStatus: 'valid', blocked: true, penalties: [{ id: 'p', typeName: 'Speeding', permanent: true, endDate: null }] },
-        inspection: { status: 'needs_reinspection', cleared: false, reason: 'document_expired', at: 1 },
-      },
-    })
-    const user = await start()
-    await typePin(user, '48291736')
-    expect(await screen.findByText('DO NOT LET IN')).toBeInTheDocument()
-    for (const line of ['Vehicle documents expired', 'Driver suspended: Speeding', 'Needs re-inspection: a document expired']) expect(screen.getByText(line)).toBeInTheDocument()
-  })
-
-  it('a wrong PIN keeps the keypad, clears the digits and reuses the same visit id for the retry', async () => {
-    checkInVisit.mockRejectedValueOnce(await apiError('functions/unauthenticated', 'pin-invalid'))
-    checkInVisit.mockResolvedValueOnce({ outcome: 'checked_in', visitId: 'vis_x', at: WHEN, driverName: 'Dan Driver', plateNo: 'WP LJ-4821' })
-    const user = await start()
-    await typePin(user, '11111111')
-    expect(await screen.findByText('That PIN didn’t work for this vehicle.')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /0 of 8/ })).toBeInTheDocument()
-    await typePin(user, '48291736')
-    expect(await screen.findByText('LET IN')).toBeInTheDocument()
-    const [first, second] = checkInVisit.mock.calls.map((c) => c[0] as { visitId: string; requestId: string })
-    expect(second?.visitId).toBe(first?.visitId)
-    expect(second?.requestId).toBe(first?.requestId)
-  })
-
-  it('a driver who is already on a visit ends the attempt with a clear message', async () => {
-    checkInVisit.mockRejectedValue(await apiError('functions/failed-precondition', 'driver-on-duty'))
-    const user = await start()
-    await typePin(user, '48291736')
-    expect(await screen.findByText('Driver already on a visit')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Next vehicle' })).toBeInTheDocument()
-  })
 })
 
 describe('check-out (security)', () => {

@@ -61,7 +61,7 @@ export function PermitsCard() {
 
   return (
     <section aria-labelledby="permits-h" className="space-y-3">
-      <h2 id="permits-h" className="text-xl font-bold text-brand">{t.title}</h2>
+      <h2 id="permits-h" className="text-xl font-bold text-ink">{t.title}</h2>
       {error && <NotificationBanner tone="error">{error}</NotificationBanner>}
       {editing ? (
         <div className="space-y-3 rounded-2xl border border-slate-300 bg-surface p-4">

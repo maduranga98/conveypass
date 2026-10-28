@@ -66,7 +66,7 @@ function Entry({ penalty: p, tz, now, subjectIsVehicle }: { penalty: PenaltyRow;
   return (
     <li className="space-y-2 rounded-xl border border-slate-200 bg-surface p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-medium text-brand">{p.typeName}</span>
+        <span className="font-medium text-ink">{p.typeName}</span>
         <PenaltyStatusBadge status={status} />
       </div>
       <p className="text-sm text-slate-600">

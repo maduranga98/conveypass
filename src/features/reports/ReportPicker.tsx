@@ -1,4 +1,4 @@
-import { BarChart3, ClipboardX, DoorOpen, Gauge, Truck, UserRound } from 'lucide-react'
+import { BarChart3, ClipboardX, DoorOpen, Gauge, Ticket, Truck, UserRound } from 'lucide-react'
 import type { ComponentType } from 'react'
 import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
@@ -11,6 +11,7 @@ const ICONS: Record<ReportType, ComponentType<{ className?: string; 'aria-hidden
   rejections: ClipboardX,
   vehicle_history: Truck,
   driver_history: UserRound,
+  gate_passes: Ticket,
 }
 
 /** A list of cards, one line each. The current report is marked with `aria-current`. */
@@ -32,9 +33,9 @@ export function ReportPicker({ current, onPick }: { current: ReportType | null; 
                 active ? 'border-brand bg-accent-soft' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
               )}
             >
-              <Icon aria-hidden className={cn('mt-0.5 size-5 shrink-0', active ? 'text-brand' : 'text-slate-500')} />
+              <Icon aria-hidden className={cn('mt-0.5 size-5 shrink-0', active ? 'text-ink' : 'text-slate-500')} />
               <span>
-                <span className="block font-medium text-brand">{info.title}</span>
+                <span className="block font-medium text-ink">{info.title}</span>
                 <span className="block text-sm text-slate-500">{info.description}</span>
               </span>
             </button>

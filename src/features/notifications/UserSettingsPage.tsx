@@ -56,14 +56,14 @@ function PinUserSettings() {
         {rows.map(([k, v]) => (
           <div key={k} className="flex items-center justify-between gap-4 px-4 py-3">
             <dt className="text-slate-600">{k}</dt>
-            <dd className="text-right font-bold text-brand">{v}</dd>
+            <dd className="text-right font-bold text-ink">{v}</dd>
           </div>
         ))}
       </dl>
       <button
         type="button"
         onClick={() => void signOut()}
-        className="flex h-16 w-full items-center justify-center gap-3 rounded-2xl border-2 border-slate-300 bg-surface text-xl font-bold text-brand hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        className="flex h-16 w-full items-center justify-center gap-3 rounded-2xl border-2 border-slate-300 bg-surface text-xl font-bold text-ink hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
         <LogOut aria-hidden className="size-6" />
         {strings.common.signOut}

@@ -217,7 +217,7 @@ export function EvidenceViewer({ items, index, plateNo, onIndexChange, onClose }
           ) : url.isError || !url.data ? (
             <div role="alert" className="space-y-3 text-center">
               <p>{t.loadFailed}</p>
-              <button type="button" onClick={() => void url.refetch()} className="h-11 rounded-lg bg-surface px-4 text-sm font-medium text-brand">{t.retry}</button>
+              <button type="button" onClick={() => void url.refetch()} className="h-11 rounded-lg bg-surface px-4 text-sm font-medium text-ink">{t.retry}</button>
             </div>
           ) : (
             <img

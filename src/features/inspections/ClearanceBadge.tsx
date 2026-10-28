@@ -7,7 +7,7 @@ const t = strings.inspections
 
 const styles: Record<ClearanceStatus, { tone: string; Icon: typeof ShieldCheck }> = {
   cleared: { tone: 'bg-success-soft text-success-strong', Icon: ShieldCheck },
-  needs_reinspection: { tone: 'bg-accent-soft text-brand', Icon: RotateCcw },
+  needs_reinspection: { tone: 'bg-accent-soft text-ink', Icon: RotateCcw },
   rejected: { tone: 'bg-danger-soft text-danger-strong', Icon: CircleX },
   never_inspected: { tone: 'bg-slate-100 text-slate-700', Icon: CircleDashed },
 }

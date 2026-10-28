@@ -20,9 +20,9 @@ const darkFocus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-
 const darkItem = cn('flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-slate-300 hover:bg-brand-hover hover:text-on-solid', darkFocus)
 
 /**
- * Super admin console shell, the same family as the workspace roles: a fixed brand navy sidebar on desktop (logo, a
+ * Super admin console shell, the same family as the workspace roles: a fixed brand red sidebar on desktop (logo, a
  * "Super admin console" label so it is never mistaken for a client workspace, navigation, account pinned at the bottom),
- * a navy top bar plus bottom tabs below lg. No notification bell, no workspace navigation.
+ * a red top bar plus bottom tabs below lg. No notification bell, no workspace navigation.
  */
 export default function PlatformLayout() {
   usePrivateMeta()
@@ -51,7 +51,7 @@ export default function PlatformLayout() {
                 cn(
                   'flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold',
                   darkFocus,
-                  isActive ? 'bg-accent text-brand' : 'text-slate-300 hover:bg-brand-hover hover:text-on-solid',
+                  isActive ? 'bg-accent text-ink' : 'text-slate-300 hover:bg-brand-hover hover:text-on-solid',
                 )
               }
             >
@@ -113,7 +113,7 @@ export default function PlatformLayout() {
                 className={({ isActive }) =>
                   cn(
                     'relative flex h-16 flex-col items-center justify-center gap-1 text-xs font-semibold focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus',
-                    isActive ? 'text-brand before:absolute before:inset-x-6 before:top-0 before:h-1 before:rounded-b-full before:bg-accent' : 'text-slate-600 hover:text-brand',
+                    isActive ? 'text-ink before:absolute before:inset-x-6 before:top-0 before:h-1 before:rounded-b-full before:bg-accent' : 'text-slate-600 hover:text-ink',
                   )
                 }
               >

@@ -46,7 +46,7 @@ export function SimpleMenu({ label, items, tone = 'light' }: { label: string; it
         onClick={() => setOpen((o) => !o)}
         className={cn(
           'inline-flex size-14 items-center justify-center rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
-          tone === 'dark' ? 'text-on-solid hover:bg-on-solid/15' : 'text-brand hover:bg-slate-100',
+          tone === 'dark' ? 'text-on-solid hover:bg-on-solid/15' : 'text-ink hover:bg-slate-100',
         )}
       >
         <Menu aria-hidden className="size-7" />
@@ -62,7 +62,7 @@ export function SimpleMenu({ label, items, tone = 'light' }: { label: string; it
                   setOpen(false)
                   item.onSelect()
                 }}
-                className="flex min-h-14 w-full items-center gap-3 rounded-xl px-3 text-left text-lg font-semibold text-brand hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-focus"
+                className="flex min-h-14 w-full items-center gap-3 rounded-xl px-3 text-left text-lg font-semibold text-ink hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-focus"
               >
                 {item.icon}
                 {item.label}

@@ -147,3 +147,18 @@ describe('getDashboardTrend', () => {
     expect((await getDashboardTrend(w.deps, officer(), { days: 30 })).days).toHaveLength(30)
   })
 })
+
+describe('gate_passes report', () => {
+  it('joins a day’s passes with their in/out visits and the company gate time', async () => {
+    seed('checked_in', TODAY, { checkIn: { uid: 'sec', name: 'Sam', at: NOW * 1000, gateId: 'main', gateName: 'Main Gate', requestId: 'r' } })
+    w.reportVisits.push(
+      { id: 'a', vehicleId: 'veh_aaaaaaaaaa', dateKey: TODAY, checkInAt: NOW * 1000, checkOutAt: NOW * 1000 + 3_600_000 },
+      { id: 'b', vehicleId: 'veh_aaaaaaaaaa', dateKey: TODAY, checkInAt: NOW * 1000 + 7_200_000, checkOutAt: null },
+      { id: 'other', vehicleId: 'veh_zzzzzzzzzz', dateKey: TODAY, checkInAt: NOW * 1000, checkOutAt: null },
+    )
+    const r = await runReport(w.deps, officer(), input({ type: 'gate_passes' }))
+    expect(r.rows).toHaveLength(1)
+    expect(r.rows[0]).toMatchObject({ plate: 'WP A 1', entries: 2, gate: 'Inside', endsAt: NOW * 1000 + 16 * 3_600_000 })
+    expect(JSON.stringify(r)).not.toContain('secret/')
+  })
+})

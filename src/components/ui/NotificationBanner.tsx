@@ -9,7 +9,7 @@ const TONES: Record<BannerTone, { box: string; icon: string; Icon: typeof Info; 
   error: { box: 'border-danger-strong bg-danger-soft text-danger-ink', icon: 'text-danger-strong', Icon: CircleAlert, role: 'alert' },
   warning: { box: 'border-accent bg-warning-soft text-warning-ink', icon: 'text-warning-strong', Icon: TriangleAlert, role: 'status' },
   success: { box: 'border-success bg-success-soft text-success-ink', icon: 'text-success-strong', Icon: CircleCheck, role: 'status' },
-  info: { box: 'border-slate-500 bg-slate-100 text-brand', icon: 'text-slate-600', Icon: Info, role: 'status' },
+  info: { box: 'border-slate-500 bg-slate-100 text-ink', icon: 'text-slate-600', Icon: Info, role: 'status' },
 }
 
 interface Props {

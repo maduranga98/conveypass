@@ -15,7 +15,7 @@ export function FailedQueueBanner() {
     <Link
       to="/security/queue"
       role="alert"
-      className="flex min-h-12 items-center gap-2 bg-accent px-4 py-2 text-base font-bold text-brand underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-brand"
+      className="flex min-h-12 items-center gap-2 bg-accent px-4 py-2 text-base font-bold text-ink underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-brand"
     >
       <TriangleAlert aria-hidden className="size-5 shrink-0" />
       {t.failedBanner(failed)}

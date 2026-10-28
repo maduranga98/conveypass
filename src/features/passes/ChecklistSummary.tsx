@@ -26,7 +26,7 @@ export function ChecklistSummary({ items }: { items: readonly PassChecklistItem[
                 {no ? <X className="size-4" /> : <Check className="size-4" />}
               </span>
               <div className="min-w-0 flex-1">
-                <p className={cn('text-base', no ? 'font-semibold text-danger-ink' : 'text-brand')}>{item.label}</p>
+                <p className={cn('text-base', no ? 'font-semibold text-danger-ink' : 'text-ink')}>{item.label}</p>
                 {no && item.note && <p className="mt-0.5 text-sm text-danger-ink">{t.driverNote(item.note)}</p>}
               </div>
               <span className={cn('shrink-0 text-sm font-bold', no ? 'text-danger-ink' : 'text-success-strong')}>{no ? t.no : t.yes}</span>

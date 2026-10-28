@@ -222,14 +222,14 @@ export default function AuditPage() {
                   <tr key={e.id}>
                     <td className="whitespace-nowrap px-4 py-3 tabular-nums text-slate-700">{formatInZone(e.createdAt, tz)}</td>
                     <td className="px-4 py-3">
-                      <span className="font-medium text-brand">{actorLabel(e)}</span>
+                      <span className="font-medium text-ink">{actorLabel(e)}</span>
                       <span className="block text-xs text-slate-600">{e.actorRole === 'superadmin' ? t.superAdminRole : (strings.roles[e.actorRole as keyof typeof strings.roles] ?? e.actorRole)}</span>
                     </td>
                     <td className="px-4 py-3 text-slate-800">{actionLabel(e.action)}</td>
                     <td className="px-4 py-3 text-slate-700">
                       {targetLabel(e.targetType)}
                       {e.targetType === 'pass' ? (
-                        <Link to={`/admin/passes?pass=${encodeURIComponent(e.targetId)}`} className="block max-w-40 truncate text-xs text-brand underline">{e.targetId}</Link>
+                        <Link to={`/admin/passes?pass=${encodeURIComponent(e.targetId)}`} className="block max-w-40 truncate text-xs text-ink underline">{e.targetId}</Link>
                       ) : (
                         <span className="block max-w-40 truncate text-xs text-slate-600">{e.targetId}</span>
                       )}

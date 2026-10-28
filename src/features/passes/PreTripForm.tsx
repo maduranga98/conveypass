@@ -136,8 +136,8 @@ export function PreTripForm({ ctx, rejection, previous, onSubmitted, onReload }:
         <h1 className="text-4xl font-extrabold tracking-tight">{vehicle.plateNo}</h1>
         <p className="text-base text-slate-700">{vehicle.type}</p>
         <p className="text-sm text-slate-600">
-          {t.driver}: <span className="font-semibold text-brand">{profile.name}</span> · {t.today}:{' '}
-          <span className="font-semibold text-brand">{formatDay(dateKey)}</span>
+          {t.driver}: <span className="font-semibold text-ink">{profile.name}</span> · {t.today}:{' '}
+          <span className="font-semibold text-ink">{formatDay(dateKey)}</span>
         </p>
       </header>
 

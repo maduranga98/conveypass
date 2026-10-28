@@ -11,7 +11,7 @@ export function ContractorsTable({ rows, loading }: { rows: ContractorRow[]; loa
       <h2 id="contractors-title" className="text-base font-semibold">{t.title}</h2>
       {rows.length === 0 ? (
         <div className="py-6 text-center">
-          <p className="font-medium text-brand">{t.empty}</p>
+          <p className="font-medium text-ink">{t.empty}</p>
           <p className="text-sm text-slate-500">{t.emptyHint}</p>
         </div>
       ) : (

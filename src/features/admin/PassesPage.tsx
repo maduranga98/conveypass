@@ -156,7 +156,7 @@ export default function PassesPage() {
               primary: true,
               cell: (p) => (
                 <>
-                  <button type="button" onClick={() => setOpenId(p.id)} aria-label={t.open(p.plateNo)} className="rounded font-bold tracking-tight text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
+                  <button type="button" onClick={() => setOpenId(p.id)} aria-label={t.open(p.plateNo)} className="rounded font-bold tracking-tight text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
                     {p.plateNo}
                   </button>
                   <p className="text-xs font-normal text-slate-500">{p.vehicleType}</p>

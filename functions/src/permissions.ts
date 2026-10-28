@@ -25,6 +25,8 @@ export const PERMISSIONS = {
   'user.create.driver': ['admin', 'supervisor'],
   'user.manage': ['admin', 'supervisor'],
   'user.pin.reissue': ['admin', 'supervisor'],
+  // View a driver's or guard's current PIN (sealed copy; accounts issued before this existed must be reissued).
+  'user.pin.view': ['admin', 'supervisor'],
   // Vehicle and driver records (Module 2). Supervisors manage their own contractor's only; the Safety Officer reads.
   'vehicle.view': ['admin', 'officer', 'supervisor', 'safety', 'security'],
   'vehicle.manage': ['admin', 'supervisor'],

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, where, type QueryConstraint } from 'firebase/firestore'
+import { collection, doc, limit, orderBy, query, where, type QueryConstraint } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { liveDoc, liveQuery, useLiveQuery } from '@/lib/liveQuery'
 import { downloadUrl } from '@/lib/storage'
 import type { Contractor, Driver, UserDoc, Vehicle, WithId } from '@/types'
 import { useScope, type Scope } from './scope'
@@ -23,27 +24,21 @@ function scoped(tenantId: string, contractorId: string | null, order: string): Q
   ]
 }
 
-async function load<T>(name: string, constraints: QueryConstraint[]): Promise<ListData<T>> {
-  const snap = await getDocs(query(collection(db, name), ...constraints))
-  return { items: snap.docs.map((d) => ({ ...(d.data() as T), id: d.id })), capped: snap.size >= LIST_CAP }
-}
+/** The live list of a collection: capped, with the cap flag. */
+const live = <T>(name: string, constraints: QueryConstraint[]) =>
+  liveQuery(query(collection(db, name), ...constraints), (snap): ListData<T> => ({
+    items: snap.docs.map((d) => ({ ...(d.data() as T), id: d.id })),
+    capped: snap.size >= LIST_CAP,
+  }))
 
 export function useVehicles(scope: Scope, opts: { enabled?: boolean } = {}) {
   const { tenantId, contractorId, ready } = useScope(scope)
-  return useQuery({
-    queryKey: ['vehicles', tenantId, contractorId ?? 'all'],
-    enabled: ready && (opts.enabled ?? true),
-    queryFn: () => load<Vehicle>('vehicles', scoped(tenantId, contractorId, 'plateKey')),
-  })
+  return useLiveQuery(['vehicles', tenantId, contractorId ?? 'all'], live<Vehicle>('vehicles', scoped(tenantId, contractorId, 'plateKey')), ready && (opts.enabled ?? true))
 }
 
 export function useDrivers(scope: Scope, opts: { enabled?: boolean } = {}) {
   const { tenantId, contractorId, ready } = useScope(scope)
-  return useQuery({
-    queryKey: ['drivers', tenantId, contractorId ?? 'all'],
-    enabled: ready && (opts.enabled ?? true),
-    queryFn: () => load<Driver>('drivers', scoped(tenantId, contractorId, 'name')),
-  })
+  return useLiveQuery(['drivers', tenantId, contractorId ?? 'all'], live<Driver>('drivers', scoped(tenantId, contractorId, 'name')), ready && (opts.enabled ?? true))
 }
 
 /**
@@ -52,22 +47,20 @@ export function useDrivers(scope: Scope, opts: { enabled?: boolean } = {}) {
  */
 export function useDriverAccounts(scope: Scope) {
   const { tenantId, contractorId, ready } = useScope(scope)
-  return useQuery({
-    queryKey: ['users', tenantId, 'driver', contractorId ?? 'all'],
-    enabled: ready,
-    queryFn: async (): Promise<Map<string, UserDoc>> => {
-      const snap = await getDocs(
-        query(
-          collection(db, 'users'),
-          where('tenantId', '==', tenantId),
-          where('role', '==', 'driver'),
-          ...(contractorId ? [where('contractorId', '==', contractorId)] : []),
-          limit(LIST_CAP),
-        ),
-      )
-      return new Map(snap.docs.map((d) => [d.id, d.data() as UserDoc]))
-    },
-  })
+  return useLiveQuery(
+    ['users', tenantId, 'driver', contractorId ?? 'all'],
+    liveQuery(
+      query(
+        collection(db, 'users'),
+        where('tenantId', '==', tenantId),
+        where('role', '==', 'driver'),
+        ...(contractorId ? [where('contractorId', '==', contractorId)] : []),
+        limit(LIST_CAP),
+      ),
+      (snap): Map<string, UserDoc> => new Map(snap.docs.map((d) => [d.id, d.data() as UserDoc])),
+    ),
+    ready,
+  )
 }
 
 /**
@@ -76,20 +69,16 @@ export function useDriverAccounts(scope: Scope) {
  */
 export function useContractorList(scope: Scope) {
   const { tenantId, contractorId, ready } = useScope(scope)
-  return useQuery({
-    queryKey: ['contractors', tenantId, contractorId ?? 'all'],
-    enabled: ready,
-    queryFn: async (): Promise<WithId<Contractor>[]> => {
-      if (contractorId) {
-        const snap = await getDoc(doc(db, 'contractors', contractorId))
-        return snap.exists() ? [{ ...(snap.data() as Contractor), id: snap.id }] : []
-      }
-      const snap = await getDocs(
-        query(collection(db, 'contractors'), where('tenantId', '==', tenantId), orderBy('createdAt', 'desc')),
-      )
-      return snap.docs.map((d) => ({ ...(d.data() as Contractor), id: d.id }))
-    },
-  })
+  return useLiveQuery(
+    ['contractors', tenantId, contractorId ?? 'all'],
+    contractorId
+      ? liveDoc(doc(db, 'contractors', contractorId), (snap): WithId<Contractor>[] => (snap.exists() ? [{ ...(snap.data() as Contractor), id: snap.id }] : []))
+      : liveQuery(
+          query(collection(db, 'contractors'), where('tenantId', '==', tenantId), orderBy('createdAt', 'desc')),
+          (snap): WithId<Contractor>[] => snap.docs.map((d) => ({ ...(d.data() as Contractor), id: d.id })),
+        ),
+    ready,
+  )
 }
 
 /** Photo URLs are fetched on demand from the stored path and cached. `version` busts the cache after a re-upload. */

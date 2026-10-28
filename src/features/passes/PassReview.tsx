@@ -16,7 +16,7 @@ const t = strings.approvals
 const Row = ({ label, children }: { label: string; children: ReactNode }) => (
   <div className="flex items-baseline justify-between gap-4 px-4 py-3">
     <dt className="text-sm text-slate-600">{label}</dt>
-    <dd className="text-right text-base font-medium text-brand">{children}</dd>
+    <dd className="text-right text-base font-medium text-ink">{children}</dd>
   </div>
 )
 
@@ -50,7 +50,7 @@ export function PassReview({ pass, today, contractorName, historyHref, layout = 
           <h2 className="text-3xl font-extrabold tracking-tight">{pass.plateNo}</h2>
           <p className="text-base text-slate-700">{pass.vehicleType} · {pass.driverName}</p>
           {historyHref && (
-            <Link to={historyHref} className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline focus-visible:outline-2 focus-visible:outline-focus">
+            <Link to={historyHref} className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-ink hover:underline focus-visible:outline-2 focus-visible:outline-focus">
               <History aria-hidden className="size-4" />
               {t.info.vehicleHistory}
             </Link>

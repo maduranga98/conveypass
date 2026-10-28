@@ -45,7 +45,7 @@ export default function ReinspectionPage() {
   const { visible, hasMore, remaining, showMore } = usePaged(filtered)
 
   const columns: Column<WithId<Vehicle>>[] = [
-    { key: 'plate', header: t.columns.plate, primary: true, cell: (v) => <span className="font-mono text-base font-semibold tracking-wide text-brand">{v.plateNo}</span> },
+    { key: 'plate', header: t.columns.plate, primary: true, cell: (v) => <span className="font-mono text-base font-semibold tracking-wide text-ink">{v.plateNo}</span> },
     { key: 'contractor', header: t.columns.contractor, cell: (v) => names.get(v.contractorId) ?? strings.common.none },
     {
       key: 'reason',
