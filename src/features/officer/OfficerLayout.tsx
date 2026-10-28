@@ -21,19 +21,19 @@ const nav = [
 
 const darkFocus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-solid'
 
-/** Count bubble for the Approvals item: amber with navy text, the app's "waiting" colour. */
+/** Count bubble for the Approvals item: amber with red text, the app's "waiting" colour. */
 function PendingBadge({ count, capped, className }: { count: number | null; capped: boolean; className?: string }) {
   if (count === null || count === 0) return null
   return (
-    <span aria-label={t.pendingBadge(count)} className={cn('grid min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-bold leading-5 text-brand', className)}>
+    <span aria-label={t.pendingBadge(count)} className={cn('grid min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-bold leading-5 text-ink', className)}>
       {capped || count >= 100 ? '99+' : count}
     </span>
   )
 }
 
 /**
- * Responsive shell, the same family as the supervisor's. Desktop (lg): a brand navy sidebar with the logo, navigation,
- * account and sign out. Phone and tablet: a navy top bar and bottom tabs (the review panel covers both while open).
+ * Responsive shell, the same family as the supervisor's. Desktop (lg): a brand red sidebar with the logo, navigation,
+ * account and sign out. Phone and tablet: a red top bar and bottom tabs (the review panel covers both while open).
  */
 export default function OfficerLayout() {
   const { profile } = useSession()
@@ -66,7 +66,7 @@ export default function OfficerLayout() {
                 cn(
                   'flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold',
                   darkFocus,
-                  isActive ? 'bg-accent text-brand' : 'text-slate-300 hover:bg-brand-hover hover:text-on-solid',
+                  isActive ? 'bg-accent text-ink' : 'text-slate-300 hover:bg-brand-hover hover:text-on-solid',
                 )
               }
             >
@@ -139,7 +139,7 @@ export default function OfficerLayout() {
                 className={({ isActive }) =>
                   cn(
                     'relative flex h-16 flex-col items-center justify-center gap-1 text-xs font-semibold focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus',
-                    isActive ? 'text-brand before:absolute before:inset-x-6 before:top-0 before:h-1 before:rounded-b-full before:bg-accent' : 'text-slate-600 hover:text-brand',
+                    isActive ? 'text-ink before:absolute before:inset-x-6 before:top-0 before:h-1 before:rounded-b-full before:bg-accent' : 'text-slate-600 hover:text-ink',
                   )
                 }
               >

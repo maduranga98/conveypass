@@ -213,7 +213,7 @@ export function QrScanner({ onVehicle, onClose }: { onVehicle: (vehicleId: strin
       <div className="relative flex flex-1 items-center justify-center overflow-hidden">
         <div ref={hostRef} className={cn('w-full max-w-lg', (problem || waiting) && 'hidden')} />
         {waiting && (
-          <div className="mx-6 max-w-sm space-y-4 rounded-2xl bg-surface p-6 text-center text-brand">
+          <div className="mx-6 max-w-sm space-y-4 rounded-2xl bg-surface p-6 text-center text-ink">
             <Camera aria-hidden className="mx-auto size-12" />
             <p className="text-xl font-extrabold">{t.explainTitle}</p>
             <p className="text-lg">{t.explainBody}</p>
@@ -233,7 +233,7 @@ export function QrScanner({ onVehicle, onClose }: { onVehicle: (vehicleId: strin
           <p role="status" className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-lg font-semibold">{t.starting}</p>
         )}
         {problem && (
-          <div role="alert" className="mx-6 max-w-sm space-y-4 rounded-2xl bg-surface p-6 text-center text-brand">
+          <div role="alert" className="mx-6 max-w-sm space-y-4 rounded-2xl bg-surface p-6 text-center text-ink">
             <CameraOff aria-hidden className="mx-auto size-12 text-danger-strong" />
             <p className="text-xl font-extrabold">{problem.title}</p>
             <p className="text-lg">{problem.body}</p>

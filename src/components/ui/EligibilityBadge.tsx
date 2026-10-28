@@ -5,7 +5,7 @@ import { strings } from '@/lib/strings'
 
 const styles: Record<EligibilityStatus, { tone: string; Icon: typeof Clock }> = {
   valid: { tone: 'bg-success-soft text-success-strong', Icon: CheckCircle2 },
-  expiringSoon: { tone: 'bg-accent-soft text-brand', Icon: Clock },
+  expiringSoon: { tone: 'bg-accent-soft text-ink', Icon: Clock },
   expired: { tone: 'bg-danger-soft text-danger-strong', Icon: AlertTriangle },
 }
 

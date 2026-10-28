@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import { isValidPassword, normalisePhone, PASSWORD_MIN_LENGTH } from './credentials.js'
-import { canCreateRole } from './permissions.js'
-import { assertPepper, pinKey } from './pin.js'
+import { can, canCreateRole } from './permissions.js'
+import { assertPepper, openPin, pinKey, sealPin } from './pin.js'
 import { isPinRole, sessionExpired } from './session.js'
 import type { InvalidationReason } from './inspectionLogic.js'
 import type { SlaSettings } from './defaultSla.js'
 import type { QualificationTypeDef } from './requirementLogic.js'
-import type { ReportEvent, ReportPass } from './reports/types.js'
+import type { ReportEvent, ReportPass, ReportVisit } from './reports/types.js'
 import { sanitiseMeta } from './auditMeta.js'
 import { dateKey, DEFAULT_TIMEZONE } from './dates.js'
 import { computeEligibility, isoFromDateKey, warningDaysOf } from './expiry.js'
@@ -15,6 +15,7 @@ import {
   changeOwnPasswordSchema,
   createUserSchema,
   reissuePinSchema,
+  revealPinSchema,
   resetCredentialSchema,
   updateUserSchema,
 } from './schemas.js'
@@ -47,6 +48,7 @@ import type {
   InspectionData,
   PenaltyData,
   PenaltyTypeData,
+  VisitData,
 } from './types.js'
 
 /** Thrown by the data port when `pinIndex/{key}` already exists (another user holds that PIN): retry with a new PIN. */
@@ -116,7 +118,8 @@ export interface DecisionPlan {
  */
 export type CheckInPlan =
   | { kind: 'replay'; checkIn: CheckInStamp }
-  | { kind: 'write'; checkIn: CheckInStamp; entry: HistoryEntry; audit: AuditEntry }
+  /** `visit`: the open gate visit this first entry of the day starts (the port creates it in the same transaction). */
+  | { kind: 'write'; checkIn: CheckInStamp; entry: HistoryEntry; audit: AuditEntry; visit: { id: string; data: VisitData } }
 
 /** Which passes a report reads. `dateKey` ranges are inclusive and use the equality filters that have an index. */
 export type PassQuery =
@@ -145,6 +148,8 @@ export interface DataPort {
   getDriver(uid: string): Promise<DriverData | null>
   getDrivers(uids: string[]): Promise<Map<string, DriverData>>
   getVehicle(id: string): Promise<VehicleData | null>
+  /** For each of `driverIds`, the vehicle (other than `exceptVehicleId`) that lists them in `assignedDriverIds`, if any. */
+  findDriverAssignments(q: { tenantId: string; driverIds: string[]; exceptVehicleId?: string | undefined }): Promise<Map<string, { vehicleId: string; plateNo: string }>>
   /**
    * Atomically writes the user doc (+ createdAt/createdBy/updatedAt), the optional `drivers` doc and the audit entry.
    * With `pin` it is one transaction that also creates `pinIndex/{pin.key}` and throws PinTakenError when it exists.
@@ -155,13 +160,15 @@ export interface DataPort {
     actorUid: string,
     audit: AuditEntry,
     driver?: DriverData,
-    pin?: { key: string; entry: PinIndexEntry },
+    pin?: { key: string; entry: PinIndexEntry; sealed: string },
   ): Promise<void>
   /**
    * One transaction: deletes every `pinIndex` doc of `uid`, creates `pinIndex/{key}` (PinTakenError when it exists),
    * applies `patch` to the user doc and clears `knownDevices`, writes the audit entry.
    */
-  reissuePinTx(p: { uid: string; key: string; entry: PinIndexEntry; patch: Partial<UserData>; audit: AuditEntry }): Promise<void>
+  reissuePinTx(p: { uid: string; key: string; entry: PinIndexEntry; sealed: string; pinVersion: number; patch: Partial<UserData>; audit: AuditEntry }): Promise<void>
+  /** `pinVault/{uid}`: the sealed copy of the person's current PIN, or null (issued before viewing existed). */
+  getPinVault(uid: string): Promise<{ tenantId: string; sealed: string; pinVersion: number } | null>
   /**
    * Atomically merges `patch` (+ updatedAt) into the user doc and writes the audit entry. `driver.patch` is merged
    * into the `drivers` doc in the same batch; `driver.backfill` creates it first for drivers that predate Module 2.
@@ -241,6 +248,9 @@ export interface DataPort {
   listPasses(q: PassQuery, limit: number): Promise<ReportPass[]>
   countGateEvents(q: GateEventQuery): Promise<number>
   listGateEvents(q: GateEventQuery, limit: number): Promise<ReportEvent[]>
+  /** Gate visits whose check-in day (`YYYYMMDD`) is in the inclusive range: the gate pass report. */
+  countVisits(q: { tenantId: string; fromKey: string; toKey: string }): Promise<number>
+  listVisits(q: { tenantId: string; fromKey: string; toKey: string }, limit: number): Promise<ReportVisit[]>
   /** Contractor id -> name for the tenant. */
   listContractorNames(tenantId: string): Promise<Map<string, string>>
   /** Auth uids of every `users` doc of this contractor. */
@@ -429,11 +439,11 @@ function pepperOf(deps: Deps): string {
 
 /** Generated PINs are unique across every tenant: `write` throws PinTakenError on a collision and a new PIN is tried. */
 const PIN_ATTEMPTS = 10
-async function issueUniquePin(deps: Deps, pepper: string, write: (key: string) => Promise<void>): Promise<string> {
+async function issueUniquePin(deps: Deps, pepper: string, write: (key: string, pin: string) => Promise<void>): Promise<string> {
   for (let i = 0; i < PIN_ATTEMPTS; i++) {
     const pin = deps.newPin()
     try {
-      await write(pinKey(pin, pepper))
+      await write(pinKey(pin, pepper), pin)
       return pin
     } catch (e) {
       if (!(e instanceof PinTakenError)) throw e
@@ -629,14 +639,14 @@ async function createPinUser(
       pinVersion: 1,
     }
     const entry: PinIndexEntry = { uid, tenantId: caller.tenantId, role }
-    const pin = await issueUniquePin(deps, pepper, (key) =>
+    const pin = await issueUniquePin(deps, pepper, (key, p) =>
       deps.data.createUserWithAudit(
         uid,
         data,
         caller.uid,
         audit(caller, 'user.create', uid, { role, contractorId, pinLogin: true }),
         driver,
-        { key, entry },
+        { key, entry, sealed: sealPin(p, uid, 1, pepper) },
       ),
     )
     return { uid, pin }
@@ -844,15 +854,18 @@ export async function reissuePin(deps: Deps, caller: Caller, raw: unknown): Prom
   const entry: PinIndexEntry = { uid: input.uid, tenantId: target.tenantId, role: target.role as PinIndexEntry['role'] }
   let pin: string
   try {
-    pin = await issueUniquePin(deps, pepper, (key) =>
+    const pinVersion = (target.pinVersion ?? 1) + 1
+    pin = await issueUniquePin(deps, pepper, (key, p) =>
       deps.data.reissuePinTx({
         uid: input.uid,
         key,
         entry,
+        sealed: sealPin(p, input.uid, pinVersion, pepper),
+        pinVersion,
         patch: {
           loginType: 'pin',
           mustChangePassword: false,
-          pinVersion: (target.pinVersion ?? 1) + 1,
+          pinVersion,
           sessionsRevokedAt: deps.now(),
         },
         audit: audit(caller, 'user.reissuePin', input.uid, { role: target.role }),
@@ -863,5 +876,30 @@ export async function reissuePin(deps: Deps, caller: Caller, raw: unknown): Prom
   }
   // `sessionsRevokedAt` already refuses older sessions; revoking refresh tokens stops them renewing at all.
   await deps.auth.revokeRefreshTokens(input.uid).catch(() => undefined)
+  return { pin }
+}
+
+// ---- revealPin ("Show PIN") ---------------------------------------------------------------------
+
+/**
+ * The current PIN of a driver or security user, for the admin (any) or the supervisor (own contractor's drivers): the same
+ * scope as `reissuePin`. Opens the sealed copy in `pinVault`; accounts whose PIN was issued before viewing existed have none
+ * and must be reissued (`pin-not-stored`). Every view is audited (who looked at whose PIN, never the PIN).
+ */
+export async function revealPin(deps: Deps, caller: Caller, raw: unknown): Promise<{ pin: string }> {
+  const input = parse(revealPinSchema, raw)
+  await requireActiveCaller(deps, caller)
+  if (!can(caller.role, 'user.pin.view')) throw fail('permission-denied', 'forbidden', 'You are not allowed to do that')
+  const target = await loadTarget(deps, caller, input.uid)
+  assertCanManage(caller, target)
+  if (!isPinRole(target.role)) throw fail('failed-precondition', 'not-pin-user', 'Only drivers and security sign in with a PIN')
+  const pepper = pepperOf(deps)
+  const vault = await deps.data.getPinVault(input.uid)
+  if (!vault || vault.tenantId !== caller.tenantId || vault.pinVersion !== (target.pinVersion ?? 1)) {
+    throw fail('failed-precondition', 'pin-not-stored', 'This PIN cannot be shown. Issue a new one.')
+  }
+  const pin = openPin(vault.sealed, input.uid, vault.pinVersion, pepper)
+  if (!pin) throw fail('failed-precondition', 'pin-not-stored', 'This PIN cannot be shown. Issue a new one.')
+  await deps.data.writeAudit(audit(caller, 'user.revealPin', input.uid, { role: target.role }))
   return { pin }
 }

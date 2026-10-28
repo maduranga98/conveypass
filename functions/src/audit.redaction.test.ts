@@ -18,7 +18,7 @@ import { admin, caller, drv1, makeWorld, NOW, sup1, userDoc, type World } from '
 import type { PassData, PenaltyData, StoredFile } from './types.js'
 import { checkInVisit, checkOutVisit, logUnloadingCheck } from './visits.js'
 import { givePass } from './gatepass-test-utils.js'
-import { givePin, makeVisitWorld } from './visits-test-utils.js'
+import { giveCheckedInPass, makeVisitWorld } from './visits-test-utils.js'
 import { flagDwellVisits } from './dwell.js'
 import { createVehicle, importVehicles, setContractorStatus, setVehicleDrivers, setVehicleStatus, updateVehicle } from './vehicles.js'
 
@@ -72,7 +72,7 @@ describe('audit redaction: every write path', () => {
     await updateVehicle(w.deps, admin(), { vehicleId: id, plateNo: 'CAB 8888', makeModel: 'Isuzu' })
     await setVehicleStatus(w.deps, admin(), { vehicleId: id, status: 'suspended' })
     await setVehicleStatus(w.deps, admin(), { vehicleId: id, status: 'active' })
-    await setVehicleDrivers(w.deps, admin(), { vehicleId: id, driverIds: ['drv1'] })
+    await setVehicleDrivers(w.deps, admin(), { vehicleId: id, driverIds: ['drv1b'] })
     await importVehicles(w.deps, admin(), { contractorId: 'C1', rows: [{ plateNo: 'KA 1111', type: 'Tipper' }] })
     await setContractorStatus(w.deps, admin(), { contractorId: 'C2', status: 'suspended' })
     await setContractorStatus(w.deps, admin(), { contractorId: 'C2', status: 'active' })
@@ -133,10 +133,10 @@ describe('audit redaction: every write path', () => {
     const sec = caller('sec', 'security')
     const yard = caller('yard1', 'yard')
     const pin = '48291736'
-    givePin(w, 'drv1', pin)
+    giveCheckedInPass(w, VID, 'drv1')
     givePass(vw.gatePasses, VID, 'drv1')
     await recordInspection(w.deps, caller('safe1', 'safety'), { inspectionId: 'insp_cccccccccc', vehicleId: VID, result: 'approved', notes: '' })
-    await checkInVisit(w.deps, vw.port, vw.throttle, sec, { visitId: 'vis_aaaaaaaaaa', vehicleId: VID, pin, requestId: R1 })
+    await checkInVisit(w.deps, vw.port, sec, { visitId: 'vis_aaaaaaaaaa', vehicleId: VID, requestId: R1 })
     await logUnloadingCheck(w.deps, vw.port, yard, { visitId: 'vis_aaaaaaaaaa', unloaded: true, unloadLocation: 'https://x.test/token' })
     await flagDwellVisits(vw.dwell, NOW * 1000 + 20 * 3_600_000)
     await checkOutVisit(w.deps, vw.port, sec, { visitId: 'vis_aaaaaaaaaa', requestId: R2 })

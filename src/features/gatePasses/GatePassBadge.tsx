@@ -9,7 +9,7 @@ const styles: Record<GatePassBadgeStatus, { tone: string; Icon: typeof ShieldChe
   active: { tone: 'bg-success-soft text-success-strong', Icon: ShieldCheck },
   blocked: { tone: 'bg-danger-soft text-danger-strong', Icon: ShieldAlert },
   expired: { tone: 'bg-slate-100 text-slate-700', Icon: CalendarX2 },
-  not_issued: { tone: 'bg-accent-soft text-brand', Icon: CircleDashed },
+  not_issued: { tone: 'bg-accent-soft text-ink', Icon: CircleDashed },
 }
 
 /**

@@ -20,7 +20,7 @@ const nav = [
   { to: '/safety/summary', label: t.nav.today, icon: ChartNoAxesColumn, end: false },
 ] as const
 
-/** Safety Officer shell: navy top bar with the penalty screens and the inspection screens (record, re-inspection list). Single column. */
+/** Safety Officer shell: red top bar with the penalty screens and the inspection screens (record, re-inspection list). Single column. */
 export default function SafetyLayout() {
   const { profile } = useSession()
   const { signOut } = useAuth()
@@ -52,14 +52,14 @@ export default function SafetyLayout() {
               className={({ isActive }) =>
                 cn(
                   'flex h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-solid',
-                  isActive ? 'bg-accent text-brand' : 'text-slate-300 hover:bg-brand-hover hover:text-on-solid',
+                  isActive ? 'bg-accent text-ink' : 'text-slate-300 hover:bg-brand-hover hover:text-on-solid',
                 )
               }
             >
               <Icon aria-hidden className="size-5" />
               {label}
               {to === '/safety/reinspection' && waiting > 0 && (
-                <span className="min-w-5 rounded-full bg-accent px-1.5 text-center text-xs font-bold text-brand">
+                <span className="min-w-5 rounded-full bg-accent px-1.5 text-center text-xs font-bold text-ink">
                   {waiting}
                   <span className="sr-only"> {strings.inspections.list.count(waiting)}</span>
                 </span>

@@ -14,7 +14,7 @@ export function VisitHistory({ scope, field, id }: { scope: Scope; field: 'vehic
   const visits = useSubjectVisits(scope, field, id)
   return (
     <section aria-labelledby={`visits-${field}-${id}`} className="space-y-2">
-      <h3 id={`visits-${field}-${id}`} className="text-sm font-semibold text-brand">{t.title}</h3>
+      <h3 id={`visits-${field}-${id}`} className="text-sm font-semibold text-ink">{t.title}</h3>
       {visits.isError ? (
         <ErrorState message={t.loadFailed} error={visits.error} onRetry={() => void visits.refetch()} />
       ) : visits.isPending ? (
@@ -31,7 +31,7 @@ export function VisitHistory({ scope, field, id }: { scope: Scope; field: 'vehic
                 className="flex flex-wrap items-center gap-2 px-3 py-2.5 text-sm hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus"
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block font-semibold text-brand">{field === 'vehicleId' ? v.driverName : v.plateNo}</span>
+                  <span className="block font-semibold text-ink">{field === 'vehicleId' ? v.driverName : v.plateNo}</span>
                   <span className="block text-slate-600 tabular-nums">{dateTime(v.checkIn.timestamp.toMillis())}</span>
                 </span>
                 <UnloadChip visit={v} />

@@ -25,10 +25,17 @@ import { pendingPassIds, useOfflineQueue } from './gateQueue'
 import { canCheckIn, canDeny, computeGateResult, gateTone, type GateResult } from './gateResult'
 import { useContractorDoc, useDriverDoc, useVehicleDoc } from './queries'
 import { useCheckIn, useDenyEntry } from './useGateActions'
+import { VehicleMovements } from './VehicleMovements'
 import { useGateRuntime, useGates } from './useGate'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
 
 const t = strings.gate
+
+/** `20260310` -> `20260309`. */
+const previousDayKey = (key: string): string => {
+  const d = new Date(Date.UTC(Number(key.slice(0, 4)), Number(key.slice(4, 6)) - 1, Number(key.slice(6, 8)) - 1))
+  return `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`
+}
 
 const hhmm = (ms: number | null | undefined): string =>
   ms ? new Date(ms).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : strings.common.none
@@ -62,7 +69,7 @@ function Banner({ result }: { result: GateResult }) {
       className={cn(
         'flex items-center gap-3 px-4 py-4',
         tone === 'green' && 'bg-success-strong text-on-solid',
-        tone === 'amber' && 'bg-accent text-brand',
+        tone === 'amber' && 'bg-accent text-ink',
         tone === 'red' && 'bg-danger-strong text-on-solid',
       )}
     >
@@ -107,7 +114,12 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
   const vehicle = vehicleQ.data ?? null
   const passId = vehicle && today ? `${vehicleId}_${today}` : null
   const passState = usePass(passId)
-  const pass: PassWithId | null = passState.status === 'ready' ? passState.pass : null
+  const todayPass: PassWithId | null = passState.status === 'ready' ? passState.pass : null
+  // A gate time that started yesterday evening runs past midnight: with no pass today, yesterday's checked-in pass still counts.
+  const yesterdayKey = today ? previousDayKey(today) : ''
+  const prevState = usePass(vehicle && today && todayPass === null && passState.status !== 'loading' ? `${vehicleId}_${yesterdayKey}` : null)
+  const overnight: PassWithId | null = prevState.status === 'ready' && prevState.pass.status === 'checked_in' ? prevState.pass : null
+  const pass: PassWithId | null = todayPass ?? overnight
   // The rules read `resource.data`, so a pass that does not exist comes back as permission-denied rather than
   // "missing". The vehicle is already known to be in this tenant (and readable), so that can only mean "no pass".
   const passFailed = passState.status === 'error' && passState.error.code !== 'permission-denied'
@@ -125,7 +137,7 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
     () =>
       computeGateResult({
         vehicle: validId ? vehicle : null,
-        pass,
+        pass: pass && today ? { ...pass, dateKey: today } : null,
         driver: driverQ.data ?? null,
         contractor: contractorQ.data ?? null,
         today: today ?? '',
@@ -201,7 +213,7 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
   const backTo = readOnly ? ROLE_HOME[claims.role] : '/security'
   const header = (
     <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-surface px-2">
-      <Link to={backTo} className="inline-flex h-11 items-center gap-1 rounded-lg px-2 text-base font-semibold text-brand focus-visible:outline-2 focus-visible:outline-focus">
+      <Link to={backTo} className="inline-flex h-11 items-center gap-1 rounded-lg px-2 text-base font-semibold text-ink focus-visible:outline-2 focus-visible:outline-focus">
         <ArrowLeft aria-hidden className="size-5" />
         {t.back}
       </Link>
@@ -261,7 +273,7 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
       <main className="mx-auto w-full max-w-lg flex-1 space-y-4 px-4 pt-4 pb-6">
         {vehicle ? (
           <section aria-label={t.plate}>
-            <p className="text-5xl leading-none font-black tracking-tight break-words text-brand">{vehicle.plateNo}</p>
+            <p className="text-5xl leading-none font-black tracking-tight break-words text-ink">{vehicle.plateNo}</p>
             <p className="mt-2 text-lg font-semibold text-slate-800">
               {vehicle.type} · {contractorName}
             </p>
@@ -271,7 +283,7 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
         )}
 
         {result.kind === 'already_checked_in' && (
-          <p className="flex items-start gap-2 rounded-xl border-2 border-accent bg-warning-soft px-3 py-2 text-base font-bold text-brand">
+          <p className="flex items-start gap-2 rounded-xl border-2 border-accent bg-warning-soft px-3 py-2 text-base font-bold text-ink">
             {result.pendingSync ? <CloudUpload aria-hidden className="mt-0.5 size-5 shrink-0" /> : <CircleAlert aria-hidden className="mt-0.5 size-5 shrink-0" />}
             <span>
               {result.pendingSync || !checkInStamp
@@ -284,6 +296,10 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
           </p>
         )}
 
+        {result.kind === 'already_checked_in' && !result.pendingSync && vehicle && pass?.status === 'checked_in' && (
+          <VehicleMovements vehicleId={vehicleId} plateNo={vehicle.plateNo} pass={pass} gate={gate} online={online} readOnly={readOnly} />
+        )}
+
         {vehicle && (
           <section aria-label={t.driver} className="flex items-start gap-4">
             {driverName ? (
@@ -291,7 +307,7 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
                 <DriverPhoto driver={driverQ.data ?? null} name={driverName} online={online} />
                 <div className="min-w-0 pt-1">
                   <p className="text-sm font-semibold text-slate-600">{t.driver}</p>
-                  <p className="text-2xl leading-tight font-extrabold break-words text-brand">{driverName}</p>
+                  <p className="text-2xl leading-tight font-extrabold break-words text-ink">{driverName}</p>
                 </div>
               </>
             ) : (
@@ -301,7 +317,7 @@ export default function GateVehicleView({ vehicleId, readOnly }: { vehicleId: st
         )}
 
         {pass && (pass.supervisor || pass.officer) && (
-          <section aria-labelledby="approved-by" className="rounded-xl bg-slate-100 px-3 py-2.5 text-base text-brand">
+          <section aria-labelledby="approved-by" className="rounded-xl bg-slate-100 px-3 py-2.5 text-base text-ink">
             <h2 id="approved-by" className="text-sm font-bold text-slate-700">{t.approvedBy}</h2>
             {pass.supervisor && <p className="font-semibold">{t.supervisorLine(pass.supervisor.name, hhmm(pass.supervisor.at?.toMillis()))}</p>}
             {pass.officer && <p className="font-semibold">{t.officerLine(pass.officer.name, hhmm(pass.officer.at?.toMillis()))}</p>}

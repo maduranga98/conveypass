@@ -69,7 +69,7 @@ export default function StaffLoginPage() {
         </div>
         <Link
           to={params.get('next') ? `/login?next=${encodeURIComponent(params.get('next') ?? '')}` : '/login'}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-surface px-4 text-base font-semibold text-brand transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-surface px-4 text-base font-semibold text-ink transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
           <ArrowLeft aria-hidden className="size-4" />
           {strings.auth.backToPin}
@@ -77,7 +77,7 @@ export default function StaffLoginPage() {
         <p className="mt-4 text-center lg:text-left">
           <Link
             to="/privacy"
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm text-slate-600 hover:text-brand focus-visible:outline-2 focus-visible:outline-focus"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm text-slate-600 hover:text-ink focus-visible:outline-2 focus-visible:outline-focus"
           >
             <Lock aria-hidden className="size-3.5" />
             {strings.privacy.link}
@@ -130,7 +130,7 @@ function StaffForm({ onSubmit }: { onSubmit: (email: string, password: string) =
       <div className="-mt-2 flex justify-end">
         <Link
           to="/forgot-password"
-          className="inline-flex min-h-11 items-center rounded-lg px-1 text-sm font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-focus"
+          className="inline-flex min-h-11 items-center rounded-lg px-1 text-sm font-semibold text-ink hover:underline focus-visible:outline-2 focus-visible:outline-focus"
         >
           {strings.auth.forgotPassword}
         </Link>

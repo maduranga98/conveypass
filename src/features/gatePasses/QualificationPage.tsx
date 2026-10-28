@@ -170,10 +170,10 @@ export default function QualificationPage() {
                       aria-label={t.selectRow(e.plateNo, e.driverName)}
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="block font-mono text-base font-semibold tracking-wide text-brand">{e.plateNo}</span>
+                      <span className="block font-mono text-base font-semibold tracking-wide text-ink">{e.plateNo}</span>
                       <span className="block truncate text-sm text-slate-700">{e.driverName} · {e.contractorName}</span>
                     </span>
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${e.documentStatus === 'expiringSoon' ? 'bg-accent-soft text-brand' : 'bg-success-soft text-success-strong'}`}>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${e.documentStatus === 'expiringSoon' ? 'bg-accent-soft text-ink' : 'bg-success-soft text-success-strong'}`}>
                       {e.documentStatus === 'expiringSoon' ? t.docsExpiring : t.docsValid}
                     </span>
                   </label>

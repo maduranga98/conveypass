@@ -1,4 +1,4 @@
-import { ClipboardCheck, Footprints, Home, LogOut, QrCode, ShieldAlert, Truck, UserRound, Users } from 'lucide-react'
+import { CalendarCheck, ClipboardCheck, Footprints, Home, LogOut, QrCode, ShieldAlert, Truck, UserRound, UserRoundPlus, Users } from 'lucide-react'
 import { Link, NavLink, Outlet, useMatch } from 'react-router-dom'
 import { BrandMark } from '@/components/BrandMark'
 import { cn } from '@/lib/cn'
@@ -17,6 +17,8 @@ const t = strings.supervisor
 const nav = [
   { to: '/supervisor', label: t.nav.home, short: t.nav.home, icon: Home, end: true },
   { to: '/supervisor/approvals', label: t.nav.approvals, short: t.nav.approvals, icon: ClipboardCheck, end: false },
+  { to: '/supervisor/daily', label: t.nav.daily, short: t.nav.dailyShort, icon: CalendarCheck, end: false },
+  { to: '/supervisor/assign-drivers', label: t.nav.assign, short: t.nav.assignShort, icon: UserRoundPlus, end: false },
   { to: '/supervisor/penalties', label: t.nav.penalties, short: t.nav.penalties, icon: ShieldAlert, end: false },
   { to: '/supervisor/visits', label: t.nav.visits, short: t.nav.visits, icon: Footprints, end: false },
   { to: '/supervisor/vehicles', label: t.nav.vehicles, short: t.nav.vehicles, icon: Truck, end: false },
@@ -26,19 +28,19 @@ const nav = [
 
 const darkFocus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-solid'
 
-/** Count bubble for the Approvals item: amber with navy text, the app's "waiting" colour. */
+/** Count bubble for the Approvals item: amber with red text, the app's "waiting" colour. */
 function PendingBadge({ count, className, label }: { count: number | null; className?: string; label?: string }) {
   if (count === null || count === 0) return null
   return (
-    <span aria-label={label ?? t.homePending(count)} className={cn('grid min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-bold leading-5 text-brand', className)}>
+    <span aria-label={label ?? t.homePending(count)} className={cn('grid min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-bold leading-5 text-ink', className)}>
       {count >= 100 ? '99+' : count}
     </span>
   )
 }
 
 /**
- * Responsive shell. Desktop (lg): a brand navy sidebar with the logo, navigation, account and sign out. Phone and
- * tablet: a navy top bar and a bottom tab bar (hidden on the review screen, which has its own Approve/Reject bar).
+ * Responsive shell. Desktop (lg): a brand red sidebar with the logo, navigation, account and sign out. Phone and
+ * tablet: a red top bar and a bottom tab bar (hidden on the review screen, which has its own Approve/Reject bar).
  */
 export default function SupervisorLayout() {
   const { profile, claims } = useSession()
@@ -73,7 +75,7 @@ export default function SupervisorLayout() {
                 cn(
                   'flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold',
                   darkFocus,
-                  isActive ? 'bg-accent text-brand' : 'text-slate-300 hover:bg-brand-hover hover:text-on-solid',
+                  isActive ? 'bg-accent text-ink' : 'text-slate-300 hover:bg-brand-hover hover:text-on-solid',
                 )
               }
             >
@@ -152,7 +154,7 @@ export default function SupervisorLayout() {
                   className={({ isActive }) =>
                     cn(
                       'relative flex h-16 flex-col items-center justify-center gap-1 text-xs font-semibold focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus',
-                      isActive ? 'text-brand before:absolute before:inset-x-4 before:top-0 before:h-1 before:rounded-b-full before:bg-accent' : 'text-slate-600 hover:text-brand',
+                      isActive ? 'text-ink before:absolute before:inset-x-4 before:top-0 before:h-1 before:rounded-b-full before:bg-accent' : 'text-slate-600 hover:text-ink',
                     )
                   }
                 >

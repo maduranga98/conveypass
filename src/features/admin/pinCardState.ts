@@ -9,6 +9,8 @@ export interface IssuedPin {
   role: Role
   company: string
   reissued?: boolean
+  /** Shown again on request ("Show PIN"): the warning says every view is recorded. */
+  viewed?: boolean
 }
 
 /** Holds a one-time PIN in component state only; it is dropped on close, on unmount (navigation) and when the session ends. */

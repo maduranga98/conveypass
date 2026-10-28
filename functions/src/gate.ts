@@ -6,10 +6,11 @@ import { dateKey as computeDateKey, DEFAULT_TIMEZONE, isValidTimezone } from './
 import { DENY_OTHER_ID, DENY_REASONS, MIN_DENY_NOTE } from './denyReasons.js'
 import { fail, failWith } from './errors.js'
 import { gatesOf } from './gates.js'
+import { visitIdForRequest } from './ids.js'
 import { passIdFor } from './passes.js'
 import { findTransition } from './passTransitions.js'
 import { checkInSchema, denyEntrySchema } from './schemas.js'
-import type { Caller, CheckInStamp, GateDef, GateEventData, PassStatus, TenantData } from './types.js'
+import type { Caller, CheckInStamp, GateDef, GateEventData, PassStatus, TenantData, VisitData } from './types.js'
 
 /** An offline capture time may be at most this far ahead of the server clock (device clock drift). */
 export const OFFLINE_MAX_FUTURE_MS = 2 * 60_000
@@ -121,9 +122,34 @@ export function planCheckIn(i: CheckInInput, ctx: DecisionContext | null): Check
     requestId: i.requestId,
     ...(i.offlineCapturedAt !== undefined ? { offlineCapturedAt: i.offlineCapturedAt } : {}),
   }
+  // The first entry of the day also opens the day's first gate visit (in and out can then repeat; see visits.ts).
+  const visit: VisitData = {
+    tenantId,
+    vehicleId: pass.vehicleId,
+    passId: i.passId,
+    driverId: pass.driverId,
+    contractorId: pass.contractorId,
+    plateNo: pass.plateNo,
+    driverName: pass.driverName,
+    checkIn: {
+      timestamp: i.nowMs,
+      dateKey: i.day,
+      securityUserId: i.caller.uid,
+      securityUserName: i.actorName,
+      gateId: i.gate.id,
+      gateLocation: i.gate.name,
+      requestId: i.requestId,
+    },
+    unloadingCheck: null,
+    checkOut: null,
+    status: 'checked_in',
+    driverOnDutyLock: true,
+    dwellWarning: false,
+  }
   return {
     kind: 'write',
     checkIn,
+    visit: { id: visitIdForRequest(i.requestId), data: visit },
     entry: {
       action: 'check_in', stage: 'gate', byUid: i.caller.uid, byName: i.actorName, byRole: i.caller.role,
       at: i.nowMs, attempt: pass.attempt,

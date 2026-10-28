@@ -54,7 +54,7 @@ export function FilterBar({ applied, today, onApply }: { applied: ReportFilters;
               type="button"
               aria-pressed={draft.preset === p}
               onClick={() => pickPreset(p)}
-              className={`h-9 rounded-full border px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-focus ${draft.preset === p ? 'border-brand bg-accent-soft text-brand' : 'border-slate-300 bg-surface text-slate-700 hover:bg-slate-50'}`}
+              className={`h-9 rounded-full border px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-focus ${draft.preset === p ? 'border-brand bg-accent-soft text-ink' : 'border-slate-300 bg-surface text-slate-700 hover:bg-slate-50'}`}
             >
               {t.presets[p]}
             </button>

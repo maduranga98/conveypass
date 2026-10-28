@@ -26,7 +26,7 @@ export function AdminsCard() {
           {admins.data.map((a) => (
             <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-brand">{a.name}</p>
+                <p className="truncate text-sm font-medium text-ink">{a.name}</p>
                 <p className="truncate text-sm text-slate-600">{a.email ?? strings.common.none}</p>
               </div>
               <Badge tone={a.status === 'active' ? 'success' : 'danger'}>{strings.status[a.status]}</Badge>

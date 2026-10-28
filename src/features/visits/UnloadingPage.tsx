@@ -36,7 +36,7 @@ export default function UnloadingPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4 py-5">
-      <h1 className="text-3xl font-black tracking-tight text-brand">{t.title}</h1>
+      <h1 className="text-3xl font-black tracking-tight text-ink">{t.title}</h1>
 
       <label className="relative block">
         <span className="sr-only">{strings.visits.search}</span>
@@ -73,7 +73,7 @@ export default function UnloadingPage() {
                   className="flex min-h-20 w-full items-center gap-3 rounded-2xl border-2 border-slate-200 bg-surface px-4 py-3 text-left hover:border-slate-400 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block text-2xl leading-tight font-black tracking-tight text-brand">{v.plateNo}</span>
+                    <span className="block text-2xl leading-tight font-black tracking-tight text-ink">{v.plateNo}</span>
                     <span className="block text-base font-semibold text-slate-700">{v.driverName}</span>
                     <span className="block text-sm text-slate-700">
                       {strings.visits.onSiteFor(e.hours, e.minutes)} · {strings.visits.since(clock(v.checkIn.timestamp.toMillis()))}
@@ -139,7 +139,7 @@ function UnloadForm({ visit, places, onClose }: { visit: WithId<Visit>; places: 
       onClick={() => setUnloaded(value)}
       className={cn(
         'flex h-20 flex-col items-center justify-center gap-1 rounded-2xl border-2 px-2 text-lg font-black focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-focus',
-        unloaded === value ? (value ? 'border-success-strong bg-success-strong text-on-solid' : 'border-brand bg-brand text-on-solid') : 'border-slate-300 bg-surface text-brand',
+        unloaded === value ? (value ? 'border-success-strong bg-success-strong text-on-solid' : 'border-brand bg-brand text-on-solid') : 'border-slate-300 bg-surface text-ink',
       )}
     >
       <Icon aria-hidden className="size-7" />
@@ -150,12 +150,12 @@ function UnloadForm({ visit, places, onClose }: { visit: WithId<Visit>; places: 
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-4xl leading-tight font-black tracking-tight text-brand">{visit.plateNo}</p>
+        <p className="text-4xl leading-tight font-black tracking-tight text-ink">{visit.plateNo}</p>
         <p className="text-lg font-semibold text-slate-800">{visit.driverName}</p>
       </div>
 
       <fieldset className="space-y-2">
-        <legend className="text-lg font-bold text-brand">{t.question}</legend>
+        <legend className="text-lg font-bold text-ink">{t.question}</legend>
         <div className="grid grid-cols-2 gap-3">
           {choice(true, t.yes, PackageCheck)}
           {choice(false, t.no, PackageX)}
@@ -164,7 +164,7 @@ function UnloadForm({ visit, places, onClose }: { visit: WithId<Visit>; places: 
 
       {unloaded === true && (
         <div className="space-y-2">
-          <label htmlFor="unload-place" className="text-lg font-bold text-brand">{t.location}</label>
+          <label htmlFor="unload-place" className="text-lg font-bold text-ink">{t.location}</label>
           <input
             id="unload-place"
             value={place}
@@ -180,7 +180,7 @@ function UnloadForm({ visit, places, onClose }: { visit: WithId<Visit>; places: 
               <ul className="mt-1 flex flex-wrap gap-2">
                 {places.map((p) => (
                   <li key={p}>
-                    <button type="button" onClick={() => setPlace(p)} className="h-12 rounded-full border-2 border-slate-300 bg-surface px-4 text-base font-bold text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
+                    <button type="button" onClick={() => setPlace(p)} className="h-12 rounded-full border-2 border-slate-300 bg-surface px-4 text-base font-bold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
                       {p}
                     </button>
                   </li>

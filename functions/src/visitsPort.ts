@@ -4,9 +4,8 @@
 import { FieldValue, getFirestore, Timestamp, type DocumentData, type Query } from 'firebase-admin/firestore'
 import { gatePassPort } from './gatePassPort.js'
 import { newAuditDoc } from './ports.js'
-import type { CheckInContext, PinThrottle, VisitPort, VisitRecord, VisitScope } from './visits.js'
-import { PIN_FAILURE_LIMIT, PIN_FAILURE_WINDOW_MS } from './visits.js'
-import type { DriverData, PinIndexEntry, UserData, VisitData } from './types.js'
+import type { CheckInContext, VisitPort, VisitRecord, VisitScope } from './visits.js'
+import type { DriverData, UserData, VisitData } from './types.js'
 
 const ts = (ms: number): Timestamp => Timestamp.fromMillis(ms)
 const ms = (v: unknown): number | null => (v instanceof Timestamp ? v.toMillis() : null)
@@ -42,10 +41,6 @@ export const visitPort = (): VisitPort => {
   const gatePasses = gatePassPort()
   return {
     lookupForPairing: gatePasses.lookupForPairing,
-    lookupPin: async (key) => {
-      const snap = await db.doc(`pinIndex/${key}`).get()
-      return snap.exists ? (snap.data() as PinIndexEntry) : null
-    },
     getVisit: async (visitId) => {
       const snap = await visits.doc(visitId).get()
       return snap.exists ? toVisit(snap.id, snap.data() as DocumentData) : null
@@ -150,26 +145,5 @@ export const visitPort = (): VisitPort => {
       const q = scope.contractorId ? base.where('contractorId', '==', scope.contractorId) : base
       return (await q.where('issuedAt', '>=', ts(fromMs)).where('issuedAt', '<=', ts(toMs)).count().get()).data().count
     },
-  }
-}
-
-/** Failed-PIN counter per guard: `rateLimits/{uid}_visitPin`, a fixed 15-minute window (same collection and TTL as the other limits). */
-export const pinThrottle = (): PinThrottle => {
-  const db = getFirestore()
-  const ref = (uid: string) => db.doc(`rateLimits/${uid}_visitPin`)
-  const windowOf = (nowMs: number) => Math.floor(nowMs / PIN_FAILURE_WINDOW_MS) * PIN_FAILURE_WINDOW_MS
-  return {
-    isLocked: async (uid, nowMs) => {
-      const d = (await ref(uid).get()).data() as { windowStart?: number; count?: number } | undefined
-      return d?.windowStart === windowOf(nowMs) && (d.count ?? 0) >= PIN_FAILURE_LIMIT
-    },
-    recordFailure: (uid, nowMs) =>
-      db.runTransaction(async (tx) => {
-        const snap = await tx.get(ref(uid))
-        const d = snap.data() as { windowStart?: number; count?: number } | undefined
-        const windowStart = windowOf(nowMs)
-        const count = d?.windowStart === windowStart ? (d.count ?? 0) + 1 : 1
-        tx.set(ref(uid), { windowStart, count, expireAt: ts(windowStart + PIN_FAILURE_WINDOW_MS * 2) })
-      }),
   }
 }

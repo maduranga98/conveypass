@@ -47,7 +47,7 @@ export function GateTopBar() {
             aria-label={gate ? `${t.gateLabel(gate.name)}. ${t.changeGate}` : t.chooseGate}
             className={cn(
               'inline-flex h-12 min-w-24 flex-1 items-center gap-1.5 rounded-full border-2 px-3 text-base font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
-              gate ? 'border-slate-300 bg-surface text-brand' : 'border-accent bg-accent-soft text-warning-ink',
+              gate ? 'border-slate-300 bg-surface text-ink' : 'border-accent bg-accent-soft text-warning-ink',
             )}
           >
             <MapPin aria-hidden className="size-4 shrink-0" />
@@ -56,7 +56,7 @@ export function GateTopBar() {
         ) : (
           <span className="flex min-w-0 flex-1 items-center gap-2">
             <BrandMark className="size-9 rounded-lg" />
-            <span className="truncate text-base font-bold text-brand">{gate?.name ?? t.topBar}</span>
+            <span className="truncate text-base font-bold text-ink">{gate?.name ?? t.topBar}</span>
           </span>
         )}
 
@@ -76,7 +76,7 @@ export function GateTopBar() {
           <Link to="/security/queue" aria-label={`${t.openQueue}: ${t.queueBadge(waiting)}`} className={cn(iconBtn, 'relative')}>
             <CloudUpload aria-hidden className="size-6" />
             {waiting > 0 && (
-              <span aria-hidden className="absolute -top-0.5 -right-0.5 min-w-5 rounded-full bg-accent px-1 text-center text-xs font-black text-brand">
+              <span aria-hidden className="absolute -top-0.5 -right-0.5 min-w-5 rounded-full bg-accent px-1 text-center text-xs font-black text-ink">
                 {waiting}
               </span>
             )}

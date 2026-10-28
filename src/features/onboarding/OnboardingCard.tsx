@@ -9,7 +9,7 @@ import { useOnboardingCounts } from './useOnboardingCounts'
 
 const t = strings.onboarding
 const linkClass =
-  'inline-flex min-h-9 items-center rounded-lg border border-slate-300 bg-surface px-3 text-sm font-medium text-brand hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus pointer-coarse:min-h-11'
+  'inline-flex min-h-9 items-center rounded-lg border border-slate-300 bg-surface px-3 text-sm font-medium text-ink hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus pointer-coarse:min-h-11'
 
 /**
  * "Get ConvoyPass ready": shown to admins until every step is done or the card is dismissed (remembered per tenant on

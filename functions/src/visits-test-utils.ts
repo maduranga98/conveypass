@@ -1,35 +1,53 @@
 // In-memory fakes of the visit ports, on top of the World of test-utils. Not part of the build (see tsconfig.json).
-import { pinKey } from './pin.js'
-import { TEST_PEPPER, type World } from './test-utils.js'
-import type { DriverData, PinIndexEntry, UserData, VisitData } from './types.js'
-import { PIN_FAILURE_LIMIT, type PinThrottle, type VisitPort, type VisitRecord } from './visits.js'
+import { dateKey } from './dates.js'
+import { passIdFor } from './passes.js'
+import { NOW, type World } from './test-utils.js'
+import type { DriverData, PassData, UserData, VisitData } from './types.js'
+import type { VisitPort, VisitRecord } from './visits.js'
 import type { DwellPort } from './dwell.js'
 import { makeGatePassWorld, type GatePassWorld } from './gatepass-test-utils.js'
 import { dwellLimitHoursOf } from './visitLogic.js'
 
 export interface VisitWorld {
   visits: Map<string, VisitData>
-  failures: Map<string, number>
   penaltiesIssued: { tenantId: string; contractorId: string; issuedAt: number }[]
   port: VisitPort
-  throttle: PinThrottle
   dwell: DwellPort
   /** Module 6: the monthly gate passes the check-in consults. A test seeds them with `givePass(vw.gatePasses, …)`. */
   gatePasses: GatePassWorld
 }
 
-/** Registers a driver PIN the way `createUser` does (HMAC in `pinIndex`). */
-export const givePin = (w: World, uid: string, pin: string, over: Partial<PinIndexEntry> = {}): void => {
-  w.pins.set(pinKey(pin, TEST_PEPPER), { uid, tenantId: 'T1', role: 'driver', ...over })
+/**
+ * Seeds the day's pass of a vehicle as checked in (the first entry of the day), so the later entries of `checkInVisit` have
+ * a gate time to run in. `checkedInAt` defaults to the test clock; `day` to the test clock's day.
+ */
+export function giveCheckedInPass(w: World, vehicleId: string, driverId: string, over: { checkedInAt?: number; day?: string } = {}): string {
+  const checkedInAt = over.checkedInAt ?? NOW * 1000
+  const day = over.day ?? dateKey('Asia/Colombo', new Date(checkedInAt))
+  const id = passIdFor(vehicleId, day)
+  const driver = w.users.get(driverId)
+  w.passes.set(id, {
+    tenantId: 'T1',
+    contractorId: 'C1',
+    vehicleId,
+    plateNo: w.vehicles.get(vehicleId)?.plateNo ?? '',
+    vehicleType: 'Tipper',
+    dateKey: day,
+    driverId,
+    driverName: driver?.name ?? 'Driver',
+    status: 'checked_in',
+    attempt: 1,
+    submittedAt: checkedInAt - 3_600_000,
+    checkIn: { uid: 'sec', name: 'Sam', at: checkedInAt, gateId: 'main', gateName: 'Main Gate', requestId: '0f1d6c1e-6a52-4b6a-9d0e-0a1b2c3d4e5f' },
+  } as unknown as PassData)
+  return id
 }
 
 export function makeVisitWorld(w: World): VisitWorld {
   const vw: VisitWorld = {
     visits: new Map(),
-    failures: new Map(),
     penaltiesIssued: [],
     port: undefined as unknown as VisitPort,
-    throttle: undefined as unknown as PinThrottle,
     dwell: undefined as unknown as DwellPort,
     gatePasses: makeGatePassWorld(w),
   }
@@ -42,7 +60,6 @@ export function makeVisitWorld(w: World): VisitWorld {
 
   vw.port = {
     lookupForPairing: (...a) => vw.gatePasses.port.lookupForPairing(...a),
-    lookupPin: async (key) => structuredClone(w.pins.get(key) ?? null),
     getVisit: async (id) => rec(id),
     // The fakes read and write synchronously from the plan to the write, which models the transaction.
     checkInTx: async ({ visitId, tenantId, vehicleId, driverId, plan }) => {
@@ -88,10 +105,6 @@ export function makeVisitWorld(w: World): VisitWorld {
         .map(([id]) => rec(id) as VisitRecord),
     countPenaltiesIssued: async (scope, from, to) =>
       vw.penaltiesIssued.filter((p) => p.tenantId === scope.tenantId && (scope.contractorId === null || p.contractorId === scope.contractorId) && p.issuedAt >= from && p.issuedAt <= to).length,
-  }
-  vw.throttle = {
-    isLocked: async (uid) => (vw.failures.get(uid) ?? 0) >= PIN_FAILURE_LIMIT,
-    recordFailure: async (uid) => void vw.failures.set(uid, (vw.failures.get(uid) ?? 0) + 1),
   }
   vw.dwell = {
     listTenants: async () => [...w.tenants].map(([id, data]) => ({ id, data })),

@@ -13,12 +13,12 @@ import { isoFromDateKey } from './expiry.js'
 import { gatesOf } from './gates.js'
 import { checkGatePassForCheckIn, type GatePassPort } from './gatePasses.js'
 import type { GatePassCheck } from './gatePassLogic.js'
-import { assertPepper, normalisePin, pinKey } from './pin.js'
+import { passIdFor } from './passes.js'
 import { endOfDayMs } from './penaltyLogic.js'
 import { can, type Action } from './permissions.js'
 import { checkInVisitSchema, checkOutVisitSchema, logUnloadingCheckSchema } from './schemas.js'
-import type { AuditEntry, Caller, DriverData, PinIndexEntry, TenantData, UserData, VehicleData, VisitData } from './types.js'
-import { dwellLimitHoursOf, summaryMetricsFor, type SummaryMetric } from './visitLogic.js'
+import type { AuditEntry, Caller, DriverData, PassData, TenantData, UserData, VehicleData, VisitData } from './types.js'
+import { dwellLimitHoursOf, summaryMetricsFor, withinGateTime, type SummaryMetric } from './visitLogic.js'
 
 // ---- Port (Firestore in production, fakes in tests) ----------------------------------------------
 
@@ -52,8 +52,6 @@ export interface VisitScope {
 export interface VisitPort {
   /** The monthly gate pass of a pairing (Module 6): see `GatePassPort.lookupForPairing`. Read only. */
   lookupForPairing: GatePassPort['lookupForPairing']
-  /** `pinIndex/{key}` (the HMAC of a PIN), or null. */
-  lookupPin(key: string): Promise<PinIndexEntry | null>
   getVisit(visitId: string): Promise<VisitRecord | null>
   /**
    * ONE transaction: reads the visit id, the vehicle's active visit and the driver (`drivers` + `users`), hands them to
@@ -75,15 +73,6 @@ export interface VisitPort {
   countPenaltiesIssued(scope: VisitScope, fromMs: number, toMs: number): Promise<number>
 }
 
-/** Counts failed PINs per guard. Over the limit the guard waits; a wrong PIN counts, a right one does not. */
-export interface PinThrottle {
-  isLocked(uid: string, nowMs: number): Promise<boolean>
-  recordFailure(uid: string, nowMs: number): Promise<void>
-}
-
-export const PIN_FAILURE_LIMIT = 8
-export const PIN_FAILURE_WINDOW_MS = 15 * 60_000
-
 // ---- Shared helpers -----------------------------------------------------------------------
 
 const timezoneOf = (tenant: TenantData | null): string =>
@@ -98,9 +87,6 @@ function ownVisit(visit: VisitRecord | null, tenantId: string): VisitRecord {
   if (!visit || visit.tenantId !== tenantId) throw fail('not-found', 'visit-not-found', 'Visit not found')
   return visit
 }
-
-/** The same refusal for every PIN failure: wrong, unknown, another company, not a driver, disabled, not on this vehicle. */
-const pinInvalid = () => fail('unauthenticated', 'pin-invalid', 'That PIN didn’t work for this vehicle')
 
 // ---- checkInVisit ----------------------------------------------------------------------------
 
@@ -117,6 +103,7 @@ interface PlanInput {
   visitId: string
   requestId: string
   vehicle: VehicleData & { id: string }
+  passId: string
   driverId: string
   gate: { id: string; name: string } | null
   dateKey: string
@@ -138,21 +125,22 @@ export function planVisitCheckIn(i: PlanInput, ctx: CheckInContext): CheckInPlan
   const profileName = driver?.name ?? ctx.driverUser?.name
   const contractorId = driver?.contractorId ?? ctx.driverUser?.contractorId
   if (!profileName || !contractorId) throw fail('failed-precondition', 'driver-inactive', 'This driver is disabled')
-  // The duty lock is enforced here, inside the transaction: the UI cannot be the only guard.
-  if (driver?.driverOnDutyLock === true) {
-    throw failWith('failed-precondition', 'driver-on-duty', 'This driver is already on a visit', {
-      visitId: driver?.activeVisitId ?? null,
-    })
-  }
   if (ctx.vehicleActive) {
     throw failWith('failed-precondition', 'vehicle-on-site', 'This vehicle is already checked in', {
       byName: ctx.vehicleActive.checkIn.securityUserName,
       at: ctx.vehicleActive.checkIn.timestamp,
     })
   }
+  // The duty lock is enforced here, inside the transaction: the UI cannot be the only guard.
+  if (driver?.driverOnDutyLock === true) {
+    throw failWith('failed-precondition', 'driver-on-duty', 'This driver is already on a visit', {
+      visitId: driver?.activeVisitId ?? null,
+    })
+  }
   const visit: VisitData = {
     tenantId: caller.tenantId,
     vehicleId: vehicle.id,
+    passId: i.passId,
     driverId: i.driverId,
     contractorId: vehicle.contractorId,
     plateNo: vehicle.plateNo,
@@ -179,13 +167,26 @@ export function planVisitCheckIn(i: PlanInput, ctx: CheckInContext): CheckInPlan
   }
 }
 
-export async function checkInVisit(
-  deps: Deps,
-  port: VisitPort,
-  throttle: PinThrottle,
-  caller: Caller,
-  raw: unknown,
-): Promise<CheckInVisitResult> {
+/**
+ * The pass a vehicle is currently "inside" the gate window of: today's or yesterday's pass (the window can run past
+ * midnight) that was checked in, newest first. Null when the vehicle has no such pass.
+ */
+async function openWindowPass(deps: Deps, tenantId: string, vehicleId: string, tz: string, nowMs: number): Promise<{ id: string; pass: PassData } | null> {
+  const days = [computeDateKey(tz, new Date(nowMs)), computeDateKey(tz, new Date(nowMs - 24 * 3_600_000))]
+  for (const day of [...new Set(days)]) {
+    const id = passIdFor(vehicleId, day)
+    const pass = await deps.data.getPass(id)
+    if (pass && pass.tenantId === tenantId && pass.status === 'checked_in' && pass.checkIn) return { id, pass }
+  }
+  return null
+}
+
+/**
+ * A later entry of a vehicle that already checked in today (the first entry is the pass check-in). No PIN: the guard picks
+ * the vehicle by QR or by plate and the driver is the one on the day's pass. Allowed only inside the gate time (default
+ * 16 hours from the pass's first check-in), while the vehicle is outside, and while it is eligible.
+ */
+export async function checkInVisit(deps: Deps, port: VisitPort, caller: Caller, raw: unknown): Promise<CheckInVisitResult> {
   const input = parse(checkInVisitSchema, raw)
   requireCan(caller, 'visit.checkIn')
   const actor = await requireActiveCaller(deps, caller)
@@ -203,7 +204,7 @@ export async function checkInVisit(
     if (!gate) throw fail('invalid-argument', 'gate-invalid', 'Choose a valid gate')
   }
 
-  // A retry of a check-in that already went through answers from the stored visit, with no PIN and no eligibility.
+  // A retry of a check-in that already went through answers from the stored visit.
   const existing = await port.getVisit(input.visitId)
   if (existing) {
     if (existing.tenantId === caller.tenantId && existing.checkIn.securityUserId === caller.uid && existing.vehicleId === input.vehicleId) {
@@ -212,29 +213,22 @@ export async function checkInVisit(
     throw fail('already-exists', 'request-conflict', 'This request was already used')
   }
 
-  // ---- who is driving: PIN -> pinIndex -> driver ----
-  if (await throttle.isLocked(caller.uid, nowMs)) {
-    throw fail('resource-exhausted', 'pin-throttled', 'Too many wrong PINs. Wait a few minutes and try again')
+  // ---- the day's pass and the gate time ----
+  const tz = timezoneOf(tenant)
+  const open = await openWindowPass(deps, caller.tenantId, input.vehicleId, tz, nowMs)
+  if (!open) throw fail('failed-precondition', 'pass-not-checked-in', 'This vehicle has not been checked in today')
+  const hours = dwellLimitHoursOf(tenant)
+  const firstIn = (open.pass.checkIn as NonNullable<PassData['checkIn']>).at
+  if (!withinGateTime(firstIn, nowMs, hours)) {
+    throw failWith('failed-precondition', 'gate-time-over', `The ${hours} hour gate time of this vehicle is over`, { since: firstIn, hours })
   }
-  const pin = normalisePin(input.pin)
-  const entry = pin ? await port.lookupPin(pinKey(pin, assertPepper(deps.pinPepper()))) : null
-  const driverUser = entry ? await deps.data.getUser(entry.uid) : null
-  const valid =
-    entry !== null &&
-    entry.role === 'driver' &&
-    entry.tenantId === caller.tenantId &&
-    driverUser !== null &&
-    driverUser.role === 'driver' &&
-    driverUser.status === 'active' &&
-    driverUser.tenantId === caller.tenantId &&
-    vehicle.assignedDriverIds.includes(entry.uid)
-  if (!valid || !entry) {
-    await throttle.recordFailure(caller.uid, nowMs)
-    throw pinInvalid()
+  const driverId = open.pass.driverId
+  const driverUser = await deps.data.getUser(driverId)
+  if (!driverUser || driverUser.role !== 'driver' || driverUser.status !== 'active' || driverUser.tenantId !== caller.tenantId) {
+    throw fail('failed-precondition', 'driver-inactive', 'This driver is disabled')
   }
-  const driverId = entry.uid
 
-  // ---- vehicle, contractor and driver must be active ----
+  // ---- vehicle and contractor must be active ----
   if (vehicle.status !== 'active') throw fail('failed-precondition', 'vehicle-suspended', 'This vehicle is suspended')
   const contractor = await deps.data.getContractor(vehicle.contractorId)
   if (!contractor || contractor.tenantId !== caller.tenantId || contractor.status !== 'active') {
@@ -249,7 +243,7 @@ export async function checkInVisit(
         makeAudit(caller, 'visit.checkInBlocked', input.visitId, { vehicleId: input.vehicleId, driverId, status: eligibility.status }, 'visit'),
       )
       .catch(() => undefined)
-    return { outcome: 'blocked', driverName: driverUser?.name ?? '', plateNo: vehicle.plateNo, eligibility }
+    return { outcome: 'blocked', driverName: driverUser.name, plateNo: vehicle.plateNo, eligibility }
   }
 
   // ---- the monthly gate pass: the last gate, after eligibility. Only an ACTIVE pass of this month lets the vehicle in ----
@@ -266,10 +260,10 @@ export async function checkInVisit(
         ),
       )
       .catch(() => undefined)
-    return { outcome: 'no_gate_pass', driverName: driverUser?.name ?? '', plateNo: vehicle.plateNo, gatePass }
+    return { outcome: 'no_gate_pass', driverName: driverUser.name, plateNo: vehicle.plateNo, gatePass }
   }
 
-  const dateKey = computeDateKey(timezoneOf(tenant), new Date(nowMs))
+  const dateKey = computeDateKey(tz, new Date(nowMs))
   const planned = await port.checkInTx({
     visitId: input.visitId,
     tenantId: caller.tenantId,
@@ -277,7 +271,7 @@ export async function checkInVisit(
     driverId,
     plan: (ctx) =>
       planVisitCheckIn(
-        { caller, actorName: actor.name, visitId: input.visitId, requestId: input.requestId, vehicle: withId, driverId, gate, dateKey, nowMs },
+        { caller, actorName: actor.name, visitId: input.visitId, requestId: input.requestId, vehicle: withId, passId: open.id, driverId, gate, dateKey, nowMs },
         ctx,
       ),
   })

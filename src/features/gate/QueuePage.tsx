@@ -53,7 +53,7 @@ export default function QueuePage() {
                   <span
                     className={cn(
                       'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-sm font-extrabold',
-                      failed ? 'bg-accent text-brand' : 'bg-slate-200 text-brand',
+                      failed ? 'bg-accent text-ink' : 'bg-slate-200 text-ink',
                     )}
                   >
                     {failed ? <TriangleAlert aria-hidden className="size-4" /> : <Clock aria-hidden className="size-4" />}

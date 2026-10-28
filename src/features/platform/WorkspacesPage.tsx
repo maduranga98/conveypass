@@ -66,7 +66,7 @@ export default function WorkspacesPage() {
       primary: true,
       cell: (r) => (
         <>
-          <Link className="font-medium text-brand underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-focus" to={`/platform/workspaces/${encodeURIComponent(r.tenantId)}`}>{r.name}</Link>
+          <Link className="font-medium text-ink underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-focus" to={`/platform/workspaces/${encodeURIComponent(r.tenantId)}`}>{r.name}</Link>
           {!r.adminSignedIn && <span className="ml-2 align-middle"><Badge tone="neutral">{t.notSignedIn}</Badge></span>}
         </>
       ),

@@ -47,7 +47,7 @@ const renderPage = () =>
 describe('QualificationsPage', () => {
   it('lists active drivers who still need something first, with a word for every status', () => {
     renderPage()
-    const items = screen.getAllByRole('listitem').filter((li) => li.querySelector('p.font-medium.text-brand'))
+    const items = screen.getAllByRole('listitem').filter((li) => li.querySelector('p.font-medium.text-ink'))
     expect(items.map((li) => within(li).getByText(/Nimal|Kamal/).textContent)).toEqual(['Nimal', 'Kamal'])
     expect(screen.queryByText('Off duty')).not.toBeInTheDocument()
     expect(screen.getByText('2 to fix')).toBeInTheDocument()

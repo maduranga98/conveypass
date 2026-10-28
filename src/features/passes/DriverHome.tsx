@@ -24,8 +24,8 @@ type Chip = PassStatus | 'none'
 /** One status vocabulary (CLAUDE.md): approved/let in = success fill, waiting = amber, fix needed = danger. */
 const CHIP_CLASS: Record<Chip, string> = {
   none: 'border-2 border-slate-300 text-slate-700',
-  submitted: 'bg-accent text-brand',
-  supervisor_approved: 'bg-accent text-brand',
+  submitted: 'bg-accent text-ink',
+  supervisor_approved: 'bg-accent text-ink',
   officer_approved: 'bg-success-strong text-on-solid',
   checked_in: 'bg-success-strong text-on-solid',
   rejected: 'bg-danger-strong text-on-solid',
@@ -60,7 +60,7 @@ export default function DriverHome() {
   return (
     <div className="mx-auto min-h-dvh max-w-md space-y-5 px-4 py-5 text-lg">
       <header className="flex items-center justify-between gap-2">
-        <h1 className="min-w-0 truncate text-2xl font-extrabold tracking-tight text-brand">{t.hello(profile.name)}</h1>
+        <h1 className="min-w-0 truncate text-2xl font-extrabold tracking-tight text-ink">{t.hello(profile.name)}</h1>
         <div className="flex shrink-0 items-center gap-1">
           <Bell />
           <SimpleMenu
@@ -86,7 +86,7 @@ export default function DriverHome() {
       </div>
 
       <section aria-labelledby="today-h" className="space-y-3">
-        <h2 id="today-h" className="text-xl font-bold text-brand">{t.todayTitle}</h2>
+        <h2 id="today-h" className="text-xl font-bold text-ink">{t.todayTitle}</h2>
         {vehicles.isPending || passes.isPending ? (
           <div role="status" className="space-y-3">
             <Skeleton className="h-16 w-full rounded-2xl" />
@@ -111,7 +111,7 @@ export default function DriverHome() {
                     >
                       <span className="flex items-center gap-3">
                         <TriangleAlert aria-hidden className="size-7 shrink-0 text-danger-strong" />
-                        <span className="min-w-0 flex-1 text-xl font-bold text-brand">{v.plateNo}</span>
+                        <span className="min-w-0 flex-1 text-xl font-bold text-ink">{v.plateNo}</span>
                         <StatusChip status="rejected" />
                       </span>
                       {pass.rejection?.reason && (
@@ -126,7 +126,7 @@ export default function DriverHome() {
               }
               return (
                 <li key={v.id} className="flex min-h-16 items-center gap-3 rounded-2xl border border-slate-300 bg-surface px-4 py-3">
-                  <span className="min-w-0 flex-1 text-xl font-bold text-brand">{v.plateNo}</span>
+                  <span className="min-w-0 flex-1 text-xl font-bold text-ink">{v.plateNo}</span>
                   <StatusChip status={status} />
                 </li>
               )

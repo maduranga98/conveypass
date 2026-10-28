@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { KeyRound, Pencil, Plus, UserCheck, UserX, Users } from 'lucide-react'
+import { KeyRound, LockKeyholeOpen, Pencil, Plus, UserCheck, UserX, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/Badge'
@@ -21,6 +21,7 @@ import { useTenant } from '@/features/passes/queries'
 import { isPinRole } from '@/lib/session'
 import { LastSignIn } from './LastSignIn'
 import { ReissuePinDialog, type ReissueTarget } from './ReissuePinDialog'
+import { useShowPin } from './ShowPinDialog'
 import { CreateUserDrawer } from './CreateUserDrawer'
 import { EditUserModal } from './EditUserModal'
 import { ResetCredentialModal } from './ResetCredentialModal'
@@ -39,6 +40,7 @@ export default function UsersPage() {
   const [editing, setEditing] = useState<WithId<UserDoc> | null>(null)
   const [resetting, setResetting] = useState<WithId<UserDoc> | null>(null)
   const [reissuing, setReissuing] = useState<ReissueTarget | null>(null)
+  const [showPin, showPinModal] = useShowPin()
   const [toggling, setToggling] = useState<WithId<UserDoc> | null>(null)
 
   const users = useUsers(role)
@@ -83,7 +85,7 @@ export default function UsersPage() {
       primary: true,
       cell: (u) => (
         <div>
-          <span className="font-medium text-brand">{u.name}</span>
+          <span className="font-medium text-ink">{u.name}</span>
           {isPinRole(u.role) ? (
             <p className="text-xs font-normal text-slate-600">{t.pinSignIn}</p>
           ) : (
@@ -130,6 +132,11 @@ export default function UsersPage() {
         </Button>
         {!isSelf && (
           <>
+            {pin && (
+              <Button variant="ghost" size="icon" title={strings.reissue.show} aria-label={`${strings.reissue.show}: ${u.name}`} onClick={() => void showPin({ id: u.id, name: u.name, role: u.role, company })}>
+                <LockKeyholeOpen aria-hidden className="size-4" />
+              </Button>
+            )}
             <Button variant="ghost" size="icon" title={resetLabel} aria-label={`${resetLabel}: ${u.name}`} onClick={() => (pin ? setReissuing({ id: u.id, name: u.name, role: u.role, company }) : setResetting(u))}>
               <KeyRound aria-hidden className="size-4" />
             </Button>
@@ -196,6 +203,7 @@ export default function UsersPage() {
       <EditUserModal user={editing} onClose={() => setEditing(null)} />
       <ResetCredentialModal user={resetting} onClose={() => setResetting(null)} />
       <ReissuePinDialog target={reissuing} onClose={() => setReissuing(null)} />
+      {showPinModal}
       <ConfirmDialog
         open={toggling !== null}
         title={toggling?.status === 'active' ? strings.admin.toggle.disableTitle : strings.admin.toggle.enableTitle}

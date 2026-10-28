@@ -7,6 +7,11 @@ const users = vi.hoisted(() => ({ data: [] as unknown[] }))
 vi.mock('@/lib/firebase', () => ({ db: {}, auth: {}, functions: {} }))
 vi.mock('@/lib/api', () => ({ createUser: vi.fn(), updateUser: vi.fn(), resetCredential: vi.fn() }))
 vi.mock('@/features/auth/useAuth', () => ({ useSession: () => ({ uid: 'adminA', claims: { role: 'admin', tenantId: 'T1' }, profile: {} }) }))
+vi.mock('@/features/passes/queries', () => ({ useTenant: () => ({ data: { name: 'Acme', timezone: 'Asia/Colombo' } }) }))
+vi.mock('@/features/shared/queries', () => ({
+  useDriverAccounts: () => ({ data: new Map(), isPending: false, isError: false }),
+  useContractorList: () => ({ data: [{ id: 'c1', name: 'Haul Co', status: 'active' }], isPending: false, isError: false }),
+}))
 vi.mock('./queries', () => ({
   useUsers: () => ({ isPending: false, isError: false, data: users.data, refetch: vi.fn() }),
   useContractors: () => ({ isPending: false, isError: false, data: [{ id: 'c1', name: 'Haul Co', status: 'active' }] }),

@@ -18,3 +18,6 @@ export const VISIT_ID_PATTERN = /^vis_[a-z0-9]{10}$/
 
 /** The id of an inspection is chosen by the browser (a retry of the same call then creates nothing twice); the server checks the shape and uses `create()`. */
 export const INSPECTION_ID_PATTERN = /^insp_[a-z0-9]{10}$/
+
+/** The visit created by a pass check-in has a deterministic id, so a retried or replayed check-in finds the same visit. */
+export const visitIdForRequest = (requestId: string): string => `vis_${requestId.toLowerCase().replace(/[^a-z0-9]/g, '').padEnd(10, '0').slice(0, 10)}`

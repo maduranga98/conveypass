@@ -21,13 +21,13 @@ export default function YardLayout() {
           <span className="flex min-w-0 flex-1 items-center gap-2">
             <BrandMark className="size-9 rounded-lg" />
             <span className="min-w-0">
-              <span className="block truncate text-base font-bold text-brand">{t.role}</span>
+              <span className="block truncate text-base font-bold text-ink">{t.role}</span>
               <span className="block truncate text-xs text-slate-700">{profile.name}</span>
             </span>
           </span>
           <NavLink
             to="/yard/summary"
-            className={({ isActive }) => cn('inline-flex h-12 items-center gap-2 rounded-full px-3 text-base font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus', isActive ? 'bg-accent text-brand' : 'text-brand hover:bg-slate-100')}
+            className={({ isActive }) => cn('inline-flex h-12 items-center gap-2 rounded-full px-3 text-base font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus', isActive ? 'bg-accent text-ink' : 'text-ink hover:bg-slate-100')}
           >
             <ChartNoAxesColumn aria-hidden className="size-5" />
             {t.summary}

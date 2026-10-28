@@ -38,7 +38,7 @@ export function DriverPhoto({ driver, name, online }: { driver: Pick<Driver, 'ph
         </span>
       )}
       {!hasPath && driver !== null && (
-        <span className="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-0.5 text-xs font-extrabold text-brand">
+        <span className="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-0.5 text-xs font-extrabold text-ink">
           <TriangleAlert aria-hidden className="size-3.5" />
           {t.noPhoto}
         </span>

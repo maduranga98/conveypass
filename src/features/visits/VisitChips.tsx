@@ -9,7 +9,7 @@ const t = strings.visits
 export function UnloadChip({ visit }: { visit: Pick<Visit, 'unloadingCheck'> }) {
   const u = visit.unloadingCheck
   const [label, Icon, tone] = !u
-    ? [t.unloadState.notLogged, CircleDashed, 'bg-accent text-brand']
+    ? [t.unloadState.notLogged, CircleDashed, 'bg-accent text-ink']
     : u.unloaded
       ? [t.unloadState.unloaded, CircleCheckBig, 'bg-success-strong text-on-solid']
       : [t.unloadState.notUnloaded, PackageX, 'border-2 border-danger-strong text-danger-ink']
@@ -24,7 +24,7 @@ export function UnloadChip({ visit }: { visit: Pick<Visit, 'unloadingCheck'> }) 
 /** "Long stay": the dwell warning. Informational only. */
 export function DwellChip() {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-sm font-extrabold text-brand">
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-sm font-extrabold text-ink">
       <Clock aria-hidden className="size-4" />
       {t.dwellChip}
     </span>

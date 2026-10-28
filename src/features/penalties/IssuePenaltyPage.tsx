@@ -43,7 +43,7 @@ function Segmented<V extends string>({ legend, value, options, onChange, disable
             key={o.value}
             className={cn(
               'flex h-9 flex-1 cursor-pointer items-center justify-center rounded-md px-4 text-sm font-medium has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus pointer-coarse:h-11 sm:flex-none',
-              value === o.value ? 'bg-surface text-brand shadow-sm' : 'text-slate-700',
+              value === o.value ? 'bg-surface text-ink shadow-sm' : 'text-slate-700',
             )}
           >
             <input type="radio" name={name} value={o.value} checked={value === o.value} onChange={() => onChange(o.value)} className="sr-only" />
@@ -183,7 +183,7 @@ export default function IssuePenaltyPage({ listPath, typesPath }: { listPath: st
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="space-y-1">
-        <Link to={listPath} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
+        <Link to={listPath} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
           <ArrowLeft aria-hidden className="size-4" />
           {strings.penalties.issue.back}
         </Link>

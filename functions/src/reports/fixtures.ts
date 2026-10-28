@@ -33,6 +33,8 @@ export const makeInput = (over: Partial<ReportInput> = {}): ReportInput => ({
   type: 'turnaround',
   passes: [],
   events: [],
+  visits: [],
+  gateTimeHours: 16,
   contractorNames: new Map([['C1', 'Alpha'], ['C2', 'Beta']]),
   reasonLabels: new Map([['gps_unclear', 'GPS unclear'], ['other', 'Other']]),
   timezone: 'Asia/Colombo',

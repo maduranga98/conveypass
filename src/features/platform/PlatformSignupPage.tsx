@@ -126,7 +126,7 @@ export default function PlatformSignupPage() {
                 <PasswordInput label={t.password} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
                 <ul className="space-y-1 text-sm" aria-label={t.rulesLabel}>
                   {rules.map(([ok, label]) => (
-                    <li key={label} className={ok ? 'flex items-center gap-2 text-brand' : 'flex items-center gap-2 text-slate-600'}>
+                    <li key={label} className={ok ? 'flex items-center gap-2 text-ink' : 'flex items-center gap-2 text-slate-600'}>
                       {ok ? <Check aria-hidden className="size-4" /> : <Circle aria-hidden className="size-4" />}
                       {label}
                     </li>

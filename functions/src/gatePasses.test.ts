@@ -17,7 +17,7 @@ import {
 import { gatePassId } from './gatePassLogic.js'
 import { givePass, makeGatePassWorld, NEXT_MONTH, TEST_MONTH, type GatePassWorld } from './gatepass-test-utils.js'
 import { checkInVisit } from './visits.js'
-import { givePin, makeVisitWorld, type VisitWorld } from './visits-test-utils.js'
+import { giveCheckedInPass, makeVisitWorld, type VisitWorld } from './visits-test-utils.js'
 import { NOW, admin, caller, makeWorld, rejects, sup1, type World } from './test-utils.js'
 import type { GatePassData } from './gatePassLogic.js'
 import type { DriverData, PenaltyData, UserData, VehicleData } from './types.js'
@@ -25,7 +25,6 @@ import type { DriverData, PenaltyData, UserData, VehicleData } from './types.js'
 const NOW_MS = NOW * 1000
 const V1 = 'veh_aaaaaaaaaa'
 const V2 = 'veh_bbbbbbbbbb'
-const PIN = '48291736'
 
 let w: World
 let gp: GatePassWorld
@@ -440,12 +439,12 @@ describe('qualification list', () => {
 describe('check-in integration (Module 5)', () => {
   let vw: VisitWorld
   const checkIn = (over: Record<string, unknown> = {}) =>
-    checkInVisit(w.deps, vw.port, vw.throttle, caller('sec', 'security'), { visitId: 'vis_aaaaaaaaaa', vehicleId: V1, pin: PIN, requestId: '3f1d6c1e-6a52-4b6a-9d0e-0a1b2c3d4e5f', ...over })
+    checkInVisit(w.deps, vw.port, caller('sec', 'security'), { visitId: 'vis_aaaaaaaaaa', vehicleId: V1, requestId: '3f1d6c1e-6a52-4b6a-9d0e-0a1b2c3d4e5f', ...over })
   beforeEach(() => {
     vw = makeVisitWorld(w)
     vw.gatePasses = gp
     vw.port = { ...vw.port, lookupForPairing: (...a) => gp.port.lookupForPairing(...a) }
-    givePin(w, 'drv1', PIN)
+    giveCheckedInPass(w, V1, 'drv1')
   })
 
   it('no pass this month and never one before: "none"', async () => {

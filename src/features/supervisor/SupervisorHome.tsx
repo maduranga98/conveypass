@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, Clock, Plus, QrCode, Truck, Users, XCircle } from 'lucide-react'
+import { ArrowRight, CalendarCheck, CheckCircle2, Clock, Plus, QrCode, Truck, UserRoundPlus, Users, XCircle } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -28,7 +28,7 @@ function Stat({ to, icon, label, value, tone }: { to: string; icon: ReactNode; l
       <span
         className={cn(
           'grid size-10 shrink-0 place-items-center rounded-lg [&>svg]:size-5',
-          tone === 'success' ? 'bg-success-soft text-success-strong' : tone === 'danger' ? 'bg-danger-soft text-danger-strong' : 'bg-slate-100 text-brand',
+          tone === 'success' ? 'bg-success-soft text-success-strong' : tone === 'danger' ? 'bg-danger-soft text-danger-strong' : 'bg-slate-100 text-ink',
         )}
       >
         {icon}
@@ -43,7 +43,7 @@ function Stat({ to, icon, label, value, tone }: { to: string; icon: ReactNode; l
 
 function Action({ to, icon, label }: { to: string; icon: ReactNode; label: string }) {
   return (
-    <Link to={to} className={cn('flex h-12 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-brand hover:bg-slate-50 [&>svg]:size-5', focusRing)}>
+    <Link to={to} className={cn('flex h-12 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-ink hover:bg-slate-50 [&>svg]:size-5', focusRing)}>
       {icon}
       <span className="flex-1">{label}</span>
       <ArrowRight aria-hidden className="text-slate-500" />
@@ -101,13 +101,13 @@ export default function SupervisorHome() {
                     ) : (
                       <span className="text-slate-300">{t.homeAllClear}</span>
                     )}
-                    {overdue > 0 && <span className="rounded-full bg-accent px-2.5 py-0.5 font-bold text-brand">{t.homeOverdue(overdue)}</span>}
+                    {overdue > 0 && <span className="rounded-full bg-accent px-2.5 py-0.5 font-bold text-ink">{t.homeOverdue(overdue)}</span>}
                   </div>
                 )}
               </div>
               <Link
                 to={oldest ? `/supervisor/approvals/${oldest.id}` : '/supervisor/approvals'}
-                className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-accent px-6 text-base font-bold text-brand hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-solid"
+                className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-accent px-6 text-base font-bold text-ink hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-solid"
               >
                 {oldest ? t.reviewNow : t.openApprovals}
                 <ArrowRight aria-hidden className="size-5" />
@@ -127,7 +127,7 @@ export default function SupervisorHome() {
             <section aria-labelledby="sup-next" className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <h2 id="sup-next" className="text-base font-semibold">{t.nextUp}</h2>
-                <Link to="/supervisor/approvals" className={cn('inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-semibold text-brand hover:underline', focusRing)}>
+                <Link to="/supervisor/approvals" className={cn('inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-semibold text-ink hover:underline', focusRing)}>
                   {t.seeAll}
                   <ArrowRight aria-hidden className="size-4" />
                 </Link>
@@ -148,6 +148,8 @@ export default function SupervisorHome() {
             <Stat to="/supervisor/drivers" tone="brand" icon={<Users aria-hidden />} label={t.drivers} value={listCount(drivers)} />
           </div>
           <nav aria-label={t.quickActions} className="rounded-xl border border-slate-200 bg-surface p-2 shadow-sm">
+            <Action to="/supervisor/assign-drivers" icon={<UserRoundPlus aria-hidden />} label={t.nav.assign} />
+            <Action to="/supervisor/daily" icon={<CalendarCheck aria-hidden />} label={t.nav.daily} />
             <Action to="/supervisor/vehicles?new=1" icon={<Plus aria-hidden />} label={strings.vehicles.add} />
             <Action to="/supervisor/drivers?new=1" icon={<Plus aria-hidden />} label={strings.drivers.add} />
             <Action to="/supervisor/qr" icon={<QrCode aria-hidden />} label={t.nav.qr} />

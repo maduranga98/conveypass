@@ -42,7 +42,7 @@ export function CheckList({ legend, options, value, onChange, emptyText, disable
                   disabled={o.disabled === true}
                   className="size-4 rounded border-slate-300 accent-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                 />
-                <span className="min-w-0 flex-1 truncate text-brand">{o.label}</span>
+                <span className="min-w-0 flex-1 truncate text-ink">{o.label}</span>
                 {o.hint && <span className="shrink-0 text-xs text-slate-500">{o.hint}</span>}
               </label>
             </li>

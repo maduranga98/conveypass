@@ -134,11 +134,11 @@ export default function ApprovalsPage() {
                   onClick={() => setTab(id)}
                   className={cn(
                     'flex h-11 items-center justify-center gap-1.5 rounded-lg text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
-                    tab === id ? 'bg-surface text-brand shadow-sm' : 'text-slate-700 hover:bg-slate-100',
+                    tab === id ? 'bg-surface text-ink shadow-sm' : 'text-slate-700 hover:bg-slate-100',
                   )}
                 >
                   {t.tabs[id]}
-                  <span className={cn('min-w-5 rounded-full px-1.5 text-xs font-bold leading-5', id === 'pending' && n > 0 ? 'bg-accent text-brand' : 'bg-slate-100 text-slate-700')}>
+                  <span className={cn('min-w-5 rounded-full px-1.5 text-xs font-bold leading-5', id === 'pending' && n > 0 ? 'bg-accent text-ink' : 'bg-slate-100 text-slate-700')}>
                     {n >= QUEUE_LIMIT ? `${QUEUE_LIMIT - 1}+` : n}
                   </span>
                 </button>

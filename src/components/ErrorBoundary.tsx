@@ -54,7 +54,7 @@ export function ErrorFallback({ variant = 'app' }: { variant?: BoundaryVariant }
           {variant === 'gate' && (
             <a
               href="/security"
-              className="inline-flex h-12 items-center justify-center rounded-lg border border-slate-300 bg-surface px-4 text-base font-medium text-brand hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+              className="inline-flex h-12 items-center justify-center rounded-lg border border-slate-300 bg-surface px-4 text-base font-medium text-ink hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
             >
               {t.gateHome}
             </a>

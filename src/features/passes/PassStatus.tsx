@@ -63,7 +63,7 @@ export function PassStatus({ summary, plateNo, onDone, doneLabel = t.done, onRej
 
   return (
     <main
-      className={cn('flex min-h-dvh flex-col items-center justify-center gap-8 px-6 py-10 text-center', approved || checkedIn ? 'bg-success-strong text-on-solid' : 'bg-slate-50 text-brand')}
+      className={cn('flex min-h-dvh flex-col items-center justify-center gap-8 px-6 py-10 text-center', approved || checkedIn ? 'bg-success-strong text-on-solid' : 'bg-slate-50 text-ink')}
     >
       <Icon aria-hidden className={cn('size-24', approved || checkedIn ? 'text-on-solid' : status === 'rejected' ? 'text-danger-strong' : 'text-warning')} />
       <div className="space-y-2">

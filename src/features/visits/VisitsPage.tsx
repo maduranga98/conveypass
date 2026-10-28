@@ -45,7 +45,7 @@ export default function VisitsPage({ scope }: { scope: Scope }) {
       header: t.columns.vehicle,
       primary: true,
       cell: (v) => (
-        <Link to={`${base}/${v.id}`} className="font-semibold text-brand underline-offset-2 hover:underline">
+        <Link to={`${base}/${v.id}`} className="font-semibold text-ink underline-offset-2 hover:underline">
           {v.plateNo}
         </Link>
       ),
@@ -69,10 +69,10 @@ export default function VisitsPage({ scope }: { scope: Scope }) {
     <div className="space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold text-brand">{t.title}</h1>
+          <h1 className="text-xl font-semibold text-ink">{t.title}</h1>
           <p className="text-sm text-slate-500">{t.intro}</p>
         </div>
-        <Link to={`/${isAdmin ? 'admin' : 'supervisor'}/summary`} className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-surface px-3 text-sm font-medium text-brand hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus pointer-coarse:h-11">
+        <Link to={`/${isAdmin ? 'admin' : 'supervisor'}/summary`} className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-surface px-3 text-sm font-medium text-ink hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus pointer-coarse:h-11">
           {strings.visits.summary.title}
         </Link>
       </header>
@@ -88,7 +88,7 @@ export default function VisitsPage({ scope }: { scope: Scope }) {
               onClick={() => setFilter(f)}
               className={cn(
                 'h-9 rounded-full border px-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus pointer-coarse:h-11',
-                filter === f ? 'border-brand bg-brand text-on-solid' : 'border-slate-300 bg-surface text-brand',
+                filter === f ? 'border-brand bg-brand text-on-solid' : 'border-slate-300 bg-surface text-ink',
               )}
             >
               {t.filter[f]}

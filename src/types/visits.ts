@@ -7,6 +7,8 @@ import type { EligibilityResult } from '@/types/penalties'
 export interface Visit {
   tenantId: string
   vehicleId: string
+  /** The daily pass this movement belongs to (absent on visits that predate multiple entries per day). */
+  passId?: string
   driverId: string
   contractorId: string
   plateNo: string
@@ -46,8 +48,6 @@ export interface CheckInVisitPayload {
   /** `vis_` + 10 chars chosen by the browser: a retry of the same call never creates a second visit. */
   visitId: string
   vehicleId: string
-  /** The driver's PIN, typed at the gate. Sent over the call only: never stored, logged or kept in state longer than the call. */
-  pin: string
   gateId?: string
   requestId: string
 }

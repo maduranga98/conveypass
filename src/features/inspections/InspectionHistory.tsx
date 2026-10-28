@@ -59,12 +59,12 @@ function Entry({ inspection: i, tz }: { inspection: Inspection & { id: string };
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="flex flex-wrap items-center gap-2">
           <ResultBadge result={i.result} />
-          <span className={cn('text-xs font-medium', i.status === 'active' ? 'text-brand' : 'text-slate-600')}>{t.status[i.status]}</span>
+          <span className={cn('text-xs font-medium', i.status === 'active' ? 'text-ink' : 'text-slate-600')}>{t.status[i.status]}</span>
         </span>
         <span className="text-xs text-slate-600">{t.history.by(i.inspectedBy.name, formatDateTime(i.inspectedAt, tz))}</span>
       </div>
       {i.status === 'invalidated' && i.invalidatedReason && (
-        <p className="text-sm text-brand">{t.history.cancelledOn(t.reason[i.invalidatedReason], formatDateTime(i.invalidatedAt, tz))}</p>
+        <p className="text-sm text-ink">{t.history.cancelledOn(t.reason[i.invalidatedReason], formatDateTime(i.invalidatedAt, tz))}</p>
       )}
       {i.status === 'superseded' && <p className="text-xs text-slate-600">{t.history.replacedBy}</p>}
       {i.invalidationNote && (

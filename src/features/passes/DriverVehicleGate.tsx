@@ -44,7 +44,7 @@ export default function DriverVehicleGate({ vehicleId }: { vehicleId: string }) 
   const homeButton = <Button variant="secondary" className="h-14 text-base" onClick={home}>{t.home}</Button>
 
   const banner = !online && (
-    <p role="status" className="flex items-center justify-center gap-2 bg-accent px-4 py-2 text-sm font-semibold text-brand">
+    <p role="status" className="flex items-center justify-center gap-2 bg-accent px-4 py-2 text-sm font-semibold text-ink">
       <WifiOff aria-hidden className="size-4" /> {t.offline}
     </p>
   )

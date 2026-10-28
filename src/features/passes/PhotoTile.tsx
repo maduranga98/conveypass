@@ -36,9 +36,9 @@ export function PhotoTile({ label, hint, slot, onOpen, onRetry, onRemove }: Prop
       <button
         type="button"
         onClick={onOpen}
-        className="flex min-h-36 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-400 bg-surface px-4 py-6 text-brand hover:border-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        className="flex min-h-36 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-400 bg-surface px-4 py-6 text-ink hover:border-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
-        <Camera aria-hidden className="size-9 text-brand" />
+        <Camera aria-hidden className="size-9 text-ink" />
         <span className="text-lg font-semibold">{label}</span>
         {hint && <span className="text-sm text-slate-600">{hint}</span>}
         <span className="mt-1 inline-flex h-12 items-center rounded-lg bg-brand px-5 text-base font-semibold text-on-solid">{t.takePhoto}</span>

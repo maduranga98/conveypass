@@ -44,7 +44,7 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
             cn(
               'flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold',
               darkFocus,
-              isActive ? 'bg-accent text-brand' : 'text-slate-300 hover:bg-brand-hover hover:text-on-solid',
+              isActive ? 'bg-accent text-ink' : 'text-slate-300 hover:bg-brand-hover hover:text-on-solid',
             )
           }
         >
@@ -77,9 +77,9 @@ function SignOutButton({ iconOnly }: { iconOnly?: boolean }) {
 }
 
 /**
- * Responsive shell, the same family as the supervisor and officer. Desktop (lg): a fixed brand navy sidebar whose
+ * Responsive shell, the same family as the supervisor and officer. Desktop (lg): a fixed brand red sidebar whose
  * navigation scrolls on its own, so the account and sign out stay pinned to the bottom of the screen however long the
- * list is. Below lg: a navy top bar (bell, sign out, menu) and a scrollable menu sheet.
+ * list is. Below lg: a red top bar (bell, sign out, menu) and a scrollable menu sheet.
  */
 export default function AdminLayout() {
   const { profile } = useSession()

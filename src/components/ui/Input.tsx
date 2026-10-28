@@ -3,7 +3,7 @@ import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
 
 export const fieldClass =
-  'block w-full rounded-lg border bg-surface px-3 text-base text-brand placeholder:text-slate-500 ' +
+  'block w-full rounded-lg border bg-surface px-3 text-base text-ink placeholder:text-slate-500 ' +
   'focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-focus disabled:bg-slate-50 disabled:text-slate-500'
 
 interface FieldProps {

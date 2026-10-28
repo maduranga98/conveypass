@@ -178,7 +178,7 @@ export default function WorkspaceDetailPage() {
 
   const locked = creds !== null
   const columns: Column<WorkspaceAdmin>[] = [
-    { key: 'name', header: t.columns.name, primary: true, cell: (a) => <span className="font-medium text-brand">{a.name}</span> },
+    { key: 'name', header: t.columns.name, primary: true, cell: (a) => <span className="font-medium text-ink">{a.name}</span> },
     { key: 'email', header: t.columns.email, cell: (a) => a.email },
     { key: 'status', header: t.columns.status, cell: (a) => <Badge tone={a.status === 'active' ? 'success' : 'danger'}>{strings.status[a.status]}</Badge> },
     {
@@ -191,7 +191,7 @@ export default function WorkspaceDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link to="/platform/workspaces" className="inline-flex items-center gap-1 text-sm text-brand hover:underline focus-visible:outline-2 focus-visible:outline-focus">
+      <Link to="/platform/workspaces" className="inline-flex items-center gap-1 text-sm text-ink hover:underline focus-visible:outline-2 focus-visible:outline-focus">
         <ArrowLeft aria-hidden className="size-4" />
         {strings.platform.workspaces.back}
       </Link>

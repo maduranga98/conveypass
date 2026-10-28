@@ -58,7 +58,7 @@ export function VisitTimeline({ visit }: { visit: Visit }) {
             {s.done ? s.icon : <CircleDashed aria-hidden className="size-5" />}
           </span>
           <div className="min-w-0 pt-0.5">
-            <p className="flex items-center gap-1.5 text-sm font-semibold text-brand">
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
               {s.title}
               {s.done && <CircleCheckBig aria-hidden className="size-4 text-success-strong" />}
             </p>

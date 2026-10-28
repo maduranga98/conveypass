@@ -43,6 +43,7 @@ vi.mock('./useGate', () => ({
 }))
 vi.mock('./gateQueue', () => ({ useOfflineQueue: () => [], pendingPassIds: () => new Set(), enqueueGate: vi.fn() }))
 vi.mock('./feedback', () => ({ feedback: (...a: unknown[]) => h.feedback(...a) }))
+vi.mock('./VehicleMovements', () => ({ VehicleMovements: () => null }))
 
 const { default: GateVehicleView } = await import('./GateVehicleView')
 

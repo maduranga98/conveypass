@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore'
+import { liveQuery, useLiveQuery } from '@/lib/liveQuery'
 import { useSession } from '@/features/auth/useAuth'
 import { useScope, type Scope } from '@/features/shared/scope'
 import { blockGatePass, checkEligibility, issueGatePasses, reactivateGatePass, refreshQualificationList, updateTenantSettings } from '@/lib/api'
@@ -12,28 +13,24 @@ export const MAX_PASSES = 1000
 
 /**
  * Every pass of one month, for the Company Admin (whole company) or a supervisor (own contractor). The query carries the
- * clauses the rules require. Blocks happen on the server, so the list is re-read every minute while it is open.
+ * clauses the rules require. Blocks happen on the server, so the list is live: a block shows up by itself.
  */
 export function useGatePasses(scope: Scope, month: string) {
   const { tenantId, contractorId, ready } = useScope(scope)
-  return useQuery({
-    queryKey: ['gatePasses', tenantId, contractorId ?? 'all', month],
-    enabled: ready,
-    staleTime: 0,
-    refetchInterval: 60_000,
-    queryFn: async (): Promise<WithId<GatePass>[]> => {
-      const snap = await getDocs(
-        query(
-          collection(db, 'gatePasses'),
-          where('tenantId', '==', tenantId),
-          ...(contractorId ? [where('contractorId', '==', contractorId)] : []),
-          where('month', '==', month),
-          limit(MAX_PASSES),
-        ),
-      )
-      return snap.docs.map((d) => ({ ...(d.data() as GatePass), id: d.id }))
-    },
-  })
+  return useLiveQuery(
+    ['gatePasses', tenantId, contractorId ?? 'all', month],
+    liveQuery(
+      query(
+        collection(db, 'gatePasses'),
+        where('tenantId', '==', tenantId),
+        ...(contractorId ? [where('contractorId', '==', contractorId)] : []),
+        where('month', '==', month),
+        limit(MAX_PASSES),
+      ),
+      (snap): WithId<GatePass>[] => snap.docs.map((d) => ({ ...(d.data() as GatePass), id: d.id })),
+    ),
+    ready,
+  )
 }
 
 /**
@@ -42,24 +39,21 @@ export function useGatePasses(scope: Scope, month: string) {
  */
 export function useGatePassesOf(scope: Scope, field: 'vehicleId' | 'driverId', id: string, enabled = true) {
   const { tenantId, contractorId, ready } = useScope(scope)
-  return useQuery({
-    queryKey: ['gatePasses', tenantId, contractorId ?? 'all', field, id],
-    enabled: ready && enabled,
-    staleTime: 0,
-    queryFn: async (): Promise<WithId<GatePass>[]> => {
-      const snap = await getDocs(
-        query(
-          collection(db, 'gatePasses'),
-          where('tenantId', '==', tenantId),
-          ...(contractorId ? [where('contractorId', '==', contractorId)] : []),
-          where(field, '==', id),
-          orderBy('month', 'desc'),
-          limit(12),
-        ),
-      )
-      return snap.docs.map((d) => ({ ...(d.data() as GatePass), id: d.id }))
-    },
-  })
+  return useLiveQuery(
+    ['gatePasses', tenantId, contractorId ?? 'all', field, id],
+    liveQuery(
+      query(
+        collection(db, 'gatePasses'),
+        where('tenantId', '==', tenantId),
+        ...(contractorId ? [where('contractorId', '==', contractorId)] : []),
+        where(field, '==', id),
+        orderBy('month', 'desc'),
+        limit(12),
+      ),
+      (snap): WithId<GatePass>[] => snap.docs.map((d) => ({ ...(d.data() as GatePass), id: d.id })),
+    ),
+    ready && enabled,
+  )
 }
 
 export interface Qualification {

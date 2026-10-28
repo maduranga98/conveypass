@@ -8,7 +8,7 @@ import { strings } from '@/lib/strings'
 const t = strings.platform.overview
 
 const linkClass =
-  'inline-flex h-11 items-center rounded-lg border border-slate-300 bg-surface px-4 text-sm font-medium text-brand hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus'
+  'inline-flex h-11 items-center rounded-lg border border-slate-300 bg-surface px-4 text-sm font-medium text-ink hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus'
 
 function Tile({ label, value }: { label: string; value: number }) {
   return (

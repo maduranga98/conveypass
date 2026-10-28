@@ -6,7 +6,7 @@ import { pinKey } from './pin.js'
 import { dayBoundsMs, checkInVisit, checkOutVisit, getDailySummary, logUnloadingCheck } from './visits.js'
 import { NOW, TEST_PEPPER, admin, caller, drv1, makeWorld, rejects, sup1, sup2, type World } from './test-utils.js'
 import { givePass } from './gatepass-test-utils.js'
-import { givePin, makeVisitWorld, type VisitWorld } from './visits-test-utils.js'
+import { giveCheckedInPass, makeVisitWorld, type VisitWorld } from './visits-test-utils.js'
 
 const NOW_MS = NOW * 1000
 const VID = 'veh_aaaaaaaaaa'
@@ -15,7 +15,6 @@ const VIS = 'vis_aaaaaaaaaa'
 const VIS2 = 'vis_bbbbbbbbbb'
 const REQ = '3f1d6c1e-6a52-4b6a-9d0e-0a1b2c3d4e5f'
 const REQ2 = '4f1d6c1e-6a52-4b6a-9d0e-0a1b2c3d4e5f'
-const PIN = '48291736'
 
 const sec = () => caller('sec', 'security')
 const yard = () => caller('yard1', 'yard')
@@ -28,8 +27,9 @@ beforeEach(async () => {
   w.vehicles.set(VID, { tenantId: 'T1', contractorId: 'C1', plateNo: 'WP LJ-4821', plateKey: 'WPLJ4821', type: 'Tipper', assignedDriverIds: ['drv1', 'drv1b'], status: 'active' })
   w.vehicles.set(V2, { tenantId: 'T1', contractorId: 'C1', plateNo: 'CAB-1', plateKey: 'CAB1', type: 'Tipper', assignedDriverIds: ['drv1'], status: 'active' })
   w.users.set('drv1b', { ...(w.users.get('drv1') as never), name: 'Second Driver' })
-  givePin(w, 'drv1', PIN)
-  givePin(w, 'drv1b', '73920518')
+  // The first entry of the day is the pass check-in: both vehicles have a checked-in pass, so later entries (checkInVisit) can run.
+  giveCheckedInPass(w, VID, 'drv1')
+  giveCheckedInPass(w, V2, 'drv1')
   // Module 6: the monthly gate pass is the last gate, so every pairing these tests check in holds an active pass.
   for (const [v, d] of [[VID, 'drv1'], [VID, 'drv1b'], [V2, 'drv1']] as const) givePass(vw.gatePasses, v, d)
   // Module 4: only a vehicle with a standing approved inspection is eligible, so clear the two test vehicles first.
@@ -39,7 +39,7 @@ beforeEach(async () => {
 })
 
 const checkIn = (c = sec(), over: Record<string, unknown> = {}) =>
-  checkInVisit(w.deps, vw.port, vw.throttle, c, { visitId: VIS, vehicleId: VID, pin: PIN, requestId: REQ, ...over })
+  checkInVisit(w.deps, vw.port, c, { visitId: VIS, vehicleId: VID, requestId: REQ, ...over })
 
 describe('checkInVisit', () => {
   it('creates the visit, locks the driver and audits', async () => {
@@ -54,15 +54,9 @@ describe('checkInVisit', () => {
     expect(w.audits.at(-1)).toMatchObject({ action: 'visit.checkIn', targetType: 'visit', targetId: VIS })
   })
 
-  it('never puts the PIN into the visit or the audit entry', async () => {
-    await checkIn()
-    expect(JSON.stringify([...vw.visits.values()])).not.toContain(PIN)
-    expect(JSON.stringify(w.audits)).not.toContain(PIN)
-  })
-
   it('is idempotent: a retry with the same id returns the stored visit and creates nothing twice', async () => {
     const first = await checkIn()
-    const again = await checkIn(sec(), { pin: '00000000' })
+    const again = await checkIn()
     expect(again).toEqual(first)
     expect(vw.visits.size).toBe(1)
     expect(w.audits.filter((a) => a.action === 'visit.checkIn')).toHaveLength(1)
@@ -80,9 +74,9 @@ describe('checkInVisit', () => {
     expect(vw.visits.size).toBe(1)
   })
 
-  it('rejects a vehicle that is already on site, even with another driver', async () => {
+  it('rejects a vehicle that is already on site', async () => {
     await checkIn()
-    await rejects(checkIn(sec(), { visitId: VIS2, requestId: REQ2, pin: '73920518' }), 'failed-precondition', 'vehicle-on-site')
+    await rejects(checkIn(sec(), { visitId: VIS2, requestId: REQ2 }), 'failed-precondition', 'vehicle-on-site')
   })
 
   it('frees the driver on check-out so the next visit works', async () => {
@@ -99,30 +93,52 @@ describe('checkInVisit', () => {
     expect(w.drivers.get('drv1')).toMatchObject({ tenantId: 'T1', contractorId: 'C1', driverOnDutyLock: true })
   })
 
-  it('answers every PIN problem the same way and throttles the guard', async () => {
-    givePin(w, 'drv2', '55512398')                                   // a driver who is not on this vehicle
-    givePin(w, 'foreign', '66601239', { tenantId: 'T2' })           // another company
-    givePin(w, 'sec', '77702345', { role: 'security' })              // not a driver
-    givePin(w, 'drvOff', '11199238')                                 // disabled
-    w.users.set('drvOff', { ...(w.users.get('drv1') as never), status: 'disabled' })
-    for (const pin of ['99999999', 'abc', '', '55512398', '66601239', '77702345', '11199238']) {
-      await rejects(checkIn(sec(), { pin }), 'unauthenticated', 'pin-invalid')
-    }
-    expect(vw.failures.get('sec')).toBe(7)
-    await rejects(checkIn(sec(), { pin: '99999999' }), 'unauthenticated', 'pin-invalid')
-    await rejects(checkIn(), 'resource-exhausted', 'pin-throttled')
+  it('takes the driver from the day’s pass, with no PIN', async () => {
+    giveCheckedInPass(w, VID, 'drv1b')
+    const res = await checkIn()
+    expect(res.outcome).toBe('checked_in')
+    expect(vw.visits.get(VIS)).toMatchObject({ driverId: 'drv1b', passId: expect.stringContaining(VID) })
+  })
+
+  it('a vehicle can go in and out several times a day', async () => {
+    await checkIn()
+    await checkOutVisit(w.deps, vw.port, sec(), { visitId: VIS, requestId: REQ2 })
+    const again = await checkIn(sec(), { visitId: VIS2, requestId: '5f1d6c1e-6a52-4b6a-9d0e-0a1b2c3d4e5f' })
+    expect(again).toMatchObject({ outcome: 'checked_in', visitId: VIS2 })
+    expect([...vw.visits.values()].map((v) => v.status).sort()).toEqual(['checked_in', 'checked_out'])
+  })
+
+  it('refuses an entry when the vehicle was not checked in today', async () => {
+    w.passes.delete(`${VID}_20231115`)
+    await rejects(checkIn(), 'failed-precondition', 'pass-not-checked-in')
     expect(vw.visits.size).toBe(0)
   })
 
-  it('does not count a correct PIN as a failure', async () => {
+  it('refuses an entry once the gate time (16 h from the first check-in) is over, but allows the check-out', async () => {
     await checkIn()
-    expect(vw.failures.get('sec') ?? 0).toBe(0)
+    giveCheckedInPass(w, VID, 'drv1', { checkedInAt: NOW_MS - 16 * 3_600_000 - 1, day: '20231115' })
+    await checkOutVisit(w.deps, vw.port, sec(), { visitId: VIS, requestId: REQ2 })
+    await rejects(checkIn(sec(), { visitId: VIS2, requestId: REQ }), 'failed-precondition', 'gate-time-over')
+  })
+
+  it('still accepts an entry just inside the gate time, also across midnight', async () => {
+    // The test clock is 03:43 on 2023-11-15 in Colombo; the first entry was 15 h earlier, on the 14th.
+    w.passes.delete(`${V2}_20231115`)
+    giveCheckedInPass(w, V2, 'drv1', { checkedInAt: NOW_MS - 15 * 3_600_000, day: '20231114' })
+    expect((await checkIn(sec(), { vehicleId: V2 })).outcome).toBe('checked_in')
+  })
+
+  it('uses the company’s gate time setting', async () => {
+    w.tenants.set('T1', { ...(w.tenants.get('T1') as never), dwellLimitHours: 2 })
+    giveCheckedInPass(w, VID, 'drv1', { checkedInAt: NOW_MS - 3 * 3_600_000, day: '20231115' })
+    await rejects(checkIn(), 'failed-precondition', 'gate-time-over')
   })
 
   it('returns the eligibility output untouched when blocked, creates nothing and locks nobody', async () => {
     const { clearance: _c, ...base } = w.vehicles.get(VID) as never as Record<string, unknown> & { clearance?: unknown }
     void _c
     w.vehicles.set('veh_cccccccccc', { ...(base as never), plateNo: 'NEW-1', plateKey: 'NEW1' }) // never inspected
+    giveCheckedInPass(w, 'veh_cccccccccc', 'drv1')
     const res = await checkIn(sec(), { vehicleId: 'veh_cccccccccc' })
     expect(res).toMatchObject({ outcome: 'blocked', plateNo: 'NEW-1', eligibility: { eligible: false, inspection: { status: 'never_inspected', cleared: false } } })
     expect(vw.visits.size).toBe(0)
@@ -240,7 +256,7 @@ describe('getDailySummary', () => {
   beforeEach(async () => {
     await checkIn()
     await logUnloadingCheck(w.deps, vw.port, yard(), { visitId: VIS, unloaded: true, unloadLocation: 'Bay 3' })
-    await checkIn(sec(), { visitId: VIS2, vehicleId: V2, requestId: REQ2, pin: PIN }).catch(() => undefined)
+    await checkIn(sec(), { visitId: VIS2, vehicleId: V2, requestId: REQ2 }).catch(() => undefined)
     vw.penaltiesIssued.push({ tenantId: 'T1', contractorId: 'C1', issuedAt: NOW_MS }, { tenantId: 'T1', contractorId: 'C2', issuedAt: NOW_MS }, { tenantId: 'T1', contractorId: 'C1', issuedAt: NOW_MS - 3 * 86_400_000 })
   })
 

@@ -47,7 +47,7 @@ export default function GatePassesPage() {
   const { visible, hasMore, remaining, showMore } = usePaged(filtered)
 
   const columns: Column<PassRow>[] = [
-    { key: 'plate', header: t.colPlate, primary: true, cell: (p) => <span className="font-mono text-base font-semibold tracking-wide text-brand">{p.plateNo}</span> },
+    { key: 'plate', header: t.colPlate, primary: true, cell: (p) => <span className="font-mono text-base font-semibold tracking-wide text-ink">{p.plateNo}</span> },
     { key: 'driver', header: t.colDriver, cell: (p) => p.driverName },
     { key: 'contractor', header: t.colContractor, cell: (p) => names.get(p.contractorId) ?? strings.common.none },
     { key: 'status', header: t.colStatus, cell: (p) => <GatePassBadge status={p.status} reason={p.blockedReason} /> },

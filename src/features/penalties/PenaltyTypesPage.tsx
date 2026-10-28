@@ -106,7 +106,7 @@ export default function PenaltyTypesPage() {
                 </form>
               ) : (
                 <>
-                  <span className="min-w-0 flex-1 truncate py-2 font-medium text-brand">{type.name}</span>
+                  <span className="min-w-0 flex-1 truncate py-2 font-medium text-ink">{type.name}</span>
                   <Button variant="ghost" size="icon" aria-label={`${t.rename}: ${type.name}`} title={t.rename} onClick={() => setEditing({ id: type.id, name: type.name })}>
                     <Pencil aria-hidden className="size-4" />
                   </Button>

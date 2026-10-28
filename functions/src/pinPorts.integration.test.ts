@@ -27,7 +27,7 @@ describe.skipIf(!emulator)('PIN ports (emulator)', () => {
     const key = pinKey('48291736', TEST_PEPPER)
     const results = await Promise.allSettled(
       Array.from({ length: 6 }, (_, i) =>
-        dataPort().createUserWithAudit(`u${i}`, userDoc({ loginType: 'pin' }), 'admin', audit, undefined, { key, entry: { uid: `u${i}`, tenantId: 'T1', role: 'driver' } }),
+        dataPort().createUserWithAudit(`u${i}`, userDoc({ loginType: 'pin' }), 'admin', audit, undefined, { key, entry: { uid: `u${i}`, tenantId: 'T1', role: 'driver' }, sealed: 'sealed' }),
       ),
     )
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
@@ -41,21 +41,22 @@ describe.skipIf(!emulator)('PIN ports (emulator)', () => {
   it('reissuePinTx: old pinIndex gone, new one created, knownDevices cleared, taken key refused', async () => {
     const oldKey = pinKey('48291736', TEST_PEPPER)
     const newKey = pinKey('59302847', TEST_PEPPER)
-    await dataPort().createUserWithAudit('u1', userDoc({ loginType: 'pin' }), 'admin', audit, undefined, { key: oldKey, entry: { uid: 'u1', tenantId: 'T1', role: 'driver' } })
+    await dataPort().createUserWithAudit('u1', userDoc({ loginType: 'pin' }), 'admin', audit, undefined, { key: oldKey, entry: { uid: 'u1', tenantId: 'T1', role: 'driver' }, sealed: 'sealed-old' })
     await db.doc('users/u1').update({ knownDevices: { abc: { firstSeenAt: Timestamp.now(), lastSeenAt: Timestamp.now() } } })
     await db.doc(`pinIndex/${pinKey('70413958', TEST_PEPPER)}`).create({ uid: 'other', tenantId: 'T2', role: 'security' })
 
     await expect(
-      dataPort().reissuePinTx({ uid: 'u1', key: pinKey('70413958', TEST_PEPPER), entry: { uid: 'u1', tenantId: 'T1', role: 'driver' }, patch: {}, audit }),
+      dataPort().reissuePinTx({ uid: 'u1', key: pinKey('70413958', TEST_PEPPER), entry: { uid: 'u1', tenantId: 'T1', role: 'driver' }, sealed: 'x', pinVersion: 2, patch: {}, audit }),
     ).rejects.toBeInstanceOf(PinTakenError)
     expect((await db.doc(`pinIndex/${oldKey}`).get()).exists).toBe(true)
 
-    await dataPort().reissuePinTx({ uid: 'u1', key: newKey, entry: { uid: 'u1', tenantId: 'T1', role: 'driver' }, patch: { pinVersion: 2, sessionsRevokedAt: 123 }, audit })
+    await dataPort().reissuePinTx({ uid: 'u1', key: newKey, entry: { uid: 'u1', tenantId: 'T1', role: 'driver' }, sealed: 'sealed-new', pinVersion: 2, patch: { pinVersion: 2, sessionsRevokedAt: 123 }, audit })
     expect((await db.doc(`pinIndex/${oldKey}`).get()).exists).toBe(false)
     expect((await db.doc(`pinIndex/${newKey}`).get()).data()).toMatchObject({ uid: 'u1' })
     const user = (await db.doc('users/u1').get()).data()
     expect(user).toMatchObject({ pinVersion: 2, sessionsRevokedAt: 123 })
     expect(user).not.toHaveProperty('knownDevices')
+    expect((await db.doc('pinVault/u1').get()).data()).toMatchObject({ sealed: 'sealed-new', pinVersion: 2, tenantId: 'T1' })
   })
 
   it('recordLogin keeps at most 5 devices and audits; attempts and the probe counter round-trip', async () => {

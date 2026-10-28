@@ -19,7 +19,10 @@ import type {
   TenantData,
   UserData,
   VehicleData,
+  VisitData,
 } from './types.js'
+
+import type { ReportVisit } from './reports/types.js'
 
 export const NOW = 1_700_000_000
 /** The pepper the fakes hash PINs with (32+ characters, like the real secret). */
@@ -65,6 +68,12 @@ export interface World {
   /** `${tenantId}_${plateKey}` -> vehicleId */
   plates: Map<string, string>
   authUsers: Map<string, { email?: string | undefined; password?: string | undefined; disabled: boolean; displayName: string }>
+  /** Visits the pass check-in opened (`checkInTx` creates the day's first visit with the pass). */
+  openedVisits: Map<string, VisitData>
+  /** Gate visits the gate pass report reads. */
+  reportVisits: ReportVisit[]
+  /** `pinVault/{uid}` */
+  vaults: Map<string, { tenantId: string; sealed: string; pinVersion: number }>
   /** `pinIndex/{hmac}` */
   pins: Map<string, PinIndexEntry>
   /** PINs handed out by `newPin`, in order. Set to force collisions. */
@@ -98,6 +107,9 @@ export function makeWorld(): World {
     plates: new Map(),
     authUsers: new Map(),
     pins: new Map(),
+    vaults: new Map(),
+    openedVisits: new Map(),
+    reportVisits: [],
     pinQueue: [],
     pepper: TEST_PEPPER,
     claims: new Map(),
@@ -162,19 +174,30 @@ export function makeWorld(): World {
       getDriver: async (uid) => w.drivers.get(uid) ?? null,
       getDrivers: async (uids) => new Map(uids.flatMap((u) => (w.drivers.has(u) ? [[u, w.drivers.get(u) as DriverData] as const] : []))),
       getVehicle: async (id) => w.vehicles.get(id) ?? null,
+      findDriverAssignments: async ({ tenantId, driverIds, exceptVehicleId }) => {
+        const out = new Map<string, { vehicleId: string; plateNo: string }>()
+        for (const [id, v] of w.vehicles) {
+          if (v.tenantId !== tenantId || id === exceptVehicleId) continue
+          for (const d of v.assignedDriverIds) if (driverIds.includes(d) && !out.has(d)) out.set(d, { vehicleId: id, plateNo: v.plateNo })
+        }
+        return out
+      },
       createUserWithAudit: async (uid, data, _actor, audit, driver, pin) => {
         if (w.failFirestoreCreate) throw new Error('boom')
         // Synchronous from the check to the write, which models the transaction.
         if (pin && w.pins.has(pin.key)) throw new PinTakenError()
         if (pin) w.pins.set(pin.key, structuredClone(pin.entry))
+        if (pin) w.vaults.set(uid, { tenantId: data.tenantId, sealed: pin.sealed, pinVersion: data.pinVersion ?? 1 })
         w.users.set(uid, data)
         if (driver) w.drivers.set(uid, driver)
         w.audits.push(audit)
       },
-      reissuePinTx: async ({ uid, key, entry, patch, audit }) => {
+      getPinVault: async (uid) => w.vaults.get(uid) ?? null,
+      reissuePinTx: async ({ uid, key, entry, sealed, pinVersion, patch, audit }) => {
         if (w.pins.has(key)) throw new PinTakenError()
         for (const [k, e] of [...w.pins]) if (e.uid === uid) w.pins.delete(k)
         w.pins.set(key, structuredClone(entry))
+        w.vaults.set(uid, { tenantId: entry.tenantId, sealed, pinVersion })
         const { knownDevices: _k, ...rest } = w.users.get(uid) as UserData & { knownDevices?: unknown }
         void _k
         w.users.set(uid, { ...rest, ...patch })
@@ -374,6 +397,7 @@ export function makeWorld(): World {
             history: [...(current.history ?? []), structuredClone(decision.entry)],
           })
           w.audits.push(decision.audit)
+          w.openedVisits.set(decision.visit.id, structuredClone(decision.visit.data))
         }
         return decision
       },
@@ -415,6 +439,8 @@ export function makeWorld(): World {
               ...(rejectionHistory ? { rejectionHistory: rejectionHistory.map(({ checklist: _k, evidence: _v, ...r }) => (void _k, void _v, r)) } : {}),
             }
           }),
+      countVisits: async (q) => (await w.deps.data.listVisits(q, Number.MAX_SAFE_INTEGER)).length,
+      listVisits: async (q, limit) => w.reportVisits.filter((v) => v.dateKey >= q.fromKey && v.dateKey <= q.toKey).slice(0, limit),
       countGateEvents: async (q) => (await w.deps.data.listGateEvents(q, Number.MAX_SAFE_INTEGER)).length,
       listGateEvents: async (q, limit) =>
         [...w.gateEvents]

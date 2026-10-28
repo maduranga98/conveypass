@@ -100,7 +100,7 @@ function Review({ pass, today }: { pass: PassWithId; today: string | null }) {
       className={cn('space-y-4 sm:rounded-2xl sm:border sm:border-slate-200 sm:bg-surface sm:px-6 sm:pt-5 sm:shadow-sm', !decidable && 'sm:pb-6')}
     >
       <div className={cn('flex items-center justify-between gap-3', position < 0 && 'lg:hidden')}>
-        <Link to={listPath} aria-label={t.review.back} className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-lg px-1 text-base font-semibold text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus lg:hidden">
+        <Link to={listPath} aria-label={t.review.back} className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-lg px-1 text-base font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus lg:hidden">
           <ArrowLeft aria-hidden className="size-5" />
           {t.review.backShort}
         </Link>

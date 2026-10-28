@@ -235,7 +235,7 @@ export default function OfficerQueue() {
                 ) : (
                   <span className="text-slate-300">{t.hero.allClear}</span>
                 )}
-                {overdueCount > 0 && <span className="rounded-full bg-accent px-2.5 py-0.5 font-bold text-brand">{t.hero.overdue(overdueCount)}</span>}
+                {overdueCount > 0 && <span className="rounded-full bg-accent px-2.5 py-0.5 font-bold text-ink">{t.hero.overdue(overdueCount)}</span>}
                 {contractorId && <span className="text-slate-300">· {nameOf(contractorId)}</span>}
               </div>
             )}
@@ -247,7 +247,7 @@ export default function OfficerQueue() {
                 setSearch('')
                 setParam({ tab: null, pass: oldest.id })
               }}
-              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-accent px-6 text-base font-bold text-brand hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-solid"
+              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-accent px-6 text-base font-bold text-ink hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-solid"
             >
               {t.hero.reviewNext}
               <ArrowRight aria-hidden className="size-5" />
@@ -277,13 +277,13 @@ export default function OfficerQueue() {
                   onClick={() => setTab(id)}
                   className={cn(
                     'flex h-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
-                    tab === id ? 'bg-surface text-brand shadow-sm' : 'text-slate-700 hover:bg-slate-100',
+                    tab === id ? 'bg-surface text-ink shadow-sm' : 'text-slate-700 hover:bg-slate-100',
                   )}
                 >
                   {t.tabs[id]}
                   <span
                     aria-label={`${n}`}
-                    className={cn('min-w-5 rounded-full px-1.5 text-center text-xs font-bold leading-5', id === 'awaiting' && n > 0 ? 'bg-accent text-brand' : 'bg-slate-100 text-slate-700')}
+                    className={cn('min-w-5 rounded-full px-1.5 text-center text-xs font-bold leading-5', id === 'awaiting' && n > 0 ? 'bg-accent text-ink' : 'bg-slate-100 text-slate-700')}
                   >
                     {capped(n)}
                   </span>

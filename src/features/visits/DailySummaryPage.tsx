@@ -33,12 +33,12 @@ export default function DailySummaryPage({ backTo }: { backTo?: string }) {
     <div className={cn('mx-auto space-y-5', gate ? 'max-w-3xl px-4 py-5' : 'max-w-4xl')}>
       <header className="space-y-1">
         {backTo && (
-          <Link to={backTo} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-slate-700 hover:text-brand">
+          <Link to={backTo} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-slate-700 hover:text-ink">
             <ArrowLeft aria-hidden className="size-4" />
             {t.back}
           </Link>
         )}
-        <h1 className={cn('font-black tracking-tight text-brand', gate ? 'text-3xl' : 'text-xl font-semibold')}>{t.title}</h1>
+        <h1 className={cn('font-black tracking-tight text-ink', gate ? 'text-3xl' : 'text-xl font-semibold')}>{t.title}</h1>
         {data && (
           <p className="text-sm text-slate-700">
             {t.asOf(clock(data.generatedAt))}
@@ -69,7 +69,7 @@ export default function DailySummaryPage({ backTo }: { backTo?: string }) {
               const warn = m === 'dwellWarnings' && value > 0
               return (
                 <li key={m} className={cn('rounded-2xl border-2 p-4', warn ? 'border-accent bg-accent-soft' : 'border-slate-200 bg-surface')}>
-                  <p className={cn('flex items-center gap-2 font-black tracking-tight text-brand tabular-nums', gate ? 'text-5xl' : 'text-4xl')}>
+                  <p className={cn('flex items-center gap-2 font-black tracking-tight text-ink tabular-nums', gate ? 'text-5xl' : 'text-4xl')}>
                     {value}
                     {warn && <TriangleAlert aria-hidden className="size-6 text-warning-strong" />}
                   </p>
@@ -81,7 +81,7 @@ export default function DailySummaryPage({ backTo }: { backTo?: string }) {
 
           {data.tiles.dwellWarnings !== undefined && (
             <section aria-labelledby="dwell-h" className="space-y-2">
-              <h2 id="dwell-h" className={cn('font-bold text-brand', gate ? 'text-xl' : 'text-base')}>{t.dwellTitle(data.dwellLimitHours)}</h2>
+              <h2 id="dwell-h" className={cn('font-bold text-ink', gate ? 'text-xl' : 'text-base')}>{t.dwellTitle(data.dwellLimitHours)}</h2>
               {data.dwell.length === 0 ? (
                 <p className="rounded-xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800">{t.dwellNone}</p>
               ) : (
@@ -90,10 +90,10 @@ export default function DailySummaryPage({ backTo }: { backTo?: string }) {
                     <li key={d.visitId}>
                       <Row to={base ? `${base}/${d.visitId}` : null}>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-lg leading-tight font-black tracking-tight text-brand">{d.plateNo}</span>
+                          <span className="block text-lg leading-tight font-black tracking-tight text-ink">{d.plateNo}</span>
                           <span className="block text-sm text-slate-700">{d.driverName}</span>
                         </span>
-                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-sm font-extrabold text-brand">
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-sm font-extrabold text-ink">
                           <Clock aria-hidden className="size-4" />
                           {t.dwellHours(d.hours)}
                         </span>

@@ -26,7 +26,7 @@ export function GatePicker({ open, gates, current, onPick, onClose }: {
               aria-pressed={current === g.id}
               className={cn(
                 'flex min-h-14 w-full items-center gap-3 rounded-xl border-2 px-4 text-left text-lg font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
-                current === g.id ? 'border-brand bg-brand text-on-solid' : 'border-slate-300 bg-surface text-brand',
+                current === g.id ? 'border-brand bg-brand text-on-solid' : 'border-slate-300 bg-surface text-ink',
               )}
             >
               <MapPin aria-hidden className="size-5 shrink-0" />
