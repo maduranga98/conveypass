@@ -1793,7 +1793,8 @@ export const strings = {
     role: 'Safety Officer',
     account: 'Account settings',
     greeting: (name: string) => `Hello, ${name}`,
-    nav: { penalties: 'Penalties', issue: 'Issue penalty', inspect: 'Inspect', reinspection: 'Re-inspection', today: 'Today' },
+    nav: { penalties: 'Penalties', issue: 'Issue penalty', issueShort: 'Issue', inspect: 'Inspect', reinspection: 'Re-inspection', reinspectionShort: 'Re-check', today: 'Today' },
+    mainNav: 'Main navigation',
   },
 
   supervisor: {
