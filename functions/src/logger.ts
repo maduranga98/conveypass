@@ -62,10 +62,13 @@ const fields = (ctx: LogContext, outcome: Outcome, extra?: LogExtra) => ({
   ...sanitiseExtra(extra),
 })
 
-export function describeError(e: unknown): { errorName: string; errorCode?: string } {
+export function describeError(e: unknown): { errorName: string; errorCode?: string; errorDetail?: string } {
   const name = e instanceof Error ? e.name : typeof e
   const code = typeof e === 'object' && e !== null && 'code' in e ? String((e as { code: unknown }).code) : undefined
-  return { errorName: cleanString(name), ...(code ? { errorCode: cleanString(code) } : {}) }
+  // Firestore/gRPC failures (numeric code) carry system text such as "The query requires an index"; keep it, minus URLs.
+  const grpc = code !== undefined && /^\d+$/.test(code) && e instanceof Error
+  const detail = grpc ? e.message.replace(/https?:\/\/\S+/g, '[url]').slice(0, 200) : undefined
+  return { errorName: cleanString(name), ...(code ? { errorCode: cleanString(code) } : {}), ...(detail ? { errorDetail: detail } : {}) }
 }
 
 export const logInfo = (ctx: LogContext, outcome: Outcome, extra?: LogExtra): void =>
