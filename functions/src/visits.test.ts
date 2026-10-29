@@ -290,6 +290,19 @@ describe('getDailySummary', () => {
     expect(s.tiles.dwellWarnings).toBe(1)
   })
 
+  it('leaves out a tile whose query fails instead of failing the whole summary', async () => {
+    const port = { ...vw.port, countPenaltiesIssued: async () => Promise.reject(new Error('missing index')) }
+    const s = await getDailySummary(w.deps, port, admin())
+    expect(s.tiles.suspensions).toBeUndefined()
+    expect(s.tiles).toMatchObject({ checkIns: 1, unloads: 1, onSite: 1 })
+  })
+
+  it('fails only when nothing at all could be counted', async () => {
+    const boom = async () => Promise.reject(new Error('down'))
+    const port = { ...vw.port, countStage: boom, countActive: boom, countPenaltiesIssued: boom, listDwell: boom }
+    await expect(getDailySummary(w.deps, port, admin())).rejects.toThrow('down')
+  })
+
   it('is for the roles that work with visits only', async () => {
     for (const c of [drv1()]) await rejects(getDailySummary(w.deps, vw.port, c), 'permission-denied', 'forbidden')
   })

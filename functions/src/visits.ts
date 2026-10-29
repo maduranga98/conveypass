@@ -11,6 +11,7 @@ import { dateKey as computeDateKey, DEFAULT_TIMEZONE, isValidTimezone } from './
 import { fail, failWith } from './errors.js'
 import { isoFromDateKey } from './expiry.js'
 import { gatesOf } from './gates.js'
+import { logError } from './logger.js'
 import { checkGatePassForCheckIn, type GatePassPort } from './gatePasses.js'
 import type { GatePassCheck } from './gatePassLogic.js'
 import { passIdFor } from './passes.js'
@@ -433,23 +434,42 @@ export async function getDailySummary(deps: Deps, port: VisitPort, caller: Calle
     dwellWarnings: async () => 0, // filled from the list below
   }
   const wanted = metrics.filter((m) => m !== 'dwellWarnings')
-  const values = await Promise.all(wanted.map((m) => counters[m]()))
+  // One failing query (e.g. an index that is not deployed yet) must not blank the whole screen: that tile is left out
+  // and the cause is logged by metric. Only when nothing at all could be counted does the call fail.
+  const logCtx = { fn: 'getDailySummary', uid: caller.uid, tenantId: caller.tenantId }
+  const settled = await Promise.allSettled(wanted.map((m) => counters[m]()))
   const tiles: DailySummary['tiles'] = {}
-  wanted.forEach((m, i) => {
-    tiles[m] = values[i] as number
+  let firstError: unknown = null
+  let failures = 0
+  settled.forEach((r, i) => {
+    const metric = wanted[i] as SummaryMetric
+    if (r.status === 'fulfilled') {
+      tiles[metric] = r.value
+      return
+    }
+    failures += 1
+    firstError ??= r.reason
+    logError(logCtx, r.reason, { metric })
   })
 
   let dwell: DwellItem[] = []
   if (metrics.includes('dwellWarnings')) {
-    const list = await port.listDwell(scope, DWELL_LIST_LIMIT)
-    dwell = list.map((v) => ({
-      visitId: v.id,
-      plateNo: v.plateNo,
-      driverName: v.driverName,
-      checkInAt: v.checkIn.timestamp,
-      hours: Math.floor((nowMs - v.checkIn.timestamp) / 3_600_000),
-    }))
-    tiles.dwellWarnings = dwell.length
+    try {
+      const list = await port.listDwell(scope, DWELL_LIST_LIMIT)
+      dwell = list.map((v) => ({
+        visitId: v.id,
+        plateNo: v.plateNo,
+        driverName: v.driverName,
+        checkInAt: v.checkIn.timestamp,
+        hours: Math.floor((nowMs - v.checkIn.timestamp) / 3_600_000),
+      }))
+      tiles.dwellWarnings = dwell.length
+    } catch (e) {
+      failures += 1
+      firstError ??= e
+      logError(logCtx, e, { metric: 'dwellWarnings' })
+    }
   }
+  if (failures > 0 && Object.keys(tiles).length === 0) throw firstError
   return { dateKey: today, generatedAt: nowMs, dwellLimitHours: dwellLimitHoursOf(tenant), tiles, dwell }
 }
