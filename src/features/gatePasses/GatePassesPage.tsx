@@ -15,6 +15,7 @@ import { CapNotice, ClearFilters, ShowMore } from '@/features/shared/ListStates'
 import { useContractorList } from '@/features/shared/queries'
 import type { GatePassStatus } from '@/lib/gatePassLogic'
 import { strings } from '@/lib/strings'
+import { AddPassAction } from './AddPassAction'
 import { GatePassBadge } from './GatePassBadge'
 import { BlockAction, ReactivateAction } from './PassActions'
 import { countByStatus, currentMonthKey, filterPasses, monthLabel, overviewMonths, sortPasses, type PassRow } from './model'
@@ -64,9 +65,12 @@ export default function GatePassesPage() {
           <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-600">{t.intro}</p>
         </div>
-        <Link to="/admin/gate-passes/month-end">
-          <Button variant="secondary">{t.goToList}</Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/admin/gate-passes/month-end">
+            <Button variant="secondary">{t.goToList}</Button>
+          </Link>
+          <AddPassAction month={current} />
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

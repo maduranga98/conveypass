@@ -203,13 +203,15 @@ describe('updateVehicle', () => {
 })
 
 describe('setVehicleStatus', () => {
-  it('suspends and re-activates, with audit entries; supervisors only for their own contractor', async () => {
+  it('suspends and re-activates, with audit entries; supervisors can do neither', async () => {
     const { vehicleId } = await create()
     await setVehicleStatus(w.deps, admin(), { vehicleId, status: 'suspended' })
     expect(w.vehicles.get(vehicleId)?.status).toBe('suspended')
     expect(w.audits.at(-1)?.action).toBe('vehicle.suspend')
     await rejects(setVehicleStatus(w.deps, sup2(), { vehicleId, status: 'active' }), 'permission-denied', 'forbidden')
-    await setVehicleStatus(w.deps, sup1(), { vehicleId, status: 'active' })
+    await rejects(setVehicleStatus(w.deps, sup1(), { vehicleId, status: 'active' }), 'permission-denied', 'forbidden')
+    expect(w.vehicles.get(vehicleId)?.status).toBe('suspended')
+    await setVehicleStatus(w.deps, admin(), { vehicleId, status: 'active' })
     expect(w.vehicles.get(vehicleId)?.status).toBe('active')
     expect(w.audits.at(-1)?.action).toBe('vehicle.activate')
     await rejects(setVehicleStatus(w.deps, admin(), { vehicleId, status: 'deleted' }), 'invalid-argument')

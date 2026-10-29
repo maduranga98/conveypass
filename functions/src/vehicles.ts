@@ -9,6 +9,7 @@ import {
   type Deps,
 } from './core.js'
 import { fail, failWith } from './errors.js'
+import { can } from './permissions.js'
 import { normalisePlate } from './plate.js'
 import {
   createVehicleSchema,
@@ -240,6 +241,7 @@ export async function updateVehicle(deps: Deps, caller: Caller, raw: unknown): P
 export async function setVehicleStatus(deps: Deps, caller: Caller, raw: unknown): Promise<{ ok: true }> {
   const input = parse(setVehicleStatusSchema, raw)
   await requireVehicleManager(deps, caller)
+  if (!can(caller.role, 'vehicle.setStatus')) throw fail('permission-denied', 'forbidden', 'Only an admin can suspend or activate a vehicle')
   const vehicle = await loadManagedVehicle(deps, caller, input.vehicleId)
   if (vehicle.status === input.status) return { ok: true }
 
