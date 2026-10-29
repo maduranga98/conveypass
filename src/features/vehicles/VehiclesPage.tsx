@@ -24,6 +24,8 @@ import { CapNotice, ClearFilters, ShowMore } from '@/features/shared/ListStates'
 import { useContractorList, useDrivers, useVehicles } from '@/features/shared/queries'
 import { useScope, type Scope } from '@/features/shared/scope'
 import type { Vehicle, WithId } from '@/types'
+import { PreTripBadge } from './PreTripBadge'
+import { usePreTripToday } from './usePreTripToday'
 import { VehicleDrawer } from './VehicleDrawer'
 import { VehicleFormModal } from './VehicleForm'
 import { VehicleImportModal } from './VehicleImportModal'
@@ -35,6 +37,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
   const vehicles = useVehicles(scope)
   const drivers = useDrivers(scope)
   const blocked = useBlocked(scope)
+  const preTrip = usePreTripToday(scope)
   const contractors = useContractorList(scope)
   const { vehicleTypes } = useTenantDocuments()
 
@@ -124,6 +127,7 @@ export default function VehiclesPage({ scope }: { scope: Scope }) {
         </span>
       ),
     },
+    { key: 'preTrip', header: t.columns.preTrip, cell: (v) => <PreTripBadge pass={preTrip.get(v.id)} /> },
     { key: 'clearance', header: t.columns.clearance, cell: (v) => <ClearanceBadge clearance={clearanceOfVehicle(v)} showReason /> },
     { key: 'status', header: t.columns.status, cell: (v) => <StatusBadge status={v.status} /> },
   ]

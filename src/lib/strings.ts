@@ -1620,7 +1620,8 @@ export const strings = {
     searchLabel: 'Search vehicles',
     emptyTitle: 'No vehicles yet',
     emptyBody: 'Add a vehicle to generate its permanent QR code.',
-    columns: { plate: 'Plate', type: 'Type', contractor: 'Contractor', drivers: 'Drivers', documents: 'Documents', clearance: 'Clearance', status: 'Status' },
+    columns: { plate: 'Plate', type: 'Type', contractor: 'Contractor', drivers: 'Drivers', documents: 'Documents', preTrip: 'Pre-trip today', clearance: 'Clearance', status: 'Status' },
+    preTrip: { label: 'Driver pre-trip today', none: 'No pre-trip today', hint: 'The driver\'s pre-trip form. The Safety Officer\'s clearance below is separate.' },
     noDrivers: 'No drivers assigned',
     form: {
       plate: 'Plate number',
