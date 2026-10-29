@@ -150,14 +150,27 @@ export async function evaluateEligibility(
     vehicle: v,
     driver: d,
     inspection,
-    eligible:
-      status !== 'blocked' &&
-      status !== 'expired' &&
-      (inspection === null || inspection.cleared) &&
-      (v === null || annualInspectionOk(v.annualInspection)) &&
-      (d === null || d.qualifications.ok),
+    eligible: (inspection === null || inspection.cleared) && eligibleWithoutInspection({ status, vehicle: v, driver: d }),
     checkedAt: nowMs,
   }
+}
+
+/**
+ * Everything `eligible` needs except the safety-inspection clearance. A vehicle is inspected once a day, at its first
+ * entry; its later trips of the same day (`checkInVisit`) ask only for this, so they never need another inspection.
+ * Documents, penalties, annual inspection and qualifications still apply to every entry.
+ */
+export function eligibleWithoutInspection(r: {
+  status: CombinedStatus
+  vehicle: { annualInspection?: AnnualInspectionState | undefined } | null
+  driver: { qualifications?: QualificationStanding | undefined } | null
+}): boolean {
+  return (
+    r.status !== 'blocked' &&
+    r.status !== 'expired' &&
+    (r.vehicle === null || annualInspectionOk(r.vehicle.annualInspection ?? 'missing')) &&
+    (r.driver === null || r.driver.qualifications?.ok === true)
+  )
 }
 
 /**

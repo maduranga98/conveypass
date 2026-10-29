@@ -96,7 +96,7 @@ export function VehicleMovements({ vehicleId, plateNo, pass, gate, online, readO
       const res: CheckInVisitResult = await checkInVisit({ visitId: a.visitId, requestId: a.requestId, vehicleId, ...(gate ? { gateId: gate.id } : {}) })
       attempt.current = null
       if (res.outcome === 'checked_in') toast.success(t.checkedInAgain(plateNo))
-      else if (res.outcome === 'blocked') setRefusal({ title: t.refused, lines: deniedReasons(res.eligibility) })
+      else if (res.outcome === 'blocked') setRefusal({ title: t.refused, lines: deniedReasons(res.eligibility, { ignoreInspection: true }) })
       else setRefusal({ title: t.refused, lines: [gatePassDenial(res.gatePass), strings.gatePasses.gate.askOffice] })
     } catch (e) {
       setError(apiErrorMessage(e))
