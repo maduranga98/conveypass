@@ -12,6 +12,8 @@ import { setVehicleDrivers, setVehicleStatus } from '@/lib/api'
 import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
 import { GatePassSection } from '@/features/gatePasses/GatePassSection'
+import { PreTripBadge } from './PreTripBadge'
+import { usePreTripToday } from './usePreTripToday'
 import { ClearanceBadge } from '@/features/inspections/ClearanceBadge'
 import { InspectionHistory } from '@/features/inspections/InspectionHistory'
 import { clearanceOfVehicle } from '@/features/inspections/model'
@@ -51,6 +53,7 @@ function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'veh
   const queryClient = useQueryClient()
   const drivers = useDrivers(scope)
   const blocked = useBlocked(scope)
+  const preTrip = usePreTripToday(scope)
   const takenBy = useDriverAssignments(scope, vehicle.id)
   const blockedDrivers = useMemo(() => new Set(blocked.drivers.keys()), [blocked.drivers])
   const all = useMemo(() => drivers.data?.items ?? [], [drivers.data])
@@ -119,6 +122,14 @@ function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'veh
           <ExpiryRow label={strings.eligibility.registration} date={vehicle.registrationExpiry} />
           <ExpiryRow label={strings.eligibility.annualInspection} date={vehicle.annualInspectionExpiry} />
         </dl>
+      </section>
+
+      <section className="space-y-1 border-t border-slate-100 pt-5" aria-label={strings.vehicles.preTrip.label}>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold">{strings.vehicles.preTrip.label}</h3>
+          <PreTripBadge pass={preTrip.get(vehicle.id)} />
+        </div>
+        <p className="text-xs text-slate-600">{strings.vehicles.preTrip.hint}</p>
       </section>
 
       <section className="space-y-3 border-t border-slate-100 pt-5" aria-label={strings.inspections.clearance.label}>
