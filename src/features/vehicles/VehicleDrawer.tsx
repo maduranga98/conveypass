@@ -8,7 +8,9 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { EligibilityBadge } from '@/components/ui/EligibilityBadge'
 import { Modal } from '@/components/ui/Modal'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { useSession } from '@/features/auth/useAuth'
 import { setVehicleDrivers, setVehicleStatus } from '@/lib/api'
+import { can } from '@/lib/permissions'
 import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
 import { GatePassSection } from '@/features/gatePasses/GatePassSection'
@@ -64,6 +66,8 @@ function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'veh
   const [confirming, setConfirming] = useState(false)
   const [toggling, setToggling] = useState(false)
 
+  const { claims } = useSession()
+  const canSetStatus = can(claims.role, 'vehicle.setStatus')
   const suspending = vehicle.status === 'active'
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['vehicles'] })
 
@@ -192,18 +196,20 @@ function DrawerBody({ scope, vehicle, contractorName, onEdit }: Omit<Props, 'veh
         <Button variant="secondary" className="sm:flex-1" icon={<Pencil aria-hidden className="size-4" />} onClick={() => onEdit(vehicle)}>
           {strings.common.edit}
         </Button>
-        <Button
-          variant={suspending ? 'danger' : 'secondary'}
-          className="sm:flex-1"
-          icon={suspending ? <Pause aria-hidden className="size-4" /> : <Play aria-hidden className="size-4" />}
-          onClick={() => setConfirming(true)}
-        >
-          {suspending ? t.suspend : t.activate}
-        </Button>
+        {canSetStatus && (
+          <Button
+            variant={suspending ? 'danger' : 'secondary'}
+            className="sm:flex-1"
+            icon={suspending ? <Pause aria-hidden className="size-4" /> : <Play aria-hidden className="size-4" />}
+            onClick={() => setConfirming(true)}
+          >
+            {suspending ? t.suspend : t.activate}
+          </Button>
+        )}
       </div>
 
       <ConfirmDialog
-        open={confirming}
+        open={confirming && canSetStatus}
         title={suspending ? t.suspendTitle : t.activateTitle}
         body={suspending ? t.suspendBody(vehicle.plateNo) : t.activateBody(vehicle.plateNo)}
         confirmLabel={suspending ? strings.admin.contractors.suspend : strings.admin.contractors.activate}

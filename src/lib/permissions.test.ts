@@ -63,6 +63,7 @@ describe('permissions matrix', () => {
     expect(web.can('safety', 'vehicle.manage')).toBe(false)
     for (const role of ['security', 'driver'] as const) expect(web.can(role, 'vehicle.manage')).toBe(false)
     expect(web.rolesFor('driver.view')).not.toContain('driver')
+    expect(web.rolesFor('vehicle.setStatus')).toEqual(['admin'])
     expect(web.rolesFor('vehicleType.manage')).toEqual(['admin'])
     expect(web.rolesFor('expiry.settings')).toEqual(['admin'])
   })

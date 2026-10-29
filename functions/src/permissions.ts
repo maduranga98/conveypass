@@ -30,6 +30,8 @@ export const PERMISSIONS = {
   // Vehicle and driver records (Module 2). Supervisors manage their own contractor's only; the Safety Officer reads.
   'vehicle.view': ['admin', 'officer', 'supervisor', 'safety', 'security'],
   'vehicle.manage': ['admin', 'supervisor'],
+  // Suspending or re-activating a vehicle is the Company Admin's call; a supervisor edits records but cannot take a vehicle off the road.
+  'vehicle.setStatus': ['admin'],
   'driver.view': ['admin', 'officer', 'supervisor', 'safety', 'security'],
   'vehicleType.manage': ['admin'],
   'expiry.settings': ['admin'],

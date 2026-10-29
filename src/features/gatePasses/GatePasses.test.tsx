@@ -32,7 +32,19 @@ vi.mock('@/features/auth/useAuth', () => ({ useSession: () => ({ claims: { tenan
 vi.mock('@/features/penalties/queries', () => ({ useTenantTimezone: () => 'Asia/Colombo' }))
 vi.mock('@/features/passes/queries', () => ({ useTenant: () => ({ data: { autoIssueGatePasses: autoIssue }, isPending: false }) }))
 const contractorRows = [{ id: 'C1', name: 'Acme Haulage' }]
-vi.mock('@/features/shared/queries', () => ({ useContractorList: () => ({ data: contractorRows, isPending: false, isError: false }) }))
+const vehicleRows = [
+  { id: 'v1', plateNo: 'WP LJ-4821', status: 'active', assignedDriverIds: ['d1', 'd2'] },
+  { id: 'v2', plateNo: 'WP SUSP-1', status: 'suspended', assignedDriverIds: ['d1'] },
+]
+const driverRows = [
+  { id: 'd1', name: 'Dan Driver', status: 'active' },
+  { id: 'd2', name: 'Gone Driver', status: 'disabled' },
+]
+vi.mock('@/features/shared/queries', () => ({
+  useContractorList: () => ({ data: contractorRows, isPending: false, isError: false }),
+  useVehicles: () => ({ data: { items: vehicleRows }, isPending: false, isError: false }),
+  useDrivers: () => ({ data: { items: driverRows }, isPending: false, isError: false }),
+}))
 vi.mock('./model', async (orig) => ({ ...(await orig<typeof import('./model')>()), currentMonthKey: () => '2026-11' }))
 vi.mock('./queries', async () => {
   const { useMutation } = await import('@tanstack/react-query')
@@ -173,6 +185,33 @@ describe('GatePassesPage (Company Admin overview)', () => {
     const { default: Page } = await import('./GatePassesPage')
     render(wrap(<Page />))
     expect(screen.getByText('No passes for this month')).toBeInTheDocument()
+  })
+
+  it('adds a pass for one vehicle and driver in the middle of the month', async () => {
+    issueGatePasses.mockResolvedValue({ issued: 1, results: [{ vehicleId: 'v1', driverId: 'd1', ok: true }] })
+    const { default: Page } = await import('./GatePassesPage')
+    render(wrap(<Page />))
+    await userEvent.click(screen.getByRole('button', { name: 'Add gate pass' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByRole('button', { name: 'Issue pass' })).toBeDisabled()
+    await userEvent.selectOptions(within(dialog).getByLabelText('Vehicle'), 'v1')
+    // The vehicle's only active driver is picked for you; the suspended one is not offered.
+    expect(within(dialog).getByLabelText('Driver')).toHaveValue('d1')
+    expect(within(dialog).queryByRole('option', { name: 'Gone Driver' })).toBeNull()
+    expect(within(dialog).queryByRole('option', { name: 'WP SUSP-1' })).toBeNull()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Issue pass' }))
+    await waitFor(() => expect(issueGatePasses).toHaveBeenCalledWith({ month: '2026-11', pairs: [{ vehicleId: 'v1', driverId: 'd1' }] }))
+  })
+
+  it('shows why a pass could not be added', async () => {
+    issueGatePasses.mockResolvedValue({ issued: 0, results: [{ vehicleId: 'v1', driverId: 'd1', ok: false, error: 'not-eligible' }] })
+    const { default: Page } = await import('./GatePassesPage')
+    render(wrap(<Page />))
+    await userEvent.click(screen.getByRole('button', { name: 'Add gate pass' }))
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.selectOptions(within(dialog).getByLabelText('Vehicle'), 'v1')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Issue pass' }))
+    expect(await within(dialog).findByRole('alert')).toBeInTheDocument()
   })
 })
 
