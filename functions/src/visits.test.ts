@@ -134,13 +134,19 @@ describe('checkInVisit', () => {
     await rejects(checkIn(), 'failed-precondition', 'gate-time-over')
   })
 
-  it('returns the eligibility output untouched when blocked, creates nothing and locks nobody', async () => {
+  it('does not ask for another safety inspection on a later trip of the day', async () => {
     const { clearance: _c, ...base } = w.vehicles.get(VID) as never as Record<string, unknown> & { clearance?: unknown }
     void _c
     w.vehicles.set('veh_cccccccccc', { ...(base as never), plateNo: 'NEW-1', plateKey: 'NEW1' }) // never inspected
     giveCheckedInPass(w, 'veh_cccccccccc', 'drv1')
-    const res = await checkIn(sec(), { vehicleId: 'veh_cccccccccc' })
-    expect(res).toMatchObject({ outcome: 'blocked', plateNo: 'NEW-1', eligibility: { eligible: false, inspection: { status: 'never_inspected', cleared: false } } })
+    givePass(vw.gatePasses, 'veh_cccccccccc', 'drv1')
+    expect(await checkIn(sec(), { vehicleId: 'veh_cccccccccc' })).toMatchObject({ outcome: 'checked_in', plateNo: 'NEW-1' })
+  })
+
+  it('returns the eligibility output untouched when blocked, creates nothing and locks nobody', async () => {
+    w.vehicles.set(VID, { ...(w.vehicles.get(VID) as never), insuranceExpiry: '2000-01-01' })
+    const res = await checkIn()
+    expect(res).toMatchObject({ outcome: 'blocked', eligibility: { eligible: false, status: 'expired' } })
     expect(vw.visits.size).toBe(0)
     expect(w.drivers.get('drv1')?.driverOnDutyLock).toBeUndefined()
     expect(w.audits.at(-1)).toMatchObject({ action: 'visit.checkInBlocked' })

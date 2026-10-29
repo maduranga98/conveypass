@@ -5,7 +5,7 @@
 // The driver is identified by their PIN, typed at the gate: the server resolves it through `pinIndex` (HMAC under the
 // PIN_PEPPER), throttles failures per guard and answers every failure with the same generic error, so the gate cannot be
 // used to find out which PINs exist. The PIN is never stored, logged, audited or returned.
-import { evaluateEligibility, type EligibilityResult } from './checkEligibility.js'
+import { eligibleWithoutInspection, evaluateEligibility, type EligibilityResult } from './checkEligibility.js'
 import { audit as makeAudit, parse, requireActiveCaller, type Deps } from './core.js'
 import { dateKey as computeDateKey, DEFAULT_TIMEZONE, isValidTimezone } from './dates.js'
 import { fail, failWith } from './errors.js'
@@ -184,7 +184,7 @@ async function openWindowPass(deps: Deps, tenantId: string, vehicleId: string, t
 /**
  * A later entry of a vehicle that already checked in today (the first entry is the pass check-in). No PIN: the guard picks
  * the vehicle by QR or by plate and the driver is the one on the day's pass. Allowed only inside the gate time (default
- * 16 hours from the pass's first check-in), while the vehicle is outside, and while it is eligible.
+ * 16 hours from the pass's first check-in), while the vehicle is outside, and while it is eligible (no new safety inspection per trip).
  */
 export async function checkInVisit(deps: Deps, port: VisitPort, caller: Caller, raw: unknown): Promise<CheckInVisitResult> {
   const input = parse(checkInVisitSchema, raw)
@@ -235,9 +235,10 @@ export async function checkInVisit(deps: Deps, port: VisitPort, caller: Caller, 
     throw fail('failed-precondition', 'contractor-suspended', 'This contractor is suspended')
   }
 
-  // ---- eligibility: the combined Module 2-4 check, consumed as it is ----
+  // ---- eligibility: the combined Module 2-4 check, consumed as it is, minus the safety inspection: the vehicle was
+  // inspected (or let in) at its first entry of the day and a vehicle makes several trips, so it is not inspected again ----
   const eligibility = await evaluateEligibility(deps, caller.tenantId, { vehicleId: input.vehicleId, driverId })
-  if (!eligibility.eligible) {
+  if (!eligibleWithoutInspection(eligibility)) {
     await deps.data
       .writeAudit(
         makeAudit(caller, 'visit.checkInBlocked', input.visitId, { vehicleId: input.vehicleId, driverId, status: eligibility.status }, 'visit'),
