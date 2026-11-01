@@ -1,4 +1,5 @@
 import { BadgeCheck, Building2, CalendarCheck, ChartNoAxesColumn, ClipboardList, FileBarChart, Footprints, GraduationCap, History, LayoutDashboard, LogOut, Menu, QrCode, Settings, ShieldAlert, Tags, Truck, UserRound, Users, X } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { BrandMark } from '@/components/BrandMark'
@@ -9,48 +10,85 @@ import { useAuth, useSession } from '@/features/auth/useAuth'
 import { Bell } from '@/features/notifications/Bell'
 import { PushOptInCard } from '@/features/notifications/PushOptInCard'
 
-const nav = [
-  { to: '/admin/dashboard', label: strings.admin.nav.dashboard, icon: LayoutDashboard },
-  { to: '/admin/users', label: strings.admin.nav.users, icon: Users },
-  { to: '/admin/contractors', label: strings.admin.nav.contractors, icon: Building2 },
-  { to: '/admin/vehicles', label: strings.admin.nav.vehicles, icon: Truck },
-  { to: '/admin/drivers', label: strings.admin.nav.drivers, icon: UserRound },
-  { to: '/admin/qualifications', label: strings.qualifications.nav, icon: GraduationCap },
-  { to: '/admin/passes', label: strings.admin.nav.passes, icon: ClipboardList },
-  { to: '/admin/visits', label: strings.admin.nav.visits, icon: Footprints },
-  { to: '/admin/gate-passes', label: strings.gatePasses.nav, icon: BadgeCheck, end: true },
-  { to: '/admin/gate-passes/month-end', label: strings.gatePasses.navQualification, icon: CalendarCheck },
-  { to: '/admin/summary', label: strings.admin.nav.today, icon: ChartNoAxesColumn },
-  { to: '/admin/penalties', label: strings.admin.nav.penalties, icon: ShieldAlert },
-  { to: '/admin/penalty-types', label: strings.admin.nav.penaltyTypes, icon: Tags },
-  { to: '/admin/reports', label: strings.admin.nav.reports, icon: FileBarChart },
-  { to: '/admin/audit', label: strings.audit.nav, icon: History },
-  { to: '/admin/qr', label: strings.admin.nav.qr, icon: QrCode },
-  { to: '/admin/settings', label: strings.admin.nav.settings, icon: Settings },
-] as const
+type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean }
+
+const navGroups: ReadonlyArray<{ label: string; items: readonly NavItem[] }> = [
+  {
+    label: strings.admin.navGroups.overview,
+    items: [
+      { to: '/admin/dashboard', label: strings.admin.nav.dashboard, icon: LayoutDashboard },
+      { to: '/admin/summary', label: strings.admin.nav.today, icon: ChartNoAxesColumn },
+    ],
+  },
+  {
+    label: strings.admin.navGroups.operations,
+    items: [
+      { to: '/admin/passes', label: strings.admin.nav.passes, icon: ClipboardList },
+      { to: '/admin/visits', label: strings.admin.nav.visits, icon: Footprints },
+      { to: '/admin/gate-passes', label: strings.gatePasses.nav, icon: BadgeCheck, end: true },
+      { to: '/admin/gate-passes/month-end', label: strings.gatePasses.navQualification, icon: CalendarCheck },
+    ],
+  },
+  {
+    label: strings.admin.navGroups.fleet,
+    items: [
+      { to: '/admin/contractors', label: strings.admin.nav.contractors, icon: Building2 },
+      { to: '/admin/vehicles', label: strings.admin.nav.vehicles, icon: Truck },
+      { to: '/admin/drivers', label: strings.admin.nav.drivers, icon: UserRound },
+      { to: '/admin/users', label: strings.admin.nav.users, icon: Users },
+      { to: '/admin/qr', label: strings.admin.nav.qr, icon: QrCode },
+    ],
+  },
+  {
+    label: strings.admin.navGroups.compliance,
+    items: [
+      { to: '/admin/qualifications', label: strings.qualifications.nav, icon: GraduationCap },
+      { to: '/admin/penalties', label: strings.admin.nav.penalties, icon: ShieldAlert },
+      { to: '/admin/penalty-types', label: strings.admin.nav.penaltyTypes, icon: Tags },
+    ],
+  },
+  {
+    label: strings.admin.navGroups.insights,
+    items: [
+      { to: '/admin/reports', label: strings.admin.nav.reports, icon: FileBarChart },
+      { to: '/admin/audit', label: strings.audit.nav, icon: History },
+    ],
+  },
+  {
+    label: strings.admin.navGroups.system,
+    items: [{ to: '/admin/settings', label: strings.admin.nav.settings, icon: Settings }],
+  },
+]
 
 const darkFocus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-solid'
 
 function NavItems({ onNavigate }: { onNavigate?: () => void }) {
   return (
-    <nav aria-label={strings.admin.panel} className="space-y-1">
-      {nav.map(({ to, label, icon: Icon, ...rest }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={'end' in rest}
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            cn(
-              'flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold',
-              darkFocus,
-              isActive ? 'bg-accent text-ink' : 'text-slate-300 hover:bg-brand-hover hover:text-on-solid',
-            )
-          }
-        >
-          <Icon aria-hidden className="size-5 shrink-0" />
-          {label}
-        </NavLink>
+    <nav aria-label={strings.admin.panel} className="space-y-4">
+      {navGroups.map((group) => (
+        <div key={group.label}>
+          <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-300">{group.label}</p>
+          <div className="space-y-0.5">
+            {group.items.map(({ to, label, icon: Icon, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                onClick={onNavigate}
+                className={({ isActive }) =>
+                  cn(
+                    'flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-semibold',
+                    darkFocus,
+                    isActive ? 'bg-accent text-ink' : 'text-slate-300 hover:bg-brand-hover hover:text-on-solid',
+                  )
+                }
+              >
+                <Icon aria-hidden className="size-5 shrink-0" />
+                {label}
+              </NavLink>
+            ))}
+          </div>
+        </div>
       ))}
     </nav>
   )
