@@ -1,3 +1,5 @@
+import 'fake-indexeddb/auto'
+import { FirebaseError } from 'firebase/app'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -14,6 +16,8 @@ const logUnloadingCheck = vi.fn()
 let active: WithId<Visit>[] = []
 let summary: DailySummary | undefined
 let role = 'security'
+let uid = 'u1'
+let n = 0
 
 vi.mock('@/lib/api', () => ({
   checkOutVisit: (...a: unknown[]) => checkOutVisit(...a),
@@ -25,7 +29,7 @@ vi.mock('firebase/firestore', () => ({
   getDoc: async () => ({ exists: () => true, data: () => ({ tenantId: 'T', plateNo: 'WP LJ-4821' }) }),
 }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
-vi.mock('@/features/auth/useAuth', () => ({ useSession: () => ({ claims: { tenantId: 'T', role }, profile: { name: 'Pat' } }) }))
+vi.mock('@/features/auth/useAuth', () => ({ useSession: () => ({ uid, claims: { tenantId: 'T', role }, profile: { name: 'Pat' } }) }))
 vi.mock('@/features/gate/useGate', () => ({ useGates: () => ({ gates: [{ id: 'main', name: 'Main Gate' }], gate: { id: 'main', name: 'Main Gate' }, setGate: vi.fn() }) }))
 vi.mock('@/features/passes/useOnline', () => ({ useOnline: () => true }))
 vi.mock('@/features/passes/useToday', () => ({ useNow: () => WHEN + 90 * 60_000 }))
@@ -58,6 +62,8 @@ beforeEach(() => {
   active = []
   summary = undefined
   role = 'security'
+  uid = `u${++n}` // a fresh offline queue per test
+  vi.stubGlobal('navigator', { onLine: true })
   checkOutVisit.mockReset().mockResolvedValue({ visitId: 'vis_a', at: WHEN, unloadingMissing: false })
   logUnloadingCheck.mockReset().mockResolvedValue({ visitId: 'vis_a', at: WHEN })
 })
@@ -202,5 +208,67 @@ describe('visit timeline', () => {
     )
     expect(screen.getByText('by Night Guard')).toBeInTheDocument()
     expect(screen.queryByText('Still on site')).not.toBeInTheDocument()
+  })
+
+  describe('offline queue (Yard Officer)', () => {
+    beforeEach(() => {
+      role = 'yard'
+      active = [visit('vis_a', 'WP LJ-4821')]
+    })
+    const open = async (plate: RegExp) => {
+      const { default: UnloadingPage } = await import('./UnloadingPage')
+      const user = userEvent.setup()
+      render(wrap(<UnloadingPage />))
+      await user.click(await screen.findByRole('button', { name: plate }))
+      return { user, dialog: await screen.findByRole('dialog') }
+    }
+    const queueOf = async () => (await import('@/features/gate/gateQueue')).queueFor(uid).list()
+
+    it('offline: the answer is queued, not sent, and the list shows Pending sync', async () => {
+      vi.stubGlobal('navigator', { onLine: false })
+      const { user, dialog } = await open(/WP LJ-4821/)
+      await user.click(within(dialog).getByRole('button', { name: /No, not unloaded/ }))
+      await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+      await waitFor(async () => expect(await queueOf()).toHaveLength(1))
+      expect(logUnloadingCheck).not.toHaveBeenCalled()
+      expect((await queueOf())[0]).toMatchObject({ type: 'logUnloading', status: 'waiting', plateNo: 'WP LJ-4821', payload: { visitId: 'vis_a', unloaded: false } })
+      expect(await screen.findByText(/1 unloading check is saved on this phone/)).toBeInTheDocument()
+      expect(screen.getAllByText('Pending sync').length).toBeGreaterThan(0)
+    })
+
+    it('a changed answer before it syncs replaces the waiting one', async () => {
+      vi.stubGlobal('navigator', { onLine: false })
+      const { user, dialog: first } = await open(/WP LJ-4821/)
+      let dialog = first
+      await user.click(within(dialog).getByRole('button', { name: /No, not unloaded/ }))
+      await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+      await waitFor(async () => expect(await queueOf()).toHaveLength(1))
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      await user.click(screen.getByRole('button', { name: /WP LJ-4821/ }))
+      dialog = await screen.findByRole('dialog')
+      await user.click(within(dialog).getByRole('button', { name: /Yes, unloaded/ }))
+      await user.type(within(dialog).getByLabelText('Where was it unloaded?'), 'Bay 5')
+      await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+      await waitFor(async () => expect((await queueOf())[0]?.payload).toEqual({ visitId: 'vis_a', unloaded: true, unloadLocation: 'Bay 5' }))
+      expect(await queueOf()).toHaveLength(1)
+    })
+
+    it('a network failure while online queues it too', async () => {
+      logUnloadingCheck.mockRejectedValue(new FirebaseError('functions/internal', 'internal'))
+      const { user, dialog } = await open(/WP LJ-4821/)
+      await user.click(within(dialog).getByRole('button', { name: /No, not unloaded/ }))
+      await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+      await waitFor(async () => expect(await queueOf()).toHaveLength(1))
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    it('a typed refusal is an error banner and nothing is queued', async () => {
+      logUnloadingCheck.mockRejectedValue(Object.assign(new FirebaseError('functions/failed-precondition', 'no'), { details: { reason: 'visit-not-found' } }))
+      const { user, dialog } = await open(/WP LJ-4821/)
+      await user.click(within(dialog).getByRole('button', { name: /No, not unloaded/ }))
+      await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+      expect(await within(dialog).findByRole('alert')).toBeInTheDocument()
+      expect(await queueOf()).toEqual([])
+    })
   })
 })

@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom'
 import { BrandMark } from '@/components/BrandMark'
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 import { useAuth, useSession } from '@/features/auth/useAuth'
+import { useQueueSync } from '@/features/gate/gateQueue'
 import { cn } from '@/lib/cn'
 import { strings } from '@/lib/strings'
 
@@ -12,7 +13,9 @@ const iconButton =
 
 /** Mobile-first shell for every `/yard` screen: one row (name, today, account, sign out). The Yard Officer gets no notifications or push. */
 export default function YardLayout() {
-  const { profile } = useSession()
+  const { profile, uid } = useSession()
+  // The same offline queue loop as the security screens: on start, on `online`, every 30 s while items wait.
+  useQueueSync(uid)
   const { signOut } = useAuth()
   return (
     <div className="min-h-dvh bg-slate-50">

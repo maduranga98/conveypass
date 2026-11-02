@@ -1,5 +1,8 @@
 import { useEffect, useSyncExternalStore } from 'react'
-import { checkIn, denyEntry } from '@/lib/api'
+import { gatePassDenial } from '@/features/visits/gatePassDenial'
+import { deniedReasons } from '@/features/visits/reasons'
+import { checkIn, checkInVisit, checkOutVisit, denyEntry, logUnloadingCheck } from '@/lib/api'
+import { strings } from '@/lib/strings'
 import { classifyGateError } from './gateErrors'
 import { flushQueue, OfflineQueue, openGateStore, type EnqueueResult, type NewQueueItem, type QueueItem } from './offlineQueue'
 
@@ -64,7 +67,29 @@ export async function dismissQueued(uid: string, requestId: string): Promise<voi
   await refreshQueue(uid)
 }
 
-const send = (item: QueueItem) => (item.type === 'checkIn' ? checkIn(item.payload) : denyEntry(item.payload))
+/** A repeat entry the server answered but refused (eligibility, monthly pass): final, shown to the guard as a rejected item. */
+class QueuedRefusal extends Error {}
+
+async function send(item: QueueItem): Promise<unknown> {
+  switch (item.type) {
+    case 'checkIn':
+      return checkIn(item.payload)
+    case 'deny':
+      return denyEntry(item.payload)
+    case 'checkOutVisit':
+      return checkOutVisit(item.payload)
+    case 'logUnloading':
+      return logUnloadingCheck(item.payload)
+    case 'checkInVisit': {
+      const res = await checkInVisit(item.payload)
+      if (res.outcome === 'blocked') throw new QueuedRefusal(`${strings.gateMovements.refused}: ${deniedReasons(res.eligibility, { ignoreInspection: true }).join(', ')}`)
+      if (res.outcome === 'no_gate_pass') throw new QueuedRefusal(`${strings.gateMovements.refused}: ${gatePassDenial(res.gatePass)}`)
+      return res
+    }
+  }
+}
+
+const classify = (e: unknown) => (e instanceof QueuedRefusal ? { retry: false as const, message: e.message } : classifyGateError(e))
 
 /** Flushes the queue (oldest first, one at a time). Concurrent calls share one run. */
 export function syncQueue(uid: string): Promise<void> {
@@ -74,7 +99,7 @@ export function syncQueue(uid: string): Promise<void> {
     syncing.add(uid)
     emit()
     try {
-      await flushQueue(queueFor(uid), send, classifyGateError)
+      await flushQueue(queueFor(uid), send, classify)
     } catch {
       // IndexedDB trouble: try again on the next trigger
     } finally {
@@ -107,4 +132,14 @@ export function useQueueSync(uid: string): void {
 /** Pass ids with a check-in waiting on this phone ("Pending sync"), so a vehicle is never waved through twice. */
 export function pendingPassIds(queued: readonly QueueItem[]): Set<string> {
   return new Set(queued.flatMap((i) => (i.type === 'checkIn' && i.status === 'waiting' ? [i.payload.passId] : [])))
+}
+
+/** Vehicles with a repeat entry or check-out waiting on this phone, so the movements panel shows "Pending sync". */
+export function pendingMovements(queued: readonly QueueItem[], vehicleId: string): QueueItem[] {
+  return queued.filter((i) => i.status === 'waiting' && i.vehicleId === vehicleId && (i.type === 'checkInVisit' || i.type === 'checkOutVisit'))
+}
+
+/** Visit ids with an unloading answer waiting on this phone. */
+export function pendingUnloadingVisitIds(queued: readonly QueueItem[]): Set<string> {
+  return new Set(queued.flatMap((i) => (i.type === 'logUnloading' && i.status === 'waiting' ? [i.payload.visitId] : [])))
 }

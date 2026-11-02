@@ -7,10 +7,11 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { Modal } from '@/components/ui/Modal'
 import { NotificationBanner } from '@/components/ui/NotificationBanner'
 import { ListSkeleton } from '@/components/ui/Skeleton'
+import { useSession } from '@/features/auth/useAuth'
+import { dismissQueued, pendingUnloadingVisitIds, useOfflineQueue } from '@/features/gate/gateQueue'
+import { useLogUnloading } from '@/features/gate/useGateActions'
 import { useNow } from '@/features/passes/useToday'
-import { logUnloadingCheck } from '@/lib/api'
 import { cn } from '@/lib/cn'
-import { apiErrorMessage } from '@/lib/errors'
 import { strings } from '@/lib/strings'
 import { UNLOAD_LOCATION_MAX, UNLOAD_LOCATION_MIN } from '@/lib/visitLogic'
 import type { WithId } from '@/types'
@@ -33,6 +34,12 @@ export default function UnloadingPage() {
   const [pick, setPick] = useState<WithId<Visit> | null>(null)
   const shown = useMemo(() => active.items.filter((v) => matchesVisit(v, q)), [active.items, q])
   const places = useMemo(() => recentLocations(active.items), [active.items])
+  const { uid } = useSession()
+  const queued = useOfflineQueue(uid)
+  const unloadingItems = queued.filter((i) => i.type === 'logUnloading')
+  const waiting = unloadingItems.filter((i) => i.status === 'waiting')
+  const failed = unloadingItems.filter((i) => i.status === 'failed')
+  const pendingIds = useMemo(() => pendingUnloadingVisitIds(queued), [queued])
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4 py-5">
@@ -52,6 +59,19 @@ export default function UnloadingPage() {
       </label>
 
       <p className="text-base font-semibold text-slate-700">{t.onSite(active.items.length)} · {t.oldestFirst}</p>
+
+      {waiting.length > 0 && <NotificationBanner tone="warning" size="lg" title={t.pendingSync}>{t.pendingBanner(waiting.length)}</NotificationBanner>}
+      {failed.map((i) => (
+        <NotificationBanner
+          key={i.requestId}
+          tone="warning"
+          size="lg"
+          role="alert"
+          action={<button type="button" onClick={() => void dismissQueued(uid, i.requestId)} className="h-11 rounded-lg border-2 border-slate-300 bg-surface px-4 text-base font-bold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">{t.dismiss}</button>}
+        >
+          {t.failedBanner(i.plateNo, i.error ?? '')}
+        </NotificationBanner>
+      ))}
 
       {active.status === 'error' ? (
         <ErrorState message={strings.visits.loadFailed} error={active.error} onRetry={active.retry} />
@@ -82,6 +102,7 @@ export default function UnloadingPage() {
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-1">
                     <UnloadChip visit={v} />
+                    {pendingIds.has(v.id) && <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-1 text-sm font-extrabold text-ink">{t.pendingSync}</span>}
                     {v.dwellWarning && <DwellChip />}
                   </span>
                 </button>
@@ -107,6 +128,7 @@ function UnloadSheet({ visit, places, onClose }: { visit: WithId<Visit> | null; 
 
 function UnloadForm({ visit, places, onClose }: { visit: WithId<Visit>; places: string[]; onClose: () => void }) {
   const queryClient = useQueryClient()
+  const { logUnloading } = useLogUnloading()
   const [unloaded, setUnloaded] = useState<boolean | null>(visit.unloadingCheck?.unloaded ?? null)
   const [place, setPlace] = useState(visit.unloadingCheck?.unloadLocation ?? '')
   const [busy, setBusy] = useState(false)
@@ -120,16 +142,17 @@ function UnloadForm({ visit, places, onClose }: { visit: WithId<Visit>; places: 
     if (unloaded === null || !canSave) return
     setBusy(true)
     setError(null)
-    try {
-      await logUnloadingCheck({ visitId: visit.id, unloaded, ...(unloaded ? { unloadLocation: trimmed } : {}) })
+    const o = await logUnloading({ vehicleId: visit.vehicleId, plateNo: visit.plateNo }, visit.id, { unloaded, ...(unloaded ? { unloadLocation: trimmed } : {}) })
+    setBusy(false)
+    if (o.kind === 'error') return setError(o.message)
+    if (o.kind === 'ignored') return
+    if (o.kind === 'online') {
       void queryClient.invalidateQueries({ queryKey: ['dailySummary'] })
       toast.success(`${visit.plateNo}: ${t.saved}`)
-      onClose()
-    } catch (e) {
-      setError(apiErrorMessage(e))
-    } finally {
-      setBusy(false)
+    } else {
+      toast.success(`${visit.plateNo}: ${t.savedOffline}`)
     }
+    onClose()
   }
 
   const choice = (value: boolean, label: string, Icon: typeof Check) => (

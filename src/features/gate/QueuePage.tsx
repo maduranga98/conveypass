@@ -1,4 +1,4 @@
-import { ArrowLeft, CircleCheckBig, Clock, LogIn, RefreshCw, ShieldBan, TriangleAlert, X } from 'lucide-react'
+import { ArrowLeft, CircleCheckBig, Clock, DoorClosed, DoorOpen, LogIn, PackageCheck, RefreshCw, ShieldBan, TriangleAlert, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useSession } from '@/features/auth/useAuth'
@@ -45,8 +45,11 @@ export default function QueuePage() {
                   <div className="min-w-0">
                     <p className="text-2xl leading-tight font-black tracking-tight">{item.plateNo}</p>
                     <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
-                      {item.type === 'checkIn' ? <LogIn aria-hidden className="size-4" /> : <ShieldBan aria-hidden className="size-4" />}
-                      {item.type === 'checkIn' ? t.checkIn : t.deny}
+                      {(() => {
+                        const Icon = { checkIn: LogIn, deny: ShieldBan, checkInVisit: DoorOpen, checkOutVisit: DoorClosed, logUnloading: PackageCheck }[item.type]
+                        return <Icon aria-hidden className="size-4" />
+                      })()}
+                      {{ checkIn: t.checkIn, deny: t.deny, checkInVisit: t.checkInAgain, checkOutVisit: t.checkOut, logUnloading: t.unloading }[item.type]}
                     </p>
                     <p className="text-sm text-slate-700">{t.captured(when(item.capturedAtISO))}</p>
                   </div>
