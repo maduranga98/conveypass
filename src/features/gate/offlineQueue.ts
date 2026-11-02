@@ -1,5 +1,6 @@
 import { createStore, get, update, type UseStore } from 'idb-keyval'
 import type { CheckInPayload, DenyEntryPayload } from '@/types/passes'
+import type { CheckInVisitPayload, CheckOutVisitPayload, UnloadingCheckPayload } from '@/types/visits'
 
 /** More than this is refused with a clear message: the guard must get back online first. */
 export const MAX_QUEUE = 50
@@ -19,7 +20,16 @@ interface ItemBase {
   error?: string
 }
 
-export type QueueItem = ItemBase & ({ type: 'checkIn'; payload: CheckInPayload } | { type: 'deny'; payload: DenyEntryPayload })
+export type QueueItem = ItemBase &
+  (
+    | { type: 'checkIn'; payload: CheckInPayload }
+    | { type: 'deny'; payload: DenyEntryPayload }
+    /** Repeat entry of a vehicle (Security). `payload.requestId` equals `requestId`. */
+    | { type: 'checkInVisit'; payload: CheckInVisitPayload }
+    | { type: 'checkOutVisit'; payload: CheckOutVisitPayload }
+    /** Yard Officer's unloading answer. Last write wins on the server, so `requestId` is only the queue's own key. */
+    | { type: 'logUnloading'; payload: UnloadingCheckPayload }
+  )
 export type NewQueueItem = QueueItem extends infer T ? (T extends QueueItem ? Omit<T, 'status' | 'error'> : never) : never
 
 export type EnqueueResult = { ok: true; item: QueueItem; duplicate: boolean } | { ok: false; reason: 'full' }
@@ -47,8 +57,10 @@ export class OfflineQueue {
   }
 
   /**
-   * Adds an item, unless it is already there: the same requestId, or a waiting check-in for the same pass (the same
-   * vehicle can never be queued in twice). A full queue refuses new items.
+   * Adds an item, unless it is already there: the same requestId, a waiting check-in for the same pass, a waiting repeat
+   * entry for the same vehicle or a waiting check-out for the same visit (the same vehicle can never be queued in twice).
+   * A waiting unloading answer for the same visit is replaced by the newer one (keeps its place in line). A full queue
+   * refuses new items.
    */
   async enqueue(input: NewQueueItem): Promise<EnqueueResult> {
     let result: EnqueueResult = { ok: false, reason: 'full' }
@@ -58,11 +70,21 @@ export class OfflineQueue {
         const same = current.find(
           (i) =>
             i.requestId === input.requestId ||
-            (input.type === 'checkIn' && i.type === 'checkIn' && i.status === 'waiting' && i.payload.passId === input.payload.passId),
+            (input.type === 'checkIn' && i.type === 'checkIn' && i.status === 'waiting' && i.payload.passId === input.payload.passId) ||
+            (input.type === 'checkInVisit' && i.type === 'checkInVisit' && i.status === 'waiting' && i.payload.vehicleId === input.payload.vehicleId) ||
+            (input.type === 'checkOutVisit' && i.type === 'checkOutVisit' && i.status === 'waiting' && i.payload.visitId === input.payload.visitId),
         )
         if (same) {
           result = { ok: true, item: same, duplicate: true }
           return current
+        }
+        if (input.type === 'logUnloading') {
+          const older = current.find((i) => i.type === 'logUnloading' && i.status === 'waiting' && i.payload.visitId === input.payload.visitId)
+          if (older) {
+            const item = { ...input, status: 'waiting', createdAt: older.createdAt } as QueueItem
+            result = { ok: true, item, duplicate: false }
+            return current.map((i) => (i === older ? item : i))
+          }
         }
         if (current.length >= MAX_QUEUE) {
           result = { ok: false, reason: 'full' }

@@ -1,3 +1,5 @@
+import 'fake-indexeddb/auto'
+import { FirebaseError } from 'firebase/app'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -9,12 +11,14 @@ const ts = (ms: number) => ({ toMillis: () => ms }) as never
 const FIRST_IN = Date.UTC(2026, 2, 10, 2, 0, 0)
 let now = FIRST_IN + 3 * 3_600_000
 let visits: WithId<Visit>[] = []
+let uid = 'sec1'
+let n = 0
 
 const checkInVisit = vi.fn()
 const checkOutVisit = vi.fn()
 vi.mock('@/lib/api', () => ({ checkInVisit: (...a: unknown[]) => checkInVisit(...a), checkOutVisit: (...a: unknown[]) => checkOutVisit(...a) }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
-vi.mock('@/features/auth/useAuth', () => ({ useSession: () => ({ claims: { tenantId: 'T' } }) }))
+vi.mock('@/features/auth/useAuth', () => ({ useSession: () => ({ uid, claims: { tenantId: 'T' } }) }))
 vi.mock('@/features/passes/queries', () => ({ useTenant: () => ({ data: { timezone: 'Asia/Colombo' } }) }))
 vi.mock('@/features/passes/useToday', () => ({ useNow: () => now }))
 vi.mock('./useVehicleVisits', () => ({ useVehicleVisits: () => ({ items: visits, status: 'ready' }) }))
@@ -34,6 +38,8 @@ const show = async (over: { readOnly?: boolean; online?: boolean } = {}) => {
 }
 
 beforeEach(() => {
+  uid = `sec${++n}` // one queue per account: a fresh one per test
+  vi.stubGlobal('navigator', { onLine: true })
   now = FIRST_IN + 3 * 3_600_000
   visits = []
   checkInVisit.mockReset().mockResolvedValue({ outcome: 'checked_in', visitId: 'vis_x', at: now, driverName: 'D', plateNo: 'WP LJ-4821' })
@@ -96,10 +102,59 @@ describe('VehicleMovements', () => {
     expect(await screen.findByText('Vehicle documents expired')).toBeInTheDocument()
   })
 
-  it('read-only roles and an offline phone get no buttons', async () => {
+  it('read-only roles get no buttons', async () => {
     visits = [visit('vis_a', FIRST_IN, null)]
     await show({ readOnly: true })
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  describe('offline', () => {
+    const queueOf = async () => (await import('./gateQueue')).queueFor(uid).list()
+
+    it('CHECK OUT stays enabled offline: it is queued with the visit id and shows Pending sync', async () => {
+      vi.stubGlobal('navigator', { onLine: false })
+      visits = [visit('vis_a', FIRST_IN, null)]
+      await show({ online: false })
+      await userEvent.click(screen.getByRole('button', { name: /CHECK OUT/ }))
+      expect(await screen.findByText('Pending sync')).toBeInTheDocument()
+      expect(checkOutVisit).not.toHaveBeenCalled()
+      const [item] = await queueOf()
+      expect(item).toMatchObject({ type: 'checkOutVisit', status: 'waiting', plateNo: 'WP LJ-4821', vehicleId: 'veh_aaaaaaaaaa', payload: { visitId: 'vis_a', requestId: expect.any(String) } })
+      expect(item?.requestId).toBe((item as { payload: { requestId: string } }).payload.requestId)
+      // The vehicle cannot be moved twice while the first movement is waiting.
+      expect(screen.queryByRole('button', { name: /CHECK/ })).not.toBeInTheDocument()
+    })
+
+    it('CHECK IN AGAIN is queued offline with its own visit id and the gate', async () => {
+      vi.stubGlobal('navigator', { onLine: false })
+      visits = [visit('vis_a', FIRST_IN, FIRST_IN + 3_600_000)]
+      await show({ online: false })
+      await userEvent.click(screen.getByRole('button', { name: /CHECK IN AGAIN/ }))
+      expect(await screen.findByText('Pending sync')).toBeInTheDocument()
+      expect(checkInVisit).not.toHaveBeenCalled()
+      const [item] = await queueOf()
+      expect(item).toMatchObject({ type: 'checkInVisit', payload: { vehicleId: 'veh_aaaaaaaaaa', gateId: 'main', visitId: expect.stringMatching(/^vis_[a-z0-9]{10}$/) } })
+    })
+
+    it('a network failure while "online" queues the same request id it just sent', async () => {
+      visits = [visit('vis_a', FIRST_IN, null)]
+      checkOutVisit.mockRejectedValue(new FirebaseError('functions/internal', 'internal'))
+      await show()
+      await userEvent.click(screen.getByRole('button', { name: /CHECK OUT/ }))
+      expect(await screen.findByText('Pending sync')).toBeInTheDocument()
+      const sent = checkOutVisit.mock.calls[0]?.[0] as { requestId: string }
+      expect((await queueOf())[0]?.requestId).toBe(sent.requestId)
+    })
+
+    it('a typed server refusal is shown as an error and is not queued', async () => {
+      visits = [visit('vis_a', FIRST_IN, null)]
+      checkOutVisit.mockRejectedValue(Object.assign(new FirebaseError('functions/failed-precondition', 'no'), { details: { reason: 'visit-not-found' } }))
+      await show()
+      await userEvent.click(screen.getByRole('button', { name: /CHECK OUT/ }))
+      expect(await screen.findByRole('alert')).toBeInTheDocument()
+      expect(screen.queryByText('Pending sync')).not.toBeInTheDocument()
+      expect(await queueOf()).toEqual([])
+    })
   })
 
   it('shows nothing for a pass that was checked in before movements existed', async () => {
