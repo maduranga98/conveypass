@@ -2072,6 +2072,7 @@ export const strings = {
   },
 
   admin: {
+    navGroups: { overview: 'Overview', operations: 'Gate operations', fleet: 'Fleet and people', compliance: 'Compliance', insights: 'Insights', system: 'System' },
     nav: { dashboard: 'Dashboard', visits: 'Visits', today: 'Today', reports: 'Reports', users: 'Users', contractors: 'Contractors', vehicles: 'Vehicles', drivers: 'Drivers', passes: 'Passes', penalties: 'Penalties', penaltyTypes: 'Penalty types', qr: 'QR labels', settings: 'Settings' },
     vehicleTypes: {
       title: 'Vehicle types',
