@@ -303,11 +303,11 @@ Firebase sends the mail.
 - **Email enumeration protection**: *Authentication > Settings > User actions > Enable email enumeration protection*. With
   it on, Firebase Auth also stops answering "no such user" to the browser. (The app already shows the same confirmation
   for every address; this closes the same hole at the API.)
-- **Authorized domains**: *Authentication > Settings > Authorized domains > Add domain* `app.convoypass.com` (and the
+- **Authorized domains**: *Authentication > Settings > Authorized domains > Add domain* `convoypass.com` (and the
   staging domain). Without it the "continue" link in the emails is refused; the app then retries without it, but clients
   lose the link back to the login page.
 - **Email action URL**: *Authentication > Templates > (Password reset, Email address verification) > pencil icon >
-  Customize action URL* = `https://app.convoypass.com/auth/action`. The app's `/auth/action` page handles
+  Customize action URL* = `https://convoypass.com/auth/action`. The app's `/auth/action` page handles
   `resetPassword` and `verifyEmail`; every other mode is ignored. Set it for both templates.
 - **Templates**: same screen. Set the sender name (for example `ConvoyPass`), the reply-to, the subject lines
   (for example "Reset your ConvoyPass password" and "Verify your email for ConvoyPass") and the language

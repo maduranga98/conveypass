@@ -15,7 +15,7 @@ function setup(over: Partial<CliIo> = {}) {
     list: async () => [...docs.entries()].map(([hash, invite]) => ({ hash, invite })),
     delete: async (h, a) => { docs.delete(h); audits.push(a) },
   }
-  const io: CliIo = { store, now: () => NOW, out: (l) => lines.push(l), appBaseUrl: 'https://app.convoypass.com', firebaserc: RC, ...over }
+  const io: CliIo = { store, now: () => NOW, out: (l) => lines.push(l), appBaseUrl: 'https://convoypass.com', firebaserc: RC, ...over }
   return { docs, audits, lines, io, text: () => lines.join('\n') }
 }
 const linkOf = (text: string) => /https?:\/\/\S+\/setup#code=\S+/.exec(text)?.[0] ?? ''
@@ -61,7 +61,7 @@ describe('invites create', () => {
     t = setup({ appBaseUrl: undefined })
     expect(await runInvitesCli(['create', '--env', 'emulator'], t.io)).toBe(1)
     expect(t.text()).toMatch(/APP_BASE_URL/)
-    t = setup({ appBaseUrl: 'http://app.convoypass.com' })
+    t = setup({ appBaseUrl: 'http://convoypass.com' })
     expect(await runInvitesCli(['create', '--env', 'staging'], t.io)).toBe(1)
     t = setup({ appBaseUrl: 'http://localhost:5173' })
     expect(await runInvitesCli(['create', '--env', 'emulator'], t.io)).toBe(0)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { inviteMessage, mailtoUrl, whatsappUrl } from './share'
 
-const LINK = 'https://app.convoypass.com/setup#code=Abc_def-123'
+const LINK = 'https://convoypass.com/setup#code=Abc_def-123'
 const EXPIRES = new Date(2026, 9, 14, 12).getTime() // 14 Oct 2026, local noon: timezone-proof
 
 describe('invite sharing', () => {

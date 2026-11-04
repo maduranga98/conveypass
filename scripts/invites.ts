@@ -5,7 +5,7 @@
  *   npm run invite:list   -- --env staging
  *   npm run invite:revoke -- --env prod --confirm-prod 1a2b3c4d
  *
- * Needs APP_BASE_URL (the public origin, e.g. https://app.convoypass.com; read from the environment or `.env`).
+ * Needs APP_BASE_URL (the public origin, e.g. https://convoypass.com; read from the environment or `.env`).
  * The link is printed once; only its hash is stored. Environment handling: scripts/lib/env.ts.
  */
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'

@@ -55,7 +55,7 @@ export function parseCreateOptions(v: { company?: string | undefined; 'lock-emai
 }
 
 export function appBaseFor(env: 'emulator' | 'staging' | 'prod', raw: string | undefined): string {
-  if (!raw?.trim()) throw new UsageError('APP_BASE_URL is required (the public origin of the web app, e.g. https://app.convoypass.com)')
+  if (!raw?.trim()) throw new UsageError('APP_BASE_URL is required (the public origin of the web app, e.g. https://convoypass.com)')
   let u: URL
   try {
     u = new URL(raw.trim())

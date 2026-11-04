@@ -20,7 +20,7 @@ function setup(role: string | null = 'admin', over: Partial<AdminResetIo> = {}) 
       requireChangeAtNextLogin: async (uid) => void calls.push(`mustChange:${uid}`),
       writeAudit: async (e) => void audits.push(e),
     },
-    out: (l) => lines.push(l), firebaserc: RC, appBaseUrl: 'https://app.convoypass.com', randomPassword: () => 'Tmp-Passw0rd-Xk', ...over,
+    out: (l) => lines.push(l), firebaserc: RC, appBaseUrl: 'https://convoypass.com', randomPassword: () => 'Tmp-Passw0rd-Xk', ...over,
   }
   return { io, calls, audits, text: () => lines.join('\n') }
 }
@@ -30,7 +30,7 @@ describe('admin:reset', () => {
   it('--link prints a reset link with the app login as continue URL, writes the audit entry, changes nothing else', async () => {
     const t = setup()
     expect(await runAdminReset([...ARGS, '--link'], t.io)).toBe(0)
-    expect(t.calls).toEqual(['link:admin@acme.test:https://app.convoypass.com/login/staff'])
+    expect(t.calls).toEqual(['link:admin@acme.test:https://convoypass.com/login/staff'])
     expect(t.text()).toContain('oobCode=SECRET')
     expect(t.audits).toEqual([{
       tenantId: 'ten_1', action: 'admin.recovery', actorUid: 'admin-reset', actorRole: 'system', targetType: 'user', targetId: 'u1', meta: { method: 'link', env: 'staging' },
