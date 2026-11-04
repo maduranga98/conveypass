@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const CODE = 'Qm9ndXNDb2RlQm9ndXNDb2RlQm9ndXNDb2RlQm9ndXNDb2Q'
-const LINK = `https://app.convoypass.com/setup#code=${CODE}`
+const LINK = `https://convoypass.com/setup#code=${CODE}`
 const createInvite = vi.hoisted(() => vi.fn())
 const listInvites = vi.hoisted(() => vi.fn())
 const revokeInvite = vi.hoisted(() => vi.fn())

@@ -35,7 +35,7 @@ const detail = (admins: unknown[]) => ({ tenant: { tenantId: 'ten_aaaaaaaaaa', n
 const admin = (uid: string, over: Record<string, unknown> = {}) => ({
   uid, name: `Admin ${uid}`, email: `${uid}@acme.test`, status: 'active', mustChangePassword: false, createdAt: NOW - 1000, lastSignInAt: NOW - 5000, ...over,
 })
-const creds = () => ({ tenantId: 'ten_aaaaaaaaaa', adminUid: 'u1', loginUrl: 'https://app.convoypass.com/login', tempPassword: PW })
+const creds = () => ({ tenantId: 'ten_aaaaaaaaaa', adminUid: 'u1', loginUrl: 'https://convoypass.com/login', tempPassword: PW })
 
 let qc: QueryClient
 const wrap = (ui: React.ReactElement, path = '/platform/workspaces') => {
@@ -67,7 +67,7 @@ beforeEach(() => {
 })
 
 describe('credentials message and card', () => {
-  const view = { company: 'Smith & Sons #1', loginUrl: 'https://app.convoypass.com/login', email: 'ada+ops@acme.test', tempPassword: PW }
+  const view = { company: 'Smith & Sons #1', loginUrl: 'https://convoypass.com/login', email: 'ada+ops@acme.test', tempPassword: PW }
   it('the message has company, login URL, email, password and the notice', () => {
     const text = credentialsMessage({ company: view.company, loginUrl: view.loginUrl, email: view.email, password: PW })
     expect(text).toContain('Smith & Sons #1')
