@@ -88,7 +88,11 @@ function VehicleForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'
     resolver: zodResolver(
       schemaFor(typeOptions).superRefine((v, ctx) => {
         if (isAdmin && !existing && !v.contractorId) ctx.addIssue({ code: 'custom', path: ['contractorId'], message: strings.vehicles.errors.contractor })
-        for (const path of ['insuranceExpiry', 'registrationExpiry', 'annualInspectionExpiry'] as const) {
+        // The annual inspection date is not asked of supervisors.
+        const required = isAdmin
+          ? (['insuranceExpiry', 'registrationExpiry', 'annualInspectionExpiry'] as const)
+          : (['insuranceExpiry', 'registrationExpiry'] as const)
+        for (const path of required) {
           if (v[path] === '') ctx.addIssue({ code: 'custom', path: [path], message: strings.eligibility.required })
         }
       }),
@@ -121,7 +125,7 @@ function VehicleForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'
           ...(makeModel !== (existing.makeModel ?? '') ? { makeModel } : {}),
           ...(v.insuranceExpiry !== (existing.insuranceExpiry ?? '') ? { insuranceExpiry: v.insuranceExpiry } : {}),
           ...(v.registrationExpiry !== (existing.registrationExpiry ?? '') ? { registrationExpiry: v.registrationExpiry } : {}),
-          ...(v.annualInspectionExpiry !== (existing.annualInspectionExpiry ?? '') ? { annualInspectionExpiry: v.annualInspectionExpiry } : {}),
+          ...(isAdmin && v.annualInspectionExpiry !== (existing.annualInspectionExpiry ?? '') ? { annualInspectionExpiry: v.annualInspectionExpiry } : {}),
         }
         if (Object.keys(changes).length > 0) await updateVehicle({ vehicleId: existing.id, ...changes })
         if (!sameSet(v.driverIds, initialDrivers)) await setVehicleDrivers({ vehicleId: existing.id, driverIds: v.driverIds })
@@ -134,7 +138,7 @@ function VehicleForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'
           ...(makeModel ? { makeModel } : {}),
           insuranceExpiry: v.insuranceExpiry,
           registrationExpiry: v.registrationExpiry,
-          annualInspectionExpiry: v.annualInspectionExpiry,
+          ...(isAdmin && v.annualInspectionExpiry ? { annualInspectionExpiry: v.annualInspectionExpiry } : {}),
           ...(v.driverIds.length > 0 ? { driverIds: v.driverIds } : {}),
         })
         toast.success(t.created)
@@ -189,7 +193,9 @@ function VehicleForm({ scope, target, onClose, onCreated }: Omit<Props, 'target'
       <div className="grid gap-4 sm:grid-cols-2">
         <Input label={t.insuranceExpiry} type="date" error={errors.insuranceExpiry?.message} {...register('insuranceExpiry')} />
         <Input label={t.registrationExpiry} type="date" error={errors.registrationExpiry?.message} {...register('registrationExpiry')} />
-        <Input label={t.annualInspectionExpiry} type="date" hint={strings.eligibility.annualInspectionHint} error={errors.annualInspectionExpiry?.message} {...register('annualInspectionExpiry')} />
+        {isAdmin && (
+          <Input label={t.annualInspectionExpiry} type="date" hint={strings.eligibility.annualInspectionHint} error={errors.annualInspectionExpiry?.message} {...register('annualInspectionExpiry')} />
+        )}
       </div>
 
       {isAdmin &&
