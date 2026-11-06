@@ -6,8 +6,8 @@
 //   credentials are Application Default Credentials; a missing or wrong login prints the exact commands to fix it
 // Logic is pure where it can be (tests inject `out`, `prompt` and `preflight`); `runScript` does the I/O.
 import { getApp, getApps, initializeApp } from 'firebase-admin/app'
-import { getAuth } from 'firebase-admin/auth'
-import { getFirestore } from 'firebase-admin/firestore'
+import { getAuth, type Auth } from 'firebase-admin/auth'
+import { getFirestore, type Firestore } from 'firebase-admin/firestore'
 import { readFileSync } from 'node:fs'
 import { createInterface } from 'node:readline/promises'
 import { parseArgs } from 'node:util'
@@ -191,7 +191,7 @@ export function clearEmulatorEnv(env: NodeJS.ProcessEnv): void {
 }
 
 /** Points the Admin SDK at the target (emulator hosts, or ADC for a real project). Safe to call more than once. */
-export function connect(target: Target): { auth: ReturnType<typeof getAuth>; db: ReturnType<typeof getFirestore> } {
+export function connect(target: Target): { auth: Auth; db: Firestore } {
   if (target.env === 'emulator') applyEmulatorEnv(process.env, readJson<{ emulators?: Record<string, { port?: number }> }>('firebase.json'))
   else clearEmulatorEnv(process.env)
   const app = getApps().length > 0 ? getApp() : initializeApp({ projectId: target.projectId })
