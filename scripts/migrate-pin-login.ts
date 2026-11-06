@@ -9,7 +9,7 @@
  * the --out CSV (outside the repo, mode 0600). Environment handling (banner, prod confirmation, credentials):
  * scripts/lib/env.ts. Logic: scripts/migratePinLogin.ts.
  */
-import { FieldValue } from 'firebase-admin/firestore'
+import { FieldValue, type QueryDocumentSnapshot, type Transaction } from 'firebase-admin/firestore'
 import { parseArgs } from 'node:util'
 import { COMMON_OPTIONS, connect, main } from './lib/env.ts'
 import { scriptPepper } from './lib/pinScript.ts'
@@ -55,8 +55,8 @@ main({
       listCandidates: async () => {
         const snap = await db.collection('users').where('role', 'in', ['driver', 'security']).get()
         return snap.docs
-          .filter((d) => d.get('loginType') !== 'pin')
-          .map((d): Candidate => ({
+          .filter((d: QueryDocumentSnapshot) => d.get('loginType') !== 'pin')
+          .map((d: QueryDocumentSnapshot): Candidate => ({
             uid: d.id,
             name: String(d.get('name') ?? ''),
             role: d.get('role') as Candidate['role'],
@@ -75,7 +75,7 @@ main({
         await auth.setCustomUserClaims(uid, claims)
       },
       createPinIndex: (key, entry) =>
-        db.runTransaction(async (tx) => {
+        db.runTransaction(async (tx: Transaction) => {
           const ref = db.doc(`pinIndex/${key}`)
           if ((await tx.get(ref)).exists) return false
           tx.create(ref, { ...entry, createdAt: FieldValue.serverTimestamp() })

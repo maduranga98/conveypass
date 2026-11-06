@@ -8,7 +8,7 @@
  * Needs APP_BASE_URL (the public origin, e.g. https://convoypass.com; read from the environment or `.env`).
  * The link is printed once; only its hash is stored. Environment handling: scripts/lib/env.ts.
  */
-import { FieldValue, Timestamp } from 'firebase-admin/firestore'
+import { FieldValue, Timestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore'
 import { connect, loadDotEnv, main, readJson, type Firebaserc, type Target } from './lib/env.ts'
 import { runInvitesCli, type InviteStore, type StoredInvite } from './invitesCli.ts'
 
@@ -31,7 +31,7 @@ The link is printed once and cannot be recovered. APP_BASE_URL must be set (envi
 const storeFor = (target: Target): InviteStore => {
   const { db } = connect(target)
   const col = db.collection('setupInvites')
-  const ms = (v: unknown): number | null => (v instanceof Timestamp ? v.toMillis() : null)
+  const ms = (v: unknown): number | null => (v instanceof Timestamp ? (v as Timestamp).toMillis() : null)
   return {
     create: async (hash, i, audit) => {
       const batch = db.batch()
@@ -46,7 +46,7 @@ const storeFor = (target: Target): InviteStore => {
       await batch.commit()
     },
     list: async () =>
-      (await col.get()).docs.map((d): { hash: string; invite: StoredInvite } => {
+      (await col.get()).docs.map((d: QueryDocumentSnapshot): { hash: string; invite: StoredInvite } => {
         const x = d.data()
         return {
           hash: d.id,
