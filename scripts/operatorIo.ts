@@ -1,7 +1,7 @@
 // Admin SDK wiring for the super admin scripts (create, disable, doctor, dev). The environment is already resolved,
 // confirmed and credential-checked by lib/env.ts when this runs.
 import type { UserRecord } from 'firebase-admin/auth'
-import { FieldValue } from 'firebase-admin/firestore'
+import { FieldValue, type Transaction } from 'firebase-admin/firestore'
 import { readFileSync } from 'node:fs'
 import { connect, loadDotEnv, readJson, type Firebaserc, type Target } from './lib/env.ts'
 import { readPasswordFromStdin, generatePassword } from './lib/secrets.ts'
@@ -55,7 +55,7 @@ export function operatorIo(target: Target): OperatorIo {
           : null
       },
       saveOperator: (uid, doc, a) =>
-        db.runTransaction(async (tx) => {
+        db.runTransaction(async (tx: Transaction) => {
           const ref = db.doc(`operators/${uid}`)
           const exists = (await tx.get(ref)).exists
           if (exists) tx.update(ref, { ...doc, updatedAt: FieldValue.serverTimestamp() })

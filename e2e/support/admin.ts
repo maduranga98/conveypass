@@ -2,7 +2,7 @@
 // loader cannot load firebase-admin. Emulators only.
 import { initializeApp, getApps } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
-import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
+import { FieldValue, getFirestore, Timestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore'
 import { tenantDefaults } from '../../functions/src/tenants/tenantDefaults.ts'
 import { DEV_PIN_PEPPER, pinKey } from '../../functions/src/pin.ts'
 import { CONTRACTOR, DRIVER_PIN, PASSWORD, PLATE, PROJECT, SECURITY_PIN, STAFF, TENANT, VEHICLE } from './constants.ts'
@@ -98,7 +98,7 @@ const notificationsFor = async (uid: string): Promise<{ id: string; read: boolea
 
 /** Makes an invite (found by hash prefix) expired, the way waiting past its expiry date would. */
 async function expireInvite(hashPrefix: string): Promise<string> {
-  const docs = (await db.collection('setupInvites').get()).docs.filter((d) => d.id.startsWith(hashPrefix))
+  const docs = (await db.collection('setupInvites').get()).docs.filter((d: QueryDocumentSnapshot) => d.id.startsWith(hashPrefix))
   if (docs.length !== 1) throw new Error(`expected one invite for ${hashPrefix}, found ${docs.length}`)
   await docs[0]!.ref.update({ expiresAt: Timestamp.fromMillis(Date.now() - 60_000) })
   return docs[0]!.id
